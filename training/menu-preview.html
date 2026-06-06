@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" />
+<title>Bball Menu Mockup</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --bg-2:#111114; --surface:#16161a; --surface-2:#1d1d22;
+    --card:#1a1a1f; --border:#2a2a30; --border-2:#3a3a42;
+    --text:#f5f5f7; --muted:#9a9aa3; --faint:#5a5a64;
+    --accent:#FF6A1F; --accent-2:#FF8A4C; --accent-soft:rgba(255,106,31,.15);
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;height:100%}
+  body{display:flex;flex-direction:column;height:100dvh;background:radial-gradient(ellipse at top,rgba(255,106,31,.08),transparent 50%),var(--bg)}
+
+  /* Header */
+  header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  header .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:900;font-size:15px;color:#fff;letter-spacing:.5px}
+  header h1{margin:0;font-size:15px;font-weight:800;line-height:1.1}
+  header small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-top:2px}
+  header .pchip{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:5px 10px 5px 5px;font-size:13px;font-weight:700}
+  header .pchip .av{width:26px;height:26px;border-radius:50%;background:#2dd4bf;display:grid;place-items:center;font-size:11px;color:#000;font-weight:900}
+
+  /* Main content area (just placeholder for mockup) */
+  main{flex:1;overflow:auto;padding:22px 16px 100px}
+  main h2{margin:0 0 4px;font-size:22px;font-weight:900}
+  main p.sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+  .demo-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:12px}
+  .demo-card b{color:var(--text)}
+
+  /* Bottom nav */
+  .botnav{position:fixed;left:0;right:0;bottom:0;background:rgba(11,11,13,.92);backdrop-filter:saturate(160%) blur(14px);-webkit-backdrop-filter:saturate(160%) blur(14px);border-top:1px solid var(--border);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:5}
+  .botnav .navlink{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;color:var(--faint);font-size:10.5px;font-weight:700;letter-spacing:.2px;cursor:pointer;background:none;border:0;font-family:inherit}
+  .botnav .navlink .ic{font-size:20px;line-height:1}
+  .botnav .navlink.active{color:var(--accent)}
+  .botnav .navlink.active .ic{transform:scale(1.08)}
+  .botnav .more-btn{position:relative}
+  .botnav .more-btn .ic{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--accent-soft);color:var(--accent);font-size:18px;margin-bottom:2px;transition:transform .15s}
+  .botnav .more-btn:active .ic{transform:scale(.92)}
+
+  /* Menu sheet overlay */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s;z-index:10}
+  .sheet-bg.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(180deg,#15151a,#0e0e12);border-radius:24px 24px 0 0;border-top:1px solid var(--border-2);transform:translateY(100%);transition:transform .32s cubic-bezier(.16,1,.3,1);z-index:11;max-height:88dvh;display:flex;flex-direction:column;box-shadow:0 -20px 50px rgba(0,0,0,.5)}
+  .sheet.open{transform:translateY(0)}
+  .sheet .handle{width:42px;height:5px;background:#3a3a42;border-radius:3px;margin:10px auto 4px}
+  .sheet .head{text-align:center;padding:10px 16px 6px;position:relative}
+  .sheet .head .tag{color:var(--accent);font-size:11px;font-weight:900;letter-spacing:1.4px}
+  .sheet .head h2{margin:6px 0 4px;font-size:26px;font-weight:900;line-height:1.05}
+  .sheet .head p{margin:0;color:var(--muted);font-size:13.5px}
+  .sheet .close{position:absolute;top:6px;right:14px;width:34px;height:34px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font-size:18px;color:var(--text);cursor:pointer}
+
+  .grid{padding:16px 14px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;overflow:auto;flex:1}
+  .tile{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px 8px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:transform .12s,border-color .12s,background .15s;text-decoration:none;color:var(--text);min-height:120px}
+  .tile:active{transform:scale(.96);border-color:var(--border-2);background:var(--surface)}
+  .tile .av{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:24px;line-height:1;color:#fff;font-weight:900;box-shadow:0 4px 10px rgba(0,0,0,.4)}
+  .tile .lbl{font-size:13px;font-weight:800;text-align:center;line-height:1.15;letter-spacing:.1px}
+  /* Per-tile colors (mirror player picker vibe) */
+  .av-home{background:#FF6A1F}
+  .av-less{background:#ec4899}
+  .av-pick{background:#fb7185}
+  .av-mine{background:#fbbf24;color:#1a1a1f}
+  .av-play{background:#a78bfa}
+  .av-prac{background:#fb923c}
+  .av-full{background:#8b5cf6}
+  .av-brk{background:#6366f1}
+  .av-101{background:#3b82f6}
+  .av-nba{background:#f59e0b}
+  .av-notes{background:#34d399;color:#0b0b0d}
+  .av-admin{background:#94a3b8;color:#0b0b0d}
+
+  /* hint pill at top of main */
+  .hint{display:inline-block;background:var(--accent-soft);color:var(--accent);border:1px solid rgba(255,106,31,.3);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">W</div>
+  <div>
+    <h1>Warriors Training</h1>
+    <small>Coach Dale · Film, Drills, Plays</small>
+  </div>
+  <div class="pchip"><div class="av">JF</div>Jayden</div>
+</header>
+
+<main>
+  <div class="hint">📱 MOBILE NAV MOCKUP — OPTION B</div>
+  <h2>Welcome, Jayden.</h2>
+  <p class="sub">This is your normal home view. Try the orange <b>More</b> button at the bottom-center.</p>
+  <div class="demo-card">
+    <b>How it works:</b> The 4 bottom-nav items are your most-used pages — Home, Lessons, Picks, Practice. Tap the big orange ⊞ <b>More</b> button to open a sheet with every menu tile.
+  </div>
+  <div class="demo-card">
+    <b>Why this design:</b> Primary actions stay 1-tap. Secondary pages (Full Game, Game Breakdown, NBA, Notes, etc.) all appear at once as big colorful icon tiles — same look as the "Who's training today?" picker.
+  </div>
+  <div class="demo-card">
+    <b>Tap behavior:</b> Tap an icon → it would normally navigate. Here it just closes the sheet. Tap the X or the dim background to dismiss.
+  </div>
+</main>
+
+<nav class="botnav">
+  <button class="navlink active"><span class="ic">🏠</span>Home</button>
+  <button class="navlink"><span class="ic">🎯</span>Lessons</button>
+  <button class="navlink more-btn" id="moreBtn"><span class="ic">⊞</span>More</button>
+  <button class="navlink"><span class="ic">📌</span>Picks</button>
+  <button class="navlink"><span class="ic">🏀</span>Practice</button>
+</nav>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="handle"></div>
+  <div class="head">
+    <div class="tag">MENU</div>
+    <h2>Where to?</h2>
+    <p>Tap a tile to jump there.</p>
+    <button class="close" id="closeBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="grid">
+    <a class="tile"><div class="av av-home">🏠</div><div class="lbl">Home</div></a>
+    <a class="tile"><div class="av av-less">🎯</div><div class="lbl">Lessons</div></a>
+    <a class="tile"><div class="av av-pick">📌</div><div class="lbl">Coach's Picks</div></a>
+    <a class="tile"><div class="av av-mine">⭐</div><div class="lbl">Videos with me</div></a>
+    <a class="tile"><div class="av av-play">📋</div><div class="lbl">Warriors Playbook</div></a>
+    <a class="tile"><div class="av av-prac">🏀</div><div class="lbl">Practice Breakdown</div></a>
+    <a class="tile"><div class="av av-full">🎥</div><div class="lbl">Full Game</div></a>
+    <a class="tile"><div class="av av-brk">🎬</div><div class="lbl">Game Breakdown</div></a>
+    <a class="tile"><div class="av av-101">📘</div><div class="lbl">Basketball 101</div></a>
+    <a class="tile"><div class="av av-nba">🏆</div><div class="lbl">NBA Breakdown</div></a>
+    <a class="tile"><div class="av av-notes">📝</div><div class="lbl">Coach's Notes</div></a>
+    <a class="tile"><div class="av av-admin">⚙️</div><div class="lbl">Admin</div></a>
+  </div>
+</div>
+
+<script>
+  const sheet = document.getElementById('sheet');
+  const bg = document.getElementById('sheetBg');
+  const open = () => { sheet.classList.add('open'); bg.classList.add('open'); };
+  const close = () => { sheet.classList.remove('open'); bg.classList.remove('open'); };
+  document.getElementById('moreBtn').addEventListener('click', open);
+  document.getElementById('closeBtn').addEventListener('click', close);
+  bg.addEventListener('click', close);
+  document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', close));
+  // ESC to close
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+</script>
+</body>
+</html>
