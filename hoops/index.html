@@ -1363,8 +1363,8 @@ function mergeRowsByPendingId(table, serverRows) {
     table === 'events' ? state.events : state.stints);
 }
 function mergeRowsKeepingPending(table, serverRows, localRows) {
-  const pendingIds = new Set(
-    sync.outbox.filter(e => e.table === table && e.op === 'upsert').map(e => e.rowId)
+  const pendingWrites = new Set(
+    sync.outbox.filter(e => e.table === table && (e.op === 'upsert' || e.op === 'update')).map(e => e.rowId)
   );
   const pendingDeletes = new Set(
     sync.outbox.filter(e => e.table === table && e.op === 'delete').map(e => e.rowId)
@@ -1372,8 +1372,8 @@ function mergeRowsKeepingPending(table, serverRows, localRows) {
   const serverIds = new Set(serverRows.map(r => r.id));
   // Server rows except those locally pending deletion
   const fromServer = serverRows.filter(r => !pendingDeletes.has(r.id));
-  // Local rows still pending upsert and not yet on server
-  const localOnly = (localRows || []).filter(r => pendingIds.has(r.id) && !serverIds.has(r.id));
+  // Local rows still pending write and not yet on server (preserve them on refresh)
+  const localOnly = (localRows || []).filter(r => pendingWrites.has(r.id) && !serverIds.has(r.id));
   return [...fromServer, ...localOnly];
 }
 
@@ -1443,32 +1443,51 @@ function notifySync() {
 function onSyncChange(fn) { sync.listeners.add(fn); return () => sync.listeners.delete(fn); }
 
 function enqueueOp(entry) {
-  // Coalesce: an upsert for a row with a pending upsert → merge payloads.
-  // A delete for a row with pending upserts → drop the upserts + queue delete.
-  if (entry.op === 'upsert') {
-    const existing = sync.outbox.find(e => e.table === entry.table && e.rowId === entry.rowId && e.op === 'upsert');
-    if (existing) {
+  // Coalescing rules (all keyed by table + rowId):
+  //   new upsert + pending upsert → merge into pending upsert (still upsert)
+  //   new update + pending upsert → merge into pending upsert (upsert wins, full row preserved)
+  //   new update + pending update → merge into pending update (still update)
+  //   new upsert + pending update → replace pending update with new upsert (full row supersedes partial)
+  //   new delete + any pending → drop pending; queue delete
+  if (entry.op === 'delete') {
+    sync.outbox = sync.outbox.filter(e => !(e.table === entry.table && e.rowId === entry.rowId));
+    sync.outbox.push({ id: uuid(), ts: Date.now(), attempts: 0, lastError: null, ...entry });
+    persistOutbox(); notifySync(); scheduleFlush();
+    return;
+  }
+  // upsert or update
+  const existing = sync.outbox.find(e => e.table === entry.table && e.rowId === entry.rowId && (e.op === 'upsert' || e.op === 'update'));
+  if (existing) {
+    if (existing.op === 'upsert') {
+      // Always merge into the pending upsert (preserves full row)
       existing.payload = { ...existing.payload, ...entry.payload };
       existing.ts = Date.now();
-      persistOutbox(); notifySync(); scheduleFlush(); return;
+    } else if (entry.op === 'upsert') {
+      // Upsert replaces a pending update — full row supersedes partial
+      existing.op = 'upsert';
+      existing.payload = { ...existing.payload, ...entry.payload };
+      existing.ts = Date.now();
+    } else {
+      // Both updates — merge partial diffs
+      existing.payload = { ...existing.payload, ...entry.payload };
+      existing.ts = Date.now();
     }
-  } else if (entry.op === 'delete') {
-    sync.outbox = sync.outbox.filter(e => !(e.table === entry.table && e.rowId === entry.rowId));
+    persistOutbox(); notifySync(); scheduleFlush(); return;
   }
   sync.outbox.push({ id: uuid(), ts: Date.now(), attempts: 0, lastError: null, ...entry });
   persistOutbox(); notifySync(); scheduleFlush();
 }
 
 const oxb = {
-  /* INSERT or full row UPSERT. payload must include id. */
+  /* INSERT (or row-replacing UPSERT). payload must include id and all NOT NULL columns. */
   upsert(table, row) {
     if (!row || !row.id) { console.warn('oxb.upsert needs row.id', table, row); return; }
     enqueueOp({ table, op: 'upsert', rowId: row.id, payload: row });
   },
-  /* Partial UPDATE on a row. updates is the diff (without id). */
+  /* Partial column UPDATE on an existing row. */
   update(table, rowId, updates) {
     if (!rowId) { console.warn('oxb.update needs rowId', table); return; }
-    enqueueOp({ table, op: 'upsert', rowId, payload: { id: rowId, ...updates } });
+    enqueueOp({ table, op: 'update', rowId, payload: { ...updates } });
   },
   /* DELETE by id. */
   delete(table, rowId) {
@@ -1480,6 +1499,12 @@ const oxb = {
 function scheduleFlush() {
   if (sync.flushTimer) return;
   sync.flushTimer = setTimeout(() => { sync.flushTimer = null; flushOutbox(); }, 150);
+}
+
+function looksLikeNotNullError(msg) {
+  if (!msg) return false;
+  const m = String(msg).toLowerCase();
+  return m.includes('null value') && m.includes('not-null');
 }
 
 async function flushOutbox(opts) {
@@ -1494,8 +1519,32 @@ async function flushOutbox(opts) {
       const e = sync.outbox[0];
       try {
         if (e.op === 'upsert') {
-          const { error } = await sb.from(e.table).upsert(e.payload, { onConflict: 'id' });
-          if (error) throw error;
+          let { error } = await sb.from(e.table).upsert(e.payload, { onConflict: 'id' });
+          if (error) {
+            // Recovery path for entries queued by older builds where partial
+            // UPDATE diffs got tagged as 'upsert' and fail NOT NULL on insert.
+            // The row almost certainly exists on the server already, so retry
+            // as an UPDATE keyed by id (stripping id from the SET clause).
+            if (looksLikeNotNullError(error.message)) {
+              const updatePayload = { ...e.payload };
+              delete updatePayload.id;
+              if (Object.keys(updatePayload).length) {
+                const r2 = await sb.from(e.table).update(updatePayload).eq('id', e.rowId);
+                if (r2.error) throw r2.error;
+              } else {
+                throw error; // nothing to update; surface original
+              }
+            } else {
+              throw error;
+            }
+          }
+        } else if (e.op === 'update') {
+          const payload = { ...e.payload };
+          delete payload.id; // never set id in UPDATE SET clause
+          if (Object.keys(payload).length) {
+            const { error } = await sb.from(e.table).update(payload).eq('id', e.rowId);
+            if (error) throw error;
+          }
         } else if (e.op === 'delete') {
           const { error } = await sb.from(e.table).delete().eq('id', e.rowId);
           if (error) throw error;
