@@ -5,52 +5,51 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07111E" />
 <title>J3 Hoops · Coach Dale's Basketball Portal</title>
-<meta name="description" content="J3 Hoops — Coach Dale's basketball portal. Coach admin, Warriors players. Pick where you're headed." />
+<meta name="description" content="J3 Hoops — Cape Coral basketball that teaches decisions, not just effort. Film, analytics, IQ, and real development. Home of the Warriors 12U." />
 <link rel="icon" type="image/svg+xml" href="warriors/icon.svg" />
 <link rel="apple-touch-icon" href="warriors/icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,500;9..144,0,600;9..144,0,700;9..144,1,500;9..144,1,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg-deep:    #07111E;
     --bg-dark:    #0F2238;
     --bg-card:    #0E1C2D;
+    --bg-card-2:  #142A45;
     --flame:      #FF6B1A;
     --flame-bright: #FF8534;
+    --flame-soft: rgba(255, 107, 26, 0.10);
     --gold:       #C8A95C;
     --gold-bright: #E0BD68;
-    --gold-soft:  rgba(200, 169, 92, 0.12);
-    --flame-soft: rgba(255, 107, 26, 0.12);
+    --gold-soft:  rgba(200, 169, 92, 0.10);
     --court-line: rgba(255, 255, 255, 0.06);
     --text:       #FFFFFF;
     --text-soft:  rgba(255, 255, 255, 0.78);
     --text-mute:  rgba(255, 255, 255, 0.55);
     --text-dim:   rgba(255, 255, 255, 0.35);
     --line:       rgba(255, 255, 255, 0.10);
+    --line-soft:  rgba(255, 255, 255, 0.06);
     --serif: 'Fraunces', Georgia, serif;
     --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --maxw: 1080px;
+    --maxw-prose: 680px;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html { background: var(--bg-deep); scroll-behavior: smooth; }
   body {
     font-family: var(--sans);
-    background:
-      radial-gradient(900px 600px at 80% 10%, rgba(255, 107, 26, 0.10), transparent 60%),
-      radial-gradient(700px 500px at 10% 90%, rgba(200, 169, 92, 0.06), transparent 70%),
-      var(--bg-deep);
+    background: var(--bg-deep);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
+    line-height: 1.6;
     overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
   }
-  /* Court grid drift in the background */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
+
+  /* Court grid drift in background — limited to hero region */
+  .grid-bg {
+    position: absolute; inset: 0;
     background-image:
       linear-gradient(var(--court-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--court-line) 1px, transparent 1px);
@@ -58,7 +57,7 @@
     pointer-events: none;
     mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black, transparent 90%);
     -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black, transparent 90%);
-    opacity: 0.7;
+    opacity: 0.6;
     z-index: 0;
     animation: courtdrift 28s linear infinite;
   }
@@ -67,46 +66,77 @@
     to   { background-position: 90px 90px, 90px 90px; }
   }
 
-  /* Brand top bar */
-  .brand-bar {
-    position: relative; z-index: 2;
-    padding: 22px 28px;
-    display: flex; align-items: center;
+  /* ===== Sticky NAV ===== */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(7, 17, 30, 0.82);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    border-bottom: 1px solid var(--line);
   }
-  .brand {
-    display: flex; align-items: center; gap: 14px;
-    text-decoration: none; color: var(--text);
+  .nav-inner {
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
-  .brand-mark {
-    width: 38px; height: 38px;
-    border-radius: 10px;
+  .nav-brand {
+    display: flex; align-items: center; gap: 12px;
+    text-decoration: none; color: var(--text); min-width: 0;
+  }
+  .nav-mark {
+    width: 34px; height: 34px;
+    border-radius: 9px;
     background: linear-gradient(135deg, var(--flame), #C24700);
     display: grid; place-items: center;
-    color: #fff; font-family: var(--sans);
-    font-weight: 900; font-size: 14px; letter-spacing: 0.4px;
-    box-shadow: 0 6px 16px -6px var(--flame);
+    color: #fff; font-weight: 900; font-size: 12px; letter-spacing: 0.4px;
+    flex-shrink: 0;
+    box-shadow: 0 6px 14px -6px var(--flame);
   }
-  .brand-divider {
-    width: 1px; height: 24px;
-    background: var(--line);
+  .nav-meta { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .nav-name {
+    font-family: var(--sans); font-weight: 800;
+    font-size: 0.92rem; letter-spacing: 0.18em;
   }
-  .brand-word {
-    font-family: var(--sans);
-    font-weight: 800;
-    font-size: 14px;
-    letter-spacing: 0.32em;
+  .nav-divider { color: var(--text-dim); font-size: 0.7rem; }
+  .nav-place {
+    font-family: var(--serif); font-style: italic;
+    font-size: 0.88rem; color: var(--text-mute);
+    white-space: nowrap;
+  }
+  .nav-cta {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--sans); font-size: 0.74rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--text);
+    text-decoration: none;
+    padding: 9px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    transition: border-color 200ms ease, color 200ms ease, background 200ms ease;
+    white-space: nowrap;
+  }
+  .nav-cta:hover { border-color: var(--flame); color: var(--flame-bright); background: var(--flame-soft); }
+  .nav-cta .arrow { transition: transform 200ms ease; }
+  .nav-cta:hover .arrow { transform: translateX(3px); }
+
+  @media (max-width: 640px) {
+    .nav-place, .nav-divider { display: none; }
+    .nav-name { letter-spacing: 0.14em; }
   }
 
-  /* Hero */
+  /* ===== HERO ===== */
   .hero {
-    position: relative; z-index: 2;
-    flex: 1;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 24px 24px 60px;
+    position: relative; overflow: hidden;
+    padding: 80px 24px 90px;
     text-align: center;
+    background:
+      radial-gradient(900px 600px at 80% 10%, rgba(255, 107, 26, 0.10), transparent 60%),
+      radial-gradient(700px 500px at 10% 90%, rgba(200, 169, 92, 0.06), transparent 70%),
+      var(--bg-deep);
   }
+  .hero-inner { position: relative; z-index: 2; max-width: var(--maxw); margin: 0 auto; }
+
   .hero-kicker {
     font-family: var(--sans);
     font-size: 0.72rem; font-weight: 700;
@@ -129,167 +159,275 @@
     animation: pulse 2.2s ease-in-out infinite;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
-  /* MANIFESTO HEADLINE — now the hero anchor */
-  .manifesto-headline {
+
+  .hero h1 {
     font-family: var(--serif);
     font-weight: 700;
-    font-size: clamp(2.8rem, 9.6vw, 7.6rem);
+    font-size: clamp(2.8rem, 9vw, 7rem);
     line-height: 0.92;
     letter-spacing: -0.045em;
-    color: var(--text);
     margin: 0 auto 22px;
     max-width: 16ch;
+    color: var(--text);
     filter: drop-shadow(0 4px 28px rgba(255, 107, 26, 0.15));
   }
-  .manifesto-headline s {
+  .hero h1 s {
     text-decoration: line-through;
     text-decoration-color: var(--flame);
     text-decoration-thickness: 0.11em;
     text-decoration-skip-ink: none;
     color: var(--text-mute);
     margin-right: 0.12em;
-    text-underline-offset: 0.05em;
   }
 
-  .manifesto-line {
-    font-family: var(--serif);
-    font-weight: 500;
-    font-size: clamp(1.35rem, 2.6vw, 2rem);
-    line-height: 1.16;
-    letter-spacing: -0.02em;
+  .hero-line {
+    font-family: var(--serif); font-weight: 500;
+    font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+    line-height: 1.18; letter-spacing: -0.02em;
     color: var(--text);
-    max-width: 28ch;
-    margin: 0 auto 24px;
-    text-align: center;
+    max-width: 28ch; margin: 0 auto 26px;
   }
-  .manifesto-line strong {
-    color: var(--flame);
-    font-weight: 700;
-  }
-  .manifesto-body {
-    font-family: var(--serif);
-    font-style: italic;
+  .hero-line strong { color: var(--flame); font-weight: 700; }
+
+  .hero-body {
+    font-family: var(--serif); font-style: italic;
     font-weight: 400;
     font-size: clamp(1.02rem, 1.55vw, 1.22rem);
-    line-height: 1.5;
+    line-height: 1.55;
     color: var(--text-soft);
-    max-width: 46ch;
-    margin: 0 auto 20px;
+    max-width: 50ch; margin: 0 auto 38px;
+  }
+  .hero-body em { color: var(--flame-bright); font-style: italic; font-weight: 600; }
+
+  .hero-cta {
+    display: inline-flex; flex-wrap: wrap;
+    justify-content: center; gap: 12px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 24px;
+    border-radius: 999px;
+    font-family: var(--sans); font-weight: 700;
+    font-size: 0.78rem; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 220ms cubic-bezier(.2,.7,.2,1);
+  }
+  .btn .arrow { transition: transform 200ms ease; font-size: 1em; }
+  .btn:hover .arrow { transform: translateX(4px); }
+  .btn-primary {
+    background: var(--flame); color: #fff;
+    box-shadow: 0 12px 32px -8px rgba(255, 107, 26, 0.6);
+  }
+  .btn-primary:hover {
+    background: var(--flame-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px -10px rgba(255, 107, 26, 0.8);
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover {
+    color: var(--flame-bright); border-color: var(--flame);
+    background: var(--flame-soft);
+  }
+  .btn-ghost .arrow.down { transition: transform 200ms ease; }
+  .btn-ghost:hover .arrow.down { transform: translateY(3px); }
+
+  /* ===== SECTIONS ===== */
+  section.content {
+    padding: 110px 24px;
+    position: relative;
+  }
+  .container { max-width: var(--maxw); margin: 0 auto; }
+  .prose { max-width: var(--maxw-prose); margin: 0 auto; }
+
+  .section-label {
+    font-family: var(--sans);
+    font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.32em; text-transform: uppercase;
+    color: var(--flame);
+    margin-bottom: 26px;
+    display: inline-flex; align-items: center; gap: 12px;
+  }
+  .section-label::before {
+    content: ''; display: inline-block;
+    width: 36px; height: 1px; background: var(--flame); opacity: 0.7;
+  }
+  section.content h2 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    line-height: 1.02; letter-spacing: -0.028em;
+    color: var(--text);
+    max-width: 22ch;
+    margin-bottom: 26px;
+  }
+  section.content h2 em {
+    font-style: italic; color: var(--flame); font-weight: 500;
+  }
+  .body-text {
+    font-family: var(--sans);
+    font-size: clamp(1.05rem, 1.4vw, 1.18rem);
+    line-height: 1.7;
+    color: var(--text-soft);
+    max-width: 62ch;
+  }
+  .body-text + .body-text { margin-top: 1.2em; }
+  .punchline {
+    font-family: var(--serif); font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+    line-height: 1.4;
+    color: var(--gold-bright);
+    max-width: 50ch; margin-top: 30px;
+    border-left: 3px solid var(--flame);
+    padding-left: 22px;
+  }
+
+  /* ===== THE PROBLEM ===== */
+  .problem { background: var(--bg-deep); border-top: 1px solid var(--line-soft); }
+
+  /* ===== THE METHOD ===== */
+  .method { background: var(--bg-deep); border-top: 1px solid var(--line-soft); }
+  .method-lead {
+    font-family: var(--sans);
+    font-size: clamp(1.05rem, 1.4vw, 1.18rem);
+    line-height: 1.7;
+    color: var(--text-soft);
+    max-width: 60ch;
+    margin-bottom: 14px;
+  }
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-top: 48px;
+  }
+  @media (max-width: 760px) {
+    .pillars { grid-template-columns: 1fr; gap: 14px; }
+  }
+  .pillar {
+    background: linear-gradient(160deg, var(--bg-card), var(--bg-dark));
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 30px 28px;
+    position: relative; overflow: hidden;
+    transition: border-color 220ms ease, transform 220ms ease, box-shadow 220ms ease;
+  }
+  .pillar::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--flame), transparent);
+    opacity: 0; transition: opacity 220ms ease;
+  }
+  .pillar:hover { border-color: rgba(255, 107, 26, 0.4); transform: translateY(-2px); }
+  .pillar:hover::before { opacity: 1; }
+  .pillar-num {
+    font-family: var(--serif); font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--flame); letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+  .pillar-num::before {
+    content: ''; display: inline-block;
+    width: 18px; height: 1px;
+    background: var(--flame); vertical-align: middle;
+    margin-right: 10px; margin-bottom: 3px;
+  }
+  .pillar h3 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: 1.4rem; line-height: 1.1; letter-spacing: -0.018em;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .pillar p {
+    font-size: 0.96rem; line-height: 1.6;
+    color: var(--text-soft);
+  }
+
+  /* ===== THE PHILOSOPHY — full-width feature ===== */
+  .philosophy {
+    background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-deep) 100%);
+    border-top: 1px solid rgba(255, 107, 26, 0.18);
+    border-bottom: 1px solid rgba(255, 107, 26, 0.18);
+    padding: 130px 24px;
+    position: relative; overflow: hidden;
     text-align: center;
   }
-  .manifesto-body em {
-    color: var(--flame-bright);
-    font-style: italic;
-    font-weight: 600;
-  }
-  .manifesto-credo {
-    font-family: var(--sans);
-    font-weight: 700;
-    font-size: clamp(0.85rem, 1.15vw, 1rem);
-    letter-spacing: 0.04em;
-    color: var(--gold-bright);
-    margin-bottom: 28px;
-  }
-
-  /* Tagline now sits below the credo, smaller, refined */
-  .hero-tagline {
-    font-family: var(--serif);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(0.92rem, 1.1vw, 1.05rem);
-    color: var(--text-mute);
-    margin-bottom: 30px;
-    letter-spacing: 0.01em;
-  }
-  .hero-tagline::before {
-    content: '— ';
-    color: var(--gold);
-    opacity: 0.6;
-    margin-right: 4px;
-  }
-  .hero-tagline::after {
-    content: ' —';
-    color: var(--gold);
-    opacity: 0.6;
-    margin-left: 4px;
-  }
-
-  /* Signal tag chips */
-  .signal-tags {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 44px;
-  }
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px 7px 11px;
-    border-radius: 999px;
-    background: rgba(255, 107, 26, 0.07);
-    border: 1px solid rgba(255, 107, 26, 0.22);
-    font-family: var(--sans);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--flame-bright);
-    transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
-  }
-  .tag::before {
+  .philosophy::before {
     content: '';
-    display: inline-block;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--flame);
-    box-shadow: 0 0 8px var(--flame);
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--flame), transparent);
   }
-  .tag:hover {
-    background: rgba(255, 107, 26, 0.13);
-    border-color: var(--flame);
-    transform: translateY(-1px);
-  }
-
-  .hero-pick {
-    font-family: var(--sans);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.36em;
-    text-transform: uppercase;
-    color: var(--text-mute);
-    margin-bottom: 36px;
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .hero-pick::before, .hero-pick::after {
+  .philosophy::after {
     content: '';
-    display: inline-block;
-    width: 28px; height: 1px;
-    background: var(--text-dim);
+    position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--flame), transparent);
+  }
+  .philosophy .container { position: relative; z-index: 2; }
+  .philosophy .section-label { justify-content: center; color: var(--gold-bright); }
+  .philosophy .section-label::before { background: var(--gold); }
+  .philosophy h2 {
+    font-family: var(--serif); font-weight: 500; font-style: italic;
+    font-size: clamp(2.4rem, 5.6vw, 4.4rem);
+    line-height: 1.02; letter-spacing: -0.03em;
+    color: var(--text);
+    max-width: 22ch; margin: 0 auto 36px;
+  }
+  .philosophy h2 .accent { color: var(--flame); font-style: italic; }
+  .philosophy .body-text {
+    margin: 0 auto; text-align: left; max-width: 56ch;
+  }
+  .philosophy-punch {
+    font-family: var(--serif); font-weight: 700;
+    font-style: normal;
+    font-size: clamp(1.5rem, 3.2vw, 2.4rem);
+    line-height: 1.2; letter-spacing: -0.022em;
+    color: var(--text);
+    max-width: 24ch;
+    margin: 50px auto 0;
+  }
+  .philosophy-punch em {
+    color: var(--flame); font-style: italic;
   }
 
-  /* Cards */
+  /* ===== WHO IT'S FOR ===== */
+  .who { background: var(--bg-deep); border-top: 1px solid var(--line-soft); }
+
+  /* ===== PORTAL ===== */
+  .portal {
+    background: var(--bg-deep); border-top: 1px solid var(--line-soft);
+    padding-bottom: 80px;
+  }
+  .portal-lead {
+    text-align: center;
+  }
+  .portal-lead .section-label { justify-content: center; }
+  .portal-lead h2 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin: 0 auto 50px;
+    max-width: 16ch;
+  }
+
   .cards {
     display: grid;
-    grid-template-columns: repeat(2, minmax(280px, 360px));
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
     gap: 20px;
-    width: 100%;
-    max-width: 760px;
-    margin: 0 auto;
+    max-width: 820px; margin: 0 auto;
   }
-  @media (max-width: 700px) {
-    .cards { grid-template-columns: 1fr; max-width: 380px; }
+  @media (max-width: 760px) {
+    .cards { grid-template-columns: 1fr; max-width: 420px; }
   }
-
   .card {
     position: relative;
     background: linear-gradient(160deg, var(--bg-card) 0%, var(--bg-dark) 100%);
     border: 1px solid var(--line);
     border-radius: 22px;
-    padding: 28px 26px 24px;
+    padding: 30px 28px 26px;
     text-decoration: none; color: var(--text);
     display: flex; flex-direction: column; gap: 14px;
     min-height: 280px;
@@ -305,17 +443,15 @@
     content: '';
     position: absolute; bottom: -50%; right: -30%;
     width: 280px; height: 280px;
-    border-radius: 50%;
-    opacity: 0.08;
+    border-radius: 50%; opacity: 0.08;
     transition: opacity 240ms ease, transform 240ms ease;
     pointer-events: none;
   }
   .card-icon {
     width: 56px; height: 56px;
     border-radius: 14px;
-    display: grid; place-items: center;
-    font-size: 1.6rem;
-    transition: transform 220ms ease, box-shadow 220ms ease;
+    display: grid; place-items: center; font-size: 1.6rem;
+    transition: transform 220ms ease;
   }
   .card-tag {
     font-family: var(--sans);
@@ -323,26 +459,21 @@
     letter-spacing: 0.32em; text-transform: uppercase;
   }
   .card-title {
-    font-family: var(--serif);
-    font-weight: 600;
-    font-size: 1.9rem;
-    line-height: 1.05;
+    font-family: var(--serif); font-weight: 600;
+    font-size: 1.85rem; line-height: 1.05;
     letter-spacing: -0.02em;
     color: var(--text);
   }
   .card-sub {
     font-family: var(--sans);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--text-mute);
     margin-top: -6px;
   }
   .card-desc {
     color: var(--text-soft);
-    font-size: 0.92rem;
-    line-height: 1.55;
+    font-size: 0.92rem; line-height: 1.55;
     margin-top: 4px;
   }
   .card-cta {
@@ -350,146 +481,237 @@
     display: inline-flex; align-items: center; gap: 8px;
     font-family: var(--sans);
     font-size: 0.85rem; font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    letter-spacing: 0.16em; text-transform: uppercase;
     padding-top: 18px;
     border-top: 1px solid var(--line);
   }
-  .card-cta .arrow {
-    transition: transform 220ms ease;
-    font-size: 1.05em;
-  }
+  .card-cta .arrow { transition: transform 220ms ease; font-size: 1.05em; }
   .card:hover { transform: translateY(-4px); }
   .card:hover::before { opacity: 1; }
   .card:hover::after { transform: scale(1.15); opacity: 0.14; }
   .card:hover .card-icon { transform: scale(1.05) rotate(-2deg); }
   .card:hover .card-cta .arrow { transform: translateX(6px); }
 
-  /* COACH card — gold */
   .card.coach::before { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
   .card.coach::after { background: radial-gradient(circle, var(--gold), transparent 70%); }
-  .card.coach .card-icon {
-    background: var(--gold-soft);
-    color: var(--gold);
-    box-shadow: 0 6px 18px -8px var(--gold);
-  }
+  .card.coach .card-icon { background: var(--gold-soft); color: var(--gold); box-shadow: 0 6px 18px -8px var(--gold); }
   .card.coach .card-tag { color: var(--gold); }
   .card.coach .card-cta { color: var(--gold-bright); }
   .card.coach:hover { border-color: var(--gold); box-shadow: 0 18px 40px -16px rgba(200, 169, 92, 0.55); }
 
-  /* PLAYERS card — orange */
   .card.players::before { background: linear-gradient(90deg, transparent, var(--flame), transparent); }
   .card.players::after { background: radial-gradient(circle, var(--flame), transparent 70%); }
-  .card.players .card-icon {
-    background: var(--flame-soft);
-    color: var(--flame);
-    box-shadow: 0 6px 18px -8px var(--flame);
-  }
+  .card.players .card-icon { background: var(--flame-soft); color: var(--flame); box-shadow: 0 6px 18px -8px var(--flame); }
   .card.players .card-tag { color: var(--flame); }
   .card.players .card-cta { color: var(--flame-bright); }
   .card.players:hover { border-color: var(--flame); box-shadow: 0 18px 40px -16px rgba(255, 107, 26, 0.55); }
 
-  /* Footer */
-  footer {
-    position: relative; z-index: 2;
-    padding: 28px 24px 36px;
+  /* ===== CTA ===== */
+  .cta {
+    background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-dark) 100%);
+    border-top: 1px solid var(--line-soft);
+    padding: 110px 24px 100px;
     text-align: center;
   }
-  .all-apps {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: var(--sans);
-    font-size: 0.78rem; font-weight: 600;
-    letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--text-mute);
-    text-decoration: none;
-    padding: 10px 16px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    transition: color 200ms ease, border-color 200ms ease;
+  .cta h2 {
+    font-family: var(--serif); font-weight: 500; font-style: italic;
+    font-size: clamp(1.9rem, 4vw, 3rem);
+    line-height: 1.1; letter-spacing: -0.025em;
+    color: var(--text);
+    max-width: 22ch; margin: 0 auto 22px;
   }
-  .all-apps:hover { color: var(--gold); border-color: var(--gold); }
-  .all-apps .arrow { transition: transform 200ms ease; }
-  .all-apps:hover .arrow { transform: translateX(4px); }
-  .foot-meta {
-    margin-top: 14px;
+  .cta h2 em { color: var(--flame); font-style: italic; }
+  .cta p {
     font-family: var(--sans);
-    font-size: 0.68rem;
+    font-size: 1.1rem; line-height: 1.6;
+    color: var(--text-soft);
+    max-width: 38ch; margin: 0 auto 36px;
+  }
+  .cta .btn { padding: 16px 32px; font-size: 0.82rem; }
+
+  /* ===== Footer ===== */
+  footer.site {
+    background: var(--bg-deep);
+    border-top: 1px solid var(--line);
+    padding: 30px 24px 40px;
+    text-align: center;
+  }
+  .site-foot {
+    font-family: var(--sans);
+    font-size: 0.72rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mute);
   }
 
-  /* Entrance animation */
+  /* Entrance animation — just the hero */
   @media (prefers-reduced-motion: no-preference) {
-    .hero-kicker, .manifesto-headline, .manifesto-line, .manifesto-body,
-    .manifesto-credo, .hero-tagline, .signal-tags, .hero-pick, .card, .all-apps {
+    .hero-kicker, .hero h1, .hero-line, .hero-body, .hero-cta {
       animation: rise 620ms cubic-bezier(.2,.7,.2,1) backwards;
     }
-    .hero-kicker        { animation-delay:  60ms; }
-    .manifesto-headline { animation-delay: 140ms; }
-    .manifesto-line     { animation-delay: 260ms; }
-    .manifesto-body     { animation-delay: 360ms; }
-    .manifesto-credo    { animation-delay: 440ms; }
-    .hero-tagline       { animation-delay: 520ms; }
-    .signal-tags        { animation-delay: 600ms; }
-    .hero-pick          { animation-delay: 680ms; }
-    .card.coach         { animation-delay: 760ms; }
-    .card.players       { animation-delay: 840ms; }
-    .all-apps           { animation-delay: 980ms; }
+    .hero-kicker { animation-delay:  60ms; }
+    .hero h1     { animation-delay: 140ms; }
+    .hero-line   { animation-delay: 260ms; }
+    .hero-body   { animation-delay: 360ms; }
+    .hero-cta    { animation-delay: 460ms; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(22px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-  }
 
+    /* Scroll reveal for content sections */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 700ms ease, transform 700ms cubic-bezier(.2,.7,.2,1); }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+  }
   @media (prefers-reduced-motion: reduce) {
-    body::before { animation: none; }
+    .grid-bg { animation: none; }
   }
 </style>
 </head>
 <body>
 
-<!-- Brand bar -->
-<header class="brand-bar">
-  <a href="/" class="brand" aria-label="J3 Hoops home">
-    <div class="brand-mark">J3</div>
-    <div class="brand-divider"></div>
-    <div class="brand-word">J3HOOPS</div>
-  </a>
+<!-- ===== STICKY NAV ===== -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-brand">
+      <div class="nav-mark">J3</div>
+      <div class="nav-meta">
+        <span class="nav-name">J3 HOOPS</span>
+        <span class="nav-divider">·</span>
+        <span class="nav-place">Cape Coral, Florida</span>
+      </div>
+    </a>
+    <a href="#portal" class="nav-cta">
+      <span>Sign In</span>
+      <span class="arrow">→</span>
+    </a>
+  </div>
 </header>
 
-<!-- Hero -->
-<main class="hero">
-  <span class="hero-kicker">
-    <span class="pulse"></span>
-    Cape Coral · Florida
-  </span>
+<!-- ===== HERO ===== -->
+<section class="hero" id="top">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <span class="hero-kicker">
+      <span class="pulse"></span>
+      Cape Coral · Florida
+    </span>
 
-  <h1 class="manifesto-headline"><s>Hero ball</s> is broken.</h1>
+    <h1><s>Hero ball</s> is broken.</h1>
 
-  <p class="manifesto-line">Five smart kids beat one ball-hog. <strong>Every time.</strong></p>
+    <p class="hero-line">Five smart kids beat one ball-hog. <strong>Every time.</strong></p>
 
-  <p class="manifesto-body">
-    We build players who <em>pass</em>, <em>read the floor</em>, and <em>play defense</em> —
-    backed by film, analytics, and honest player ratings.
-  </p>
+    <p class="hero-body">
+      We build players who <em>pass</em>, <em>read the floor</em>, and <em>play defense</em> —
+      backed by film and real analytics, not just minutes and luck.
+    </p>
 
-  <p class="manifesto-credo">No politics. No favorites. Just basketball, played right.</p>
-
-  <p class="hero-tagline">Coach Dale's basketball portal</p>
-
-  <div class="signal-tags" aria-label="What J3 Hoops is built on">
-    <span class="tag">Basketball IQ</span>
-    <span class="tag">Film &amp; Analytics</span>
-    <span class="tag">Player Ratings</span>
-    <span class="tag">Team First</span>
+    <div class="hero-cta">
+      <a href="#problem" class="btn btn-ghost">
+        <span>See How It Works</span>
+        <span class="arrow down">↓</span>
+      </a>
+      <a href="#portal" class="btn btn-primary">
+        <span>Sign In</span>
+        <span class="arrow">→</span>
+      </a>
+    </div>
   </div>
+</section>
 
-  <p class="hero-pick">Pick where you're headed</p>
+<!-- ===== THE PROBLEM ===== -->
+<section class="content problem reveal" id="problem">
+  <div class="container prose">
+    <div class="section-label">The Problem</div>
+    <h2>Most youth basketball rewards the <em>wrong things</em>.</h2>
+    <p class="body-text">
+      The kid who shoots the most gets the most. The loudest parent gets the minutes.
+      Effort gets praised, decisions get ignored, and "development" means whoever was
+      already tallest in third grade.
+    </p>
+    <p class="punchline">
+      That's not a plan. That's a popularity contest with a scoreboard.
+    </p>
+  </div>
+</section>
 
+<!-- ===== THE METHOD ===== -->
+<section class="content method reveal" id="method">
+  <div class="container">
+    <div class="prose">
+      <div class="section-label">The Method</div>
+      <h2>We coach <em>decisions</em>, not just effort.</h2>
+      <p class="method-lead">
+        Anybody can yell "box out." We teach kids <em>why</em>, <em>when</em>, and what happens next —
+        then show them the film to prove it. Four things we drill into every player:
+      </p>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pillar-num">01 — IQ</div>
+        <h3>Basketball IQ</h3>
+        <p>Reading the floor, spacing, knowing the next pass before the ball arrives. The game slows down when you understand it.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-num">02 — Tape</div>
+        <h3>Film &amp; Analytics</h3>
+        <p>Kids see themselves on tape. We track what actually wins — assists, stops, good shots — not just who scored.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-num">03 — Reps</div>
+        <h3>Player Development</h3>
+        <p>Every player gets a path. Ball-handling, footwork, defense, shooting form. Real reps, real feedback, no riding the bench to "learn."</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-num">04 — Unit</div>
+        <h3>Team First</h3>
+        <p>Five players moving as one beats one player going one-on-five. We build the unit, and everybody gets better inside it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== THE PHILOSOPHY ===== -->
+<section class="philosophy reveal" id="philosophy">
+  <div class="container">
+    <div class="section-label">The Philosophy</div>
+    <h2>Fundamentals aren't a throwback.<br/>They're the <span class="accent">unfair advantage</span>.</h2>
+    <p class="body-text">
+      J3 Hoops is building a new standard for how the game gets taught — where reading the floor
+      beats running the floor, and the basics are the cheat code. Old-school discipline,
+      new-school proof.
+    </p>
+    <p class="philosophy-punch">
+      The boring stuff wins games. <em>We teach the boring stuff.</em>
+    </p>
+  </div>
+</section>
+
+<!-- ===== WHO IT'S FOR ===== -->
+<section class="content who reveal" id="who">
+  <div class="container prose">
+    <div class="section-label">Who It's For</div>
+    <h2>Built for the Warriors. <em>Open to the work.</em></h2>
+    <p class="body-text">
+      Right now this is home base for the Warriors 12U — playbook, drills, film, and season
+      analytics, all in one place. If you're a player on the team, your stuff lives behind the login.
+    </p>
+    <p class="body-text">
+      If you're a parent wondering whether your kid will actually get coached here:
+      <strong>yes.</strong> That's the whole point.
+    </p>
+  </div>
+</section>
+
+<!-- ===== PORTAL ===== -->
+<section class="content portal reveal" id="portal">
+  <div class="container portal-lead">
+    <div class="section-label">Portal Entry</div>
+    <h2>Pick where you're <em>headed</em>.</h2>
+  </div>
   <div class="cards">
-    <!-- COACH card -->
-    <a href="admin/" class="card coach" aria-label="Coach Admin — Playmaker, hoops stats, ratings">
+    <a href="admin/" class="card coach" aria-label="Coach Admin">
       <div class="card-icon" aria-hidden="true">🔒</div>
       <div>
         <div class="card-tag">Coach</div>
@@ -502,8 +724,7 @@
       </div>
     </a>
 
-    <!-- PLAYERS card -->
-    <a href="warriors/" class="card players" aria-label="Warriors players — video lessons, playbook, drills">
+    <a href="warriors/" class="card players" aria-label="Warriors players portal">
       <div class="card-icon" aria-hidden="true">🏀</div>
       <div>
         <div class="card-tag">Players</div>
@@ -517,19 +738,46 @@
       </div>
     </a>
   </div>
-</main>
+</section>
 
-<!-- Footer -->
-<footer>
-  <a href="admin/" class="all-apps">
-    <span>All apps</span>
-    <span class="arrow">→</span>
-  </a>
-  <div class="foot-meta">&copy; <span id="year"></span> J3 Hoops · Cape Coral, Florida</div>
+<!-- ===== CTA ===== -->
+<section class="cta reveal" id="contact">
+  <div class="container">
+    <h2>Want your kid coached like the <em>game matters</em>?</h2>
+    <p>That's what we do. Reach out and let's talk.</p>
+    <a href="mailto:Dfrancispro@gmail.com?subject=J3%20Hoops%20-%20Get%20In%20Touch" class="btn btn-primary">
+      <span>Get In Touch</span>
+      <span class="arrow">→</span>
+    </a>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="site">
+  <div class="site-foot">
+    &copy; <span id="year"></span> J3 Hoops · Cape Coral, Florida
+  </div>
 </footer>
 
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Scroll reveal for content sections
+  (function(){
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+      return;
+    }
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          obs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  })();
 </script>
 
 </body>
