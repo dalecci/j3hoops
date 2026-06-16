@@ -122,42 +122,157 @@
   }
   .hero h1 {
     font-family: var(--serif);
-    font-weight: 600;
-    font-size: clamp(2.6rem, 7vw, 5.4rem);
-    line-height: 0.98;
-    letter-spacing: -0.035em;
-    margin-bottom: 18px;
+    font-weight: 700;
+    font-size: clamp(3rem, 9.2vw, 7.4rem);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    margin-bottom: 14px;
   }
   .hero h1 .welcome {
     display: block;
     font-style: italic;
-    font-weight: 500;
-    font-size: 0.45em;
+    font-weight: 400;
+    font-size: 0.32em;
     color: var(--text-mute);
-    letter-spacing: -0.01em;
-    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
   }
   .hero h1 .brand-name {
     color: var(--text);
+    display: inline-block;
+    filter: drop-shadow(0 4px 24px rgba(255, 107, 26, 0.18));
   }
   .hero h1 .brand-name .accent {
     color: var(--flame);
+    background: linear-gradient(135deg, #FF8534 0%, #FF6B1A 50%, #C8A95C 110%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
-  .hero-sub {
+  .hero-tagline {
     font-family: var(--serif);
-    font-size: clamp(1rem, 1.4vw, 1.2rem);
     font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.15rem, 1.9vw, 1.55rem);
+    color: var(--gold);
+    margin-bottom: 38px;
+    letter-spacing: -0.005em;
+  }
+
+  /* Manifesto — the punch */
+  .manifesto {
+    max-width: 44ch;
+    margin: 0 auto 32px;
+    text-align: center;
+  }
+  .manifesto-headline {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(1.7rem, 4vw, 2.6rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--text);
+    margin-bottom: 18px;
+  }
+  .manifesto-headline s {
+    text-decoration: line-through;
+    text-decoration-color: var(--flame);
+    text-decoration-thickness: 0.13em;
+    text-decoration-skip-ink: none;
+    color: var(--text-mute);
+    margin-right: 0.15em;
+  }
+  .manifesto-line {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+    line-height: 1.18;
+    letter-spacing: -0.018em;
+    color: var(--text);
+    margin-bottom: 22px;
+  }
+  .manifesto-line strong {
+    color: var(--flame);
+    font-weight: 700;
+  }
+  .manifesto-body {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(1rem, 1.55vw, 1.18rem);
+    line-height: 1.55;
     color: var(--text-soft);
+    margin-bottom: 18px;
+  }
+  .manifesto-body em {
+    color: var(--flame-bright);
+    font-style: italic;
+    font-weight: 600;
+  }
+  .manifesto-credo {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: clamp(0.85rem, 1.2vw, 1rem);
+    letter-spacing: 0.05em;
+    color: var(--gold-bright);
     margin-bottom: 8px;
   }
+
+  /* Signal tag chips */
+  .signal-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 44px;
+  }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px 7px 11px;
+    border-radius: 999px;
+    background: rgba(255, 107, 26, 0.07);
+    border: 1px solid rgba(255, 107, 26, 0.22);
+    font-family: var(--sans);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--flame-bright);
+    transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+  }
+  .tag::before {
+    content: '';
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--flame);
+    box-shadow: 0 0 8px var(--flame);
+  }
+  .tag:hover {
+    background: rgba(255, 107, 26, 0.13);
+    border-color: var(--flame);
+    transform: translateY(-1px);
+  }
+
   .hero-pick {
     font-family: var(--sans);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.22em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.36em;
     text-transform: uppercase;
     color: var(--text-mute);
-    margin-bottom: 50px;
+    margin-bottom: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .hero-pick::before, .hero-pick::after {
+    content: '';
+    display: inline-block;
+    width: 28px; height: 1px;
+    background: var(--text-dim);
   }
 
   /* Cards */
@@ -310,16 +425,18 @@
 
   /* Entrance animation */
   @media (prefers-reduced-motion: no-preference) {
-    .hero-kicker, .hero h1, .hero-sub, .hero-pick, .card, .all-apps {
-      animation: rise 600ms cubic-bezier(.2,.7,.2,1) backwards;
+    .hero-kicker, .hero h1, .hero-tagline, .manifesto, .signal-tags, .hero-pick, .card, .all-apps {
+      animation: rise 620ms cubic-bezier(.2,.7,.2,1) backwards;
     }
-    .hero-kicker { animation-delay:  80ms; }
-    .hero h1     { animation-delay: 160ms; }
-    .hero-sub    { animation-delay: 260ms; }
-    .hero-pick   { animation-delay: 340ms; }
-    .card.coach   { animation-delay: 440ms; }
-    .card.players { animation-delay: 540ms; }
-    .all-apps    { animation-delay: 700ms; }
+    .hero-kicker  { animation-delay:  60ms; }
+    .hero h1      { animation-delay: 140ms; }
+    .hero-tagline { animation-delay: 240ms; }
+    .manifesto    { animation-delay: 320ms; }
+    .signal-tags  { animation-delay: 460ms; }
+    .hero-pick    { animation-delay: 560ms; }
+    .card.coach   { animation-delay: 640ms; }
+    .card.players { animation-delay: 720ms; }
+    .all-apps     { animation-delay: 880ms; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(22px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -349,7 +466,25 @@
     <span class="welcome">Welcome to</span>
     <span class="brand-name">J3<span class="accent">Hoops</span>.</span>
   </h1>
-  <p class="hero-sub">Coach Dale's basketball portal.</p>
+  <p class="hero-tagline">Coach Dale's basketball portal.</p>
+
+  <div class="manifesto">
+    <p class="manifesto-headline"><s>Hero ball</s> is broken.</p>
+    <p class="manifesto-line">Five smart kids beat one ball-hog. <strong>Every time.</strong></p>
+    <p class="manifesto-body">
+      We build players who <em>pass</em>, <em>read the floor</em>, and <em>play defense</em> —
+      backed by film, analytics, and honest player ratings.
+    </p>
+    <p class="manifesto-credo">No politics. No favorites. Just basketball, played right.</p>
+  </div>
+
+  <div class="signal-tags" aria-label="What J3 Hoops is built on">
+    <span class="tag">Basketball IQ</span>
+    <span class="tag">Film &amp; Analytics</span>
+    <span class="tag">Player Ratings</span>
+    <span class="tag">Team First</span>
+  </div>
+
   <p class="hero-pick">Pick where you're headed</p>
 
   <div class="cards">
