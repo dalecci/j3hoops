@@ -110,86 +110,57 @@
   .hero-kicker {
     font-family: var(--sans);
     font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.32em; text-transform: uppercase;
+    letter-spacing: 0.36em; text-transform: uppercase;
     color: var(--flame);
-    margin-bottom: 24px;
-    display: inline-flex; align-items: center; gap: 12px;
+    margin-bottom: 36px;
+    display: inline-flex; align-items: center; gap: 14px;
   }
   .hero-kicker::before, .hero-kicker::after {
     content: ''; display: inline-block;
-    width: 24px; height: 1px;
+    width: 28px; height: 1px;
     background: var(--flame); opacity: 0.6;
   }
-  .hero h1 {
-    font-family: var(--serif);
-    font-weight: 700;
-    font-size: clamp(3rem, 9.2vw, 7.4rem);
-    line-height: 0.92;
-    letter-spacing: -0.045em;
-    margin-bottom: 14px;
-  }
-  .hero h1 .welcome {
-    display: block;
-    font-style: italic;
-    font-weight: 400;
-    font-size: 0.32em;
-    color: var(--text-mute);
-    letter-spacing: 0.02em;
-    margin-bottom: 14px;
-  }
-  .hero h1 .brand-name {
-    color: var(--text);
+  .hero-kicker .pulse {
     display: inline-block;
-    filter: drop-shadow(0 4px 24px rgba(255, 107, 26, 0.18));
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--flame);
+    box-shadow: 0 0 10px var(--flame);
+    animation: pulse 2.2s ease-in-out infinite;
   }
-  .hero h1 .brand-name .accent {
-    color: var(--flame);
-    background: linear-gradient(135deg, #FF8534 0%, #FF6B1A 50%, #C8A95C 110%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  .hero-tagline {
-    font-family: var(--serif);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.15rem, 1.9vw, 1.55rem);
-    color: var(--gold);
-    margin-bottom: 38px;
-    letter-spacing: -0.005em;
-  }
-
-  /* Manifesto — the punch */
-  .manifesto {
-    max-width: 44ch;
-    margin: 0 auto 32px;
-    text-align: center;
-  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  /* MANIFESTO HEADLINE — now the hero anchor */
   .manifesto-headline {
     font-family: var(--serif);
     font-weight: 700;
-    font-size: clamp(1.7rem, 4vw, 2.6rem);
-    line-height: 1.05;
-    letter-spacing: -0.025em;
+    font-size: clamp(2.8rem, 9.6vw, 7.6rem);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
     color: var(--text);
-    margin-bottom: 18px;
+    margin: 0 auto 22px;
+    max-width: 16ch;
+    filter: drop-shadow(0 4px 28px rgba(255, 107, 26, 0.15));
   }
   .manifesto-headline s {
     text-decoration: line-through;
     text-decoration-color: var(--flame);
-    text-decoration-thickness: 0.13em;
+    text-decoration-thickness: 0.11em;
     text-decoration-skip-ink: none;
     color: var(--text-mute);
-    margin-right: 0.15em;
+    margin-right: 0.12em;
+    text-underline-offset: 0.05em;
   }
+
   .manifesto-line {
     font-family: var(--serif);
     font-weight: 500;
-    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
-    line-height: 1.18;
-    letter-spacing: -0.018em;
+    font-size: clamp(1.35rem, 2.6vw, 2rem);
+    line-height: 1.16;
+    letter-spacing: -0.02em;
     color: var(--text);
-    margin-bottom: 22px;
+    max-width: 28ch;
+    margin: 0 auto 24px;
+    text-align: center;
   }
   .manifesto-line strong {
     color: var(--flame);
@@ -199,10 +170,12 @@
     font-family: var(--serif);
     font-style: italic;
     font-weight: 400;
-    font-size: clamp(1rem, 1.55vw, 1.18rem);
-    line-height: 1.55;
+    font-size: clamp(1.02rem, 1.55vw, 1.22rem);
+    line-height: 1.5;
     color: var(--text-soft);
-    margin-bottom: 18px;
+    max-width: 46ch;
+    margin: 0 auto 20px;
+    text-align: center;
   }
   .manifesto-body em {
     color: var(--flame-bright);
@@ -212,10 +185,33 @@
   .manifesto-credo {
     font-family: var(--sans);
     font-weight: 700;
-    font-size: clamp(0.85rem, 1.2vw, 1rem);
-    letter-spacing: 0.05em;
+    font-size: clamp(0.85rem, 1.15vw, 1rem);
+    letter-spacing: 0.04em;
     color: var(--gold-bright);
-    margin-bottom: 8px;
+    margin-bottom: 28px;
+  }
+
+  /* Tagline now sits below the credo, smaller, refined */
+  .hero-tagline {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(0.92rem, 1.1vw, 1.05rem);
+    color: var(--text-mute);
+    margin-bottom: 30px;
+    letter-spacing: 0.01em;
+  }
+  .hero-tagline::before {
+    content: '— ';
+    color: var(--gold);
+    opacity: 0.6;
+    margin-right: 4px;
+  }
+  .hero-tagline::after {
+    content: ' —';
+    color: var(--gold);
+    opacity: 0.6;
+    margin-left: 4px;
   }
 
   /* Signal tag chips */
@@ -425,18 +421,21 @@
 
   /* Entrance animation */
   @media (prefers-reduced-motion: no-preference) {
-    .hero-kicker, .hero h1, .hero-tagline, .manifesto, .signal-tags, .hero-pick, .card, .all-apps {
+    .hero-kicker, .manifesto-headline, .manifesto-line, .manifesto-body,
+    .manifesto-credo, .hero-tagline, .signal-tags, .hero-pick, .card, .all-apps {
       animation: rise 620ms cubic-bezier(.2,.7,.2,1) backwards;
     }
-    .hero-kicker  { animation-delay:  60ms; }
-    .hero h1      { animation-delay: 140ms; }
-    .hero-tagline { animation-delay: 240ms; }
-    .manifesto    { animation-delay: 320ms; }
-    .signal-tags  { animation-delay: 460ms; }
-    .hero-pick    { animation-delay: 560ms; }
-    .card.coach   { animation-delay: 640ms; }
-    .card.players { animation-delay: 720ms; }
-    .all-apps     { animation-delay: 880ms; }
+    .hero-kicker        { animation-delay:  60ms; }
+    .manifesto-headline { animation-delay: 140ms; }
+    .manifesto-line     { animation-delay: 260ms; }
+    .manifesto-body     { animation-delay: 360ms; }
+    .manifesto-credo    { animation-delay: 440ms; }
+    .hero-tagline       { animation-delay: 520ms; }
+    .signal-tags        { animation-delay: 600ms; }
+    .hero-pick          { animation-delay: 680ms; }
+    .card.coach         { animation-delay: 760ms; }
+    .card.players       { animation-delay: 840ms; }
+    .all-apps           { animation-delay: 980ms; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(22px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -461,22 +460,23 @@
 
 <!-- Hero -->
 <main class="hero">
-  <span class="hero-kicker">Cape Coral · Florida</span>
-  <h1>
-    <span class="welcome">Welcome to</span>
-    <span class="brand-name">J3<span class="accent">Hoops</span>.</span>
-  </h1>
-  <p class="hero-tagline">Coach Dale's basketball portal.</p>
+  <span class="hero-kicker">
+    <span class="pulse"></span>
+    Cape Coral · Florida
+  </span>
 
-  <div class="manifesto">
-    <p class="manifesto-headline"><s>Hero ball</s> is broken.</p>
-    <p class="manifesto-line">Five smart kids beat one ball-hog. <strong>Every time.</strong></p>
-    <p class="manifesto-body">
-      We build players who <em>pass</em>, <em>read the floor</em>, and <em>play defense</em> —
-      backed by film, analytics, and honest player ratings.
-    </p>
-    <p class="manifesto-credo">No politics. No favorites. Just basketball, played right.</p>
-  </div>
+  <h1 class="manifesto-headline"><s>Hero ball</s> is broken.</h1>
+
+  <p class="manifesto-line">Five smart kids beat one ball-hog. <strong>Every time.</strong></p>
+
+  <p class="manifesto-body">
+    We build players who <em>pass</em>, <em>read the floor</em>, and <em>play defense</em> —
+    backed by film, analytics, and honest player ratings.
+  </p>
+
+  <p class="manifesto-credo">No politics. No favorites. Just basketball, played right.</p>
+
+  <p class="hero-tagline">Coach Dale's basketball portal</p>
 
   <div class="signal-tags" aria-label="What J3 Hoops is built on">
     <span class="tag">Basketball IQ</span>
