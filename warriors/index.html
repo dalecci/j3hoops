@@ -8,20 +8,14 @@
 <meta name="robots" content="noindex,nofollow" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="J3 Hoops" />
-<title>J3 Hoops · Warriors Training</title>
+<meta name="apple-mobile-web-app-title" content="Warriors Training" />
+<title>Warriors Training</title>
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/svg+xml" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-<style id="j3-lock-style">
-  html.j3-locked body > :not(.j3-gate) { display: none !important; }
-  html.j3-locked .j3-gate { display: flex !important; }
-  .j3-gate { display: none; }
-</style>
-<script>(function(){if(sessionStorage.getItem('j3-warriors-unlocked')!=='1')document.documentElement.classList.add('j3-locked');})();</script>
 <style>
   :root{
     --bg:#0A0A0B; --surface:#101012; --surface-2:#16161A; --card:#16161A; --card-hi:#1D1D22;
@@ -593,51 +587,6 @@
 </head>
 <body>
 
-<!-- J3 Hoops password gate (UX layer — for real security use Cloudflare Access) -->
-<div class="j3-gate" id="j3Gate" style="position:fixed;inset:0;background:#0A0A0B;align-items:center;justify-content:center;z-index:99999;padding:20px;font-family:'Inter',system-ui,-apple-system,sans-serif;">
-  <div style="width:100%;max-width:360px;background:#16161A;border:1px solid #26262C;border-radius:14px;padding:38px 30px 28px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">
-    <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#FF6A1F,#C24700);display:inline-grid;place-items:center;color:#fff;font-weight:900;font-size:18px;letter-spacing:.5px;box-shadow:0 8px 20px -6px rgba(255,106,31,.55);margin-bottom:18px;">J3</div>
-    <div style="font-size:24px;font-weight:800;color:#F4F4F5;letter-spacing:-.01em;line-height:1;margin-bottom:6px;">Warriors</div>
-    <div style="font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#9A9AA2;margin-bottom:26px;">12U &middot; Summer 2026</div>
-    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="j3Pin" placeholder="••••" autocomplete="off" style="width:100%;background:#0A0A0B;border:1px solid #26262C;border-radius:10px;color:#F4F4F5;font-size:26px;text-align:center;letter-spacing:14px;padding:15px;font-weight:600;outline:none;transition:border-color .15s ease, box-shadow .15s ease;" />
-    <button id="j3UnlockBtn" style="width:100%;margin-top:12px;padding:14px;background:#FF6A1F;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;font-family:inherit;">Enter</button>
-    <div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B6B73;margin-top:20px;">Four-digit code</div>
-  </div>
-</div>
-<script>
-(function(){
-  var PIN='0626', KEY='j3-warriors-unlocked';
-  var gate=document.getElementById('j3Gate'),
-      pin=document.getElementById('j3Pin'),
-      btn=document.getElementById('j3UnlockBtn');
-  function tryUnlock(){
-    if(pin.value===PIN){
-      sessionStorage.setItem(KEY,'1');
-      document.documentElement.classList.remove('j3-locked');
-      gate.style.display='none';
-      document.body.style.overflow='';
-    } else {
-      pin.style.borderColor='#F0584F';
-      pin.style.boxShadow='0 0 0 3px rgba(240,88,79,.18)';
-      pin.value='';
-      setTimeout(function(){
-        pin.style.borderColor='#26262C';
-        pin.style.boxShadow='';
-        pin.focus();
-      },420);
-    }
-  }
-  pin.addEventListener('focus',function(){pin.style.borderColor='#FF6A1F';pin.style.boxShadow='0 0 0 3px rgba(255,106,31,.15)';});
-  pin.addEventListener('blur',function(){pin.style.borderColor='#26262C';pin.style.boxShadow='';});
-  btn.addEventListener('click',tryUnlock);
-  pin.addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock();});
-  if(document.documentElement.classList.contains('j3-locked')){
-    document.body.style.overflow='hidden';
-    setTimeout(function(){pin.focus();},80);
-  }
-})();
-</script>
-
 <div class="topbar">
   <div class="brand" id="brand-btn">
     <div class="logo">W</div>
@@ -1069,18 +1018,11 @@ function render() {
 
 function welcomeHero() {
   const copy = state.settings.welcome_copy || 'Welcome to your training portal.';
-  const wid = state.settings.welcome_video_youtube_id;
   const hero = el('div', { class: 'h-hero' });
   hero.innerHTML = `<h1>Welcome, ${esc(state.player.name.split(/\s+/)[0])}.</h1><p>${esc(copy)}</p>`;
-  if (wid) {
-    const w = el('div', { class: 'yt-wrap', style: 'aspect-ratio:16/9;margin-top:18px;border-radius:12px;overflow:hidden;background:#000;position:relative' });
-    w.innerHTML = `<iframe src="https://www.youtube.com/embed/${esc(wid)}" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`;
-    hero.append(w);
-  } else {
-    const ph = el('div', { class: 'empty', style: 'margin-top:16px;border:1px dashed var(--border);border-radius:12px;padding:24px' });
-    ph.innerHTML = '<div class="ic">📹</div><h3>Welcome video coming soon</h3><p>Coach Dale is filming the kickoff message. Check back shortly.</p>';
-    hero.append(ph);
-  }
+  const w = el('div', { class: 'welcome-hero-vid', style: 'aspect-ratio:16/9;margin-top:18px;border-radius:14px;overflow:hidden;background:#000;position:relative;box-shadow:0 12px 36px -12px rgba(0,0,0,.6)' });
+  w.innerHTML = `<video autoplay muted loop playsinline preload="auto" disablepictureinpicture x-webkit-airplay="deny" oncontextmenu="return false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0;display:block;pointer-events:none" src="welcome.mp4"></video>`;
+  hero.append(w);
   return hero;
 }
 
