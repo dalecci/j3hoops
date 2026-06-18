@@ -1008,8 +1008,8 @@ function render() {
   if (parts[0] === 'practice') return renderPractice(v, parts[1]);
   if (parts[0] === 'bball101') return renderCategory(v, '101', sectionLabel('101'));
   if (parts[0] === 'nba') return renderCategory(v, 'nba', sectionLabel('nba'));
-  if (parts[0] === 'fullgame') return renderCategory(v, 'fullgame', sectionLabel('fullgame'));
-  if (parts[0] === 'gamebreakdown') return renderCategory(v, 'gamebreakdown', sectionLabel('gamebreakdown'));
+  if (parts[0] === 'fullgame') return renderCategory(v, 'fullgame', sectionLabel('fullgame'), parts[1] ? decodeURIComponent(parts[1]) : '');
+  if (parts[0] === 'gamebreakdown') return renderCategory(v, 'gamebreakdown', sectionLabel('gamebreakdown'), parts[1] ? decodeURIComponent(parts[1]) : '');
   if (parts[0] === 'notes') return renderNotes(v, parts[1]);
   if (parts[0] === 'video') return renderHome(v); // fallback; video opens via modal
   if (parts[0] === 'admin') return renderAdmin(v, parts.slice(1));
@@ -1549,10 +1549,36 @@ function renderPractice(v, sub) {
 }
 
 const CATEGORY_ICONS = { '101': '📘', nba: '🏆', fullgame: '🎥', gamebreakdown: '🎬', practice: '🏀', welcome: '👋' };
-function renderCategory(v, cat, label) {
-  const list = vidsByCat(cat);
-  v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', label, list.length));
-  if (!list.length) v.append(emptyState('No videos in this category yet.'));
+const SUBCAT_CAPABLE = new Set(['fullgame', 'gamebreakdown']);
+function smartSubcatSort(a, b) {
+  const numA = parseInt((String(a).match(/\d+/) || [])[0]);
+  const numB = parseInt((String(b).match(/\d+/) || [])[0]);
+  if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
+  return String(a).localeCompare(String(b));
+}
+function renderCategory(v, cat, label, sub) {
+  const allInCat = vidsByCat(cat);
+  v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', label, allInCat.length));
+
+  if (SUBCAT_CAPABLE.has(cat)) {
+    const subSet = new Set();
+    allInCat.forEach(vd => { if (vd.sub_cat) subSet.add(vd.sub_cat); });
+    if (subSet.size) {
+      const chips = el('div', { class: 'chips lg' });
+      const mkChip = (key, lbl) => {
+        const c = el('button', { class: 'chip' + ((sub || '') === (key || '') ? ' on' : '') });
+        c.textContent = lbl;
+        c.addEventListener('click', () => go(key ? `#${cat}/${encodeURIComponent(key)}` : `#${cat}`));
+        return c;
+      };
+      chips.append(mkChip('', 'All'));
+      [...subSet].sort(smartSubcatSort).forEach(s => chips.append(mkChip(s, s)));
+      v.append(chips);
+    }
+  }
+
+  const list = sub ? allInCat.filter(vd => vd.sub_cat === sub) : allInCat;
+  if (!list.length) v.append(emptyState(sub ? `No videos in "${sub}" yet.` : 'No videos in this category yet.'));
   else v.append(buildVidGrid(list));
 }
 
@@ -2327,7 +2353,18 @@ function renderVideoForm(v, vd) {
   form.append(mk('Title', `<input id="f_title" value="${esc(data.title)}" required>`));
   const catRow = el('div', { class: 'grid2' });
   catRow.append(mk('Category', `<select id="f_cat"><option value="welcome">Welcome</option><option value="practice">Practice Breakdown</option><option value="fullgame">Full Game</option><option value="gamebreakdown">Game Breakdown</option><option value="101">Basketball 101</option><option value="nba">NBA Breakdown</option></select>`));
-  catRow.append(mk('Sub-category (Practice only)', `<select id="f_sub"><option value="">— None —</option><option value="offense">Offense</option><option value="defense">Defense</option><option value="individual">Individual Drills</option><option value="pickroll">Pick N Roll</option></select>`));
+  catRow.append(mk('Sub-category', `
+    <select id="f_sub_select" style="display:none">
+      <option value="">— None —</option>
+      <option value="offense">Offense</option>
+      <option value="defense">Defense</option>
+      <option value="individual">Individual Drills</option>
+      <option value="pickroll">Pick N Roll</option>
+    </select>
+    <input id="f_sub_text" type="text" list="f_sub_datalist" placeholder="e.g. Game 5 - vs Bulls" style="display:none" />
+    <datalist id="f_sub_datalist"></datalist>
+    <div id="f_sub_none" style="color:var(--faint);font-size:12.5px;font-style:italic;padding:6px 0">No sub-category for this category.</div>
+  `, 'For Practice pick from the list. For Full Game / Game Breakdown type the game name (e.g. "Game 5 - vs Bulls") — same name reuses an existing group.'));
   form.append(catRow);
   form.append(mk('Tags', `<input id="f_tags" value="${esc(data.tags)}" placeholder="e.g. 1-3-1, transition, screens">`, 'Comma-separated. Used as sub-chips under sub-categories.'));
   form.append(mk('Summary', `<textarea id="f_summary">${esc(data.summary||'')}</textarea>`));
@@ -2346,7 +2383,26 @@ function renderVideoForm(v, vd) {
   taggedBox.innerHTML = `<label>Tagged players (who appears in this clip)</label><div class="ms" id="f_tagged"></div><div class="hint">Tap names to toggle. They'll see this in "Videos with me."</div>`;
   form.append(taggedBox);
   v.append(form);
-  $('#f_cat').value = data.category; $('#f_sub').value = data.sub_cat||''; $('#f_feat').value = String(!!data.featured);
+  $('#f_cat').value = data.category;
+  $('#f_feat').value = String(!!data.featured);
+  function refreshSubcatField() {
+    const cat = $('#f_cat').value;
+    const sel = $('#f_sub_select'), txt = $('#f_sub_text'), none = $('#f_sub_none'), list = $('#f_sub_datalist');
+    if (cat === 'practice') {
+      sel.style.display = ''; txt.style.display = 'none'; none.style.display = 'none';
+    } else if (cat === 'fullgame' || cat === 'gamebreakdown') {
+      sel.style.display = 'none'; txt.style.display = ''; none.style.display = 'none';
+      list.innerHTML = '';
+      const existing = [...new Set(state.videos.filter(x => x.category === cat && x.sub_cat).map(x => x.sub_cat))];
+      existing.sort().forEach(s => { const o = document.createElement('option'); o.value = s; list.append(o); });
+    } else {
+      sel.style.display = 'none'; txt.style.display = 'none'; none.style.display = '';
+    }
+  }
+  if (data.category === 'practice') $('#f_sub_select').value = data.sub_cat || '';
+  else $('#f_sub_text').value = data.sub_cat || '';
+  refreshSubcatField();
+  $('#f_cat').addEventListener('change', refreshSubcatField);
   const msHost = $('#f_tagged');
   for (const p of state.players) {
     const chip = el('button', { type: 'button', class: 'pchip' + (taggedNow.has(p.id) ? ' on' : '') });
@@ -2377,7 +2433,12 @@ function renderVideoForm(v, vd) {
       title: $('#f_title').value.trim(),
       youtube_id: yid,
       category: $('#f_cat').value,
-      sub_cat: ($('#f_cat').value === 'practice' ? ($('#f_sub').value || null) : null),
+      sub_cat: (() => {
+        const c = $('#f_cat').value;
+        if (c === 'practice') return $('#f_sub_select').value || null;
+        if (c === 'fullgame' || c === 'gamebreakdown') return $('#f_sub_text').value.trim() || null;
+        return null;
+      })(),
       tags: $('#f_tags').value.split(',').map(s => s.trim()).filter(Boolean),
       summary: $('#f_summary').value,
       custom_thumb: $('#f_thumb').value.trim() || null,
