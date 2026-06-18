@@ -253,6 +253,32 @@
   }
   .ptile .nm{font-size:13px;font-weight:700;line-height:1.2;text-align:center}
 
+  /* ---------- Game tiles (Game Breakdown / Full Game index) ---------- */
+  .gtile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-top:6px}
+  @media(max-width:480px){.gtile-grid{grid-template-columns:repeat(2,1fr);gap:10px}}
+  .gtile{
+    background:var(--card);border:1.5px solid var(--border);border-radius:18px;
+    padding:22px 12px 18px;cursor:pointer;transition:.15s;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    font-family:inherit;color:var(--text);text-align:center;
+  }
+  .gtile:hover,.gtile:active{border-color:var(--accent);background:var(--card-hi);transform:translateY(-2px)}
+  .gtile .gt-badge{
+    width:62px;height:62px;border-radius:50%;display:grid;place-items:center;
+    font-weight:900;font-size:18px;color:#fff;letter-spacing:.4px;
+    box-shadow:0 6px 14px rgba(0,0,0,.45);
+  }
+  .gtile .gt-name{font-size:14px;font-weight:800;line-height:1.2}
+  .gtile .gt-meta{font-size:12px;color:var(--muted);font-weight:600}
+  .gtile.other .gt-badge{background:#6b7280;font-size:22px}
+  .game-back{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:999px;
+    padding:7px 14px;font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;font-family:inherit;margin-bottom:14px;text-decoration:none;
+  }
+  .game-back:hover{color:var(--text);border-color:var(--border-2)}
+
   /* ---------- Video player modal ---------- */
   .modal{
     position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.85);
@@ -1556,30 +1582,73 @@ function smartSubcatSort(a, b) {
   if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
   return String(a).localeCompare(String(b));
 }
+const GAME_TILE_COLORS = ['#FF6A1F','#ec4899','#fb7185','#a78bfa','#fb923c','#8b5cf6','#6366f1','#3b82f6','#f59e0b','#34d399','#fbbf24','#22d3ee'];
+function parseGameNum(s) { const m = String(s||'').match(/\d+/); return m ? parseInt(m[0]) : null; }
+function gameBadge(sub) {
+  const n = parseGameNum(sub);
+  if (n != null) return 'G' + n;
+  return String(sub || '?').replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase() || '?';
+}
+function gameTileColor(sub) {
+  const n = parseGameNum(sub);
+  if (n != null) return GAME_TILE_COLORS[(n - 1 + GAME_TILE_COLORS.length) % GAME_TILE_COLORS.length];
+  let h = 0; const s = String(sub||'');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return GAME_TILE_COLORS[h % GAME_TILE_COLORS.length];
+}
 function renderCategory(v, cat, label, sub) {
   const allInCat = vidsByCat(cat);
-  v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', label, allInCat.length));
+  const isGameStyle = SUBCAT_CAPABLE.has(cat);
 
-  if (SUBCAT_CAPABLE.has(cat)) {
-    const subSet = new Set();
-    allInCat.forEach(vd => { if (vd.sub_cat) subSet.add(vd.sub_cat); });
-    if (subSet.size) {
-      const chips = el('div', { class: 'chips lg' });
-      const mkChip = (key, lbl) => {
-        const c = el('button', { class: 'chip' + ((sub || '') === (key || '') ? ' on' : '') });
-        c.textContent = lbl;
-        c.addEventListener('click', () => go(key ? `#${cat}/${encodeURIComponent(key)}` : `#${cat}`));
-        return c;
-      };
-      chips.append(mkChip('', 'All'));
-      [...subSet].sort(smartSubcatSort).forEach(s => chips.append(mkChip(s, s)));
-      v.append(chips);
+  if (isGameStyle && !sub) {
+    v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', label, allInCat.length));
+    const subCounts = new Map();
+    let unsorted = 0;
+    allInCat.forEach(vd => {
+      if (vd.sub_cat) subCounts.set(vd.sub_cat, (subCounts.get(vd.sub_cat) || 0) + 1);
+      else unsorted++;
+    });
+    if (subCounts.size === 0) {
+      if (!allInCat.length) v.append(emptyState('No videos in this category yet.'));
+      else v.append(buildVidGrid(allInCat));
+      return;
     }
+    const grid = el('div', { class: 'gtile-grid' });
+    [...subCounts.keys()].sort(smartSubcatSort).forEach(s => {
+      const count = subCounts.get(s);
+      const tile = el('button', { class: 'gtile', type: 'button' });
+      tile.innerHTML = `<div class="gt-badge" style="background:${gameTileColor(s)}">${esc(gameBadge(s))}</div><div class="gt-name">${esc(s)}</div><div class="gt-meta">${count} video${count===1?'':'s'}</div>`;
+      tile.addEventListener('click', () => go(`#${cat}/${encodeURIComponent(s)}`));
+      grid.append(tile);
+    });
+    if (unsorted) {
+      const tile = el('button', { class: 'gtile other', type: 'button' });
+      tile.innerHTML = `<div class="gt-badge">⋯</div><div class="gt-name">Other</div><div class="gt-meta">${unsorted} video${unsorted===1?'':'s'}</div>`;
+      tile.addEventListener('click', () => go(`#${cat}/__unsorted__`));
+      grid.append(tile);
+    }
+    v.append(grid);
+    return;
   }
 
-  const list = sub ? allInCat.filter(vd => vd.sub_cat === sub) : allInCat;
-  if (!list.length) v.append(emptyState(sub ? `No videos in "${sub}" yet.` : 'No videos in this category yet.'));
-  else v.append(buildVidGrid(list));
+  if (isGameStyle && sub) {
+    const back = el('button', { class: 'game-back', type: 'button' });
+    back.innerHTML = `← ${esc(label)}`;
+    back.addEventListener('click', () => go(`#${cat}`));
+    v.append(back);
+    const subLabel = sub === '__unsorted__' ? 'Other (unsorted)' : sub;
+    const list = sub === '__unsorted__'
+      ? allInCat.filter(vd => !vd.sub_cat)
+      : allInCat.filter(vd => vd.sub_cat === sub);
+    v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', subLabel, list.length));
+    if (!list.length) v.append(emptyState(`No videos in "${subLabel}" yet.`));
+    else v.append(buildVidGrid(list));
+    return;
+  }
+
+  v.append(buildSectionHeader(CATEGORY_ICONS[cat] || '📘', label, allInCat.length));
+  if (!allInCat.length) v.append(emptyState('No videos in this category yet.'));
+  else v.append(buildVidGrid(allInCat));
 }
 
 const NOTE_SUBCATS = [
