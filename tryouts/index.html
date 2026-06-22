@@ -229,6 +229,38 @@
   .demo-ribbon{position:fixed;bottom:0;left:0;right:0;z-index:60;background:rgba(200,169,92,.12);
     border-top:1px solid rgba(200,169,92,.3);color:var(--gold-bright);text-align:center;font-size:.72rem;
     font-weight:700;padding:6px;letter-spacing:.04em}
+
+  /* ===== leaderboard toolbar / toggle ===== */
+  .lb-toolbar{display:flex;align-items:center;gap:14px;margin:0 2px 13px;flex-wrap:wrap}
+  .seg{display:inline-flex;background:var(--bg-card);border:1px solid var(--line);border-radius:12px;padding:3px}
+  .seg-btn{padding:9px 17px;border-radius:9px;font-size:.8rem;font-weight:800;color:var(--text-mute);transition:.14s;letter-spacing:.02em}
+  .seg-btn:hover{color:var(--text-soft)}
+  .seg-btn.on{background:linear-gradient(135deg,var(--flame),var(--flame-deep));color:#fff;box-shadow:0 7px 15px -8px var(--flame)}
+  .lb-hint{font-size:.76rem;color:var(--text-dim);font-weight:600;font-style:italic}
+  .lb-hint b{color:var(--flame-bright);font-style:normal}
+  /* editable cells */
+  .scorecell.editable{cursor:pointer;border-radius:9px;transition:.1s}
+  .scorecell.editable:hover{outline:2px solid var(--flame);outline-offset:-3px}
+  .scorecell.add{color:var(--flame-bright)!important;font-size:1.2rem}
+  /* rating popover */
+  .rate-pop{position:fixed;z-index:300;background:#0c1d30;border:1px solid var(--line);border-radius:14px;
+    padding:9px;box-shadow:0 26px 60px -18px #000;animation:rise .14s ease}
+  .rate-pop .rp-head{font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);
+    text-align:center;margin-bottom:7px}
+  .rate-pop-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .rp{width:46px;height:46px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+    font-weight:800;font-size:1.02rem;color:var(--text-soft);transition:.1s;display:grid;place-items:center}
+  .rp:hover{border-color:var(--flame);color:#fff;transform:scale(1.05)}
+  .rp.on{border-color:transparent;color:#fff}
+  .rp.clear{grid-column:span 5;width:auto;height:34px;font-size:.74rem;color:var(--text-mute);font-weight:700}
+  .rp.clear:hover{color:#ff7a7a;border-color:rgba(255,122,122,.4);transform:none}
+  /* breakdown picker */
+  .bd-pick{max-width:380px;margin-bottom:4px}
+  .bd-pick label{display:block;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);margin-bottom:6px}
+  select.inp{appearance:none;-webkit-appearance:none;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23FF8534' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 13px center;padding-right:36px}
+  select.inp option{background:#0c1d30;color:#fff}
   @media(max-width:640px){
     .hero-stats{margin-left:0;width:100%}
     .grid3{grid-template-columns:1fr 1fr}
@@ -268,7 +300,7 @@ const MEAS=[
 ];
 
 let DEMO=false;
-const state={coaches:[],players:[],scores:[],notes:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1}};
+const state={coaches:[],players:[],scores:[],notes:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null};
 
 /* ---------- data load ---------- */
 async function loadAll(){
@@ -347,6 +379,17 @@ function overall(playerId){
 function coachesScored(playerId){
   return new Set(state.scores.filter(s=>s.player_id===playerId).map(s=>s.coach_id)).size;
 }
+function myCatVal(playerId,catKey){
+  if(!state.me||state.me.viewOnly) return null;
+  const s=state.scores.find(x=>x.player_id===playerId&&x.coach_id===state.me.id&&x.category===catKey);
+  return s?s.value:null;
+}
+function myOverall(playerId){
+  const vals=CATS.map(c=>myCatVal(playerId,c.key)).filter(v=>v!=null);
+  if(!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+function lbMineMode(){return state.lbMode==='mine'&&state.me&&!state.me.viewOnly;}
 function scoreColor(v){
   if(v==null) return 'transparent';
   const h=(Math.max(1,Math.min(10,v))-1)/9*128; // red->green
@@ -361,9 +404,10 @@ function fmtScore(v){return v==null?'—':(Math.round(v*10)/10).toFixed(1).repla
 
 /* ---------- rank rows ---------- */
 function rankedRows(){
+  const mine=lbMineMode();
   const rows=state.players.map(p=>{
-    const r={p,ovr:overall(p.id),scored:coachesScored(p.id)};
-    CATS.forEach(c=>r[c.key]=catAvg(p.id,c.key));
+    const r={p,ovr:mine?myOverall(p.id):overall(p.id),scored:coachesScored(p.id)};
+    CATS.forEach(c=>r[c.key]=mine?myCatVal(p.id,c.key):catAvg(p.id,c.key));
     MEAS.forEach(m=>r[m.key]=p[m.key]??null);
     return r;
   });
@@ -409,7 +453,7 @@ function topBar(){
   </div></div>`;
 }
 function tabBar(){
-  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['roster','Roster']];
+  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['breakdown','Breakdown'],['roster','Roster']];
   return `<div class="tabs"><div class="tabs-in">
     ${tabs.map(([k,l])=>`<button class="tab ${state.view===k?'on':''}" data-view="${k}">${l}${k==='roster'?`<span class="ct">${state.players.length}</span>`:''}</button>`).join('')}
   </div></div>`;
@@ -439,6 +483,13 @@ function vLeaderboard(){
       </div>
     </div>
   </div>
+  ${(state.me&&!state.me.viewOnly)?`<div class="lb-toolbar">
+    <div class="seg">
+      <button class="seg-btn ${state.lbMode==='avg'?'on':''}" data-mode="avg">Team Avg</button>
+      <button class="seg-btn ${state.lbMode==='mine'?'on':''}" data-mode="mine">My Ratings</button>
+    </div>
+    <span class="lb-hint">${lbMineMode()?'<b>Tap any score cell</b> to set your rating':'Averages across all coaches · tap a header to rank'}</span>
+  </div>`:''}
   <div class="lb-wrap"><div class="lb-scroll"><table class="lb">
     <thead><tr>
       ${th('number','#',{l:true})}
@@ -463,7 +514,12 @@ function lbRow(r,i){
       <div><div class="pl-name">${esc(r.p.name)}${r.p.status==='walkup'?'<span class="wkpill">WALK-UP</span>':''}</div>
         <div class="pl-meta">${r.scored} coach${r.scored===1?'':'es'} scored</div></div>
     </div></td>
-    ${CATS.map(c=>{const v=r[c.key];return `<td><div class="cell scorecell" style="background:${scoreColor(v)};color:${scoreText(v)}">${fmtScore(v)}</div></td>`}).join('')}
+    ${CATS.map(c=>{const v=r[c.key];
+      if(lbMineMode()){
+        return `<td><div class="cell scorecell editable ${v==null?'add':''}" data-edit data-pid="${r.p.id}" data-cat="${c.key}" style="background:${scoreColor(v)};color:${v==null?'var(--flame-bright)':scoreText(v)}">${v==null?'＋':v}</div></td>`;
+      }
+      return `<td><div class="cell scorecell" style="background:${scoreColor(v)};color:${scoreText(v)}">${fmtScore(v)}</div></td>`;
+    }).join('')}
     <td class="ovrcell"><div class="cell ovr" style="color:${scoreText(r.ovr)}">${fmtScore(r.ovr)}</div></td>
     ${MEAS.map(m=>`<td><div class="cell ${r[m.key]!=null&&r[m.key]!==''?'meas':'nodata'}">${m.fmt(r[m.key])}</div></td>`).join('')}
   </tr>`;
@@ -551,7 +607,55 @@ function scoreDetail(pid){
   </div>`;
 }
 
-const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore};
+/* ---------- BREAKDOWN ---------- */
+function breakdownTable(pid){
+  const rows=CATS.map(cat=>{
+    const byCoach=state.coaches.map(co=>{const s=state.scores.find(x=>x.player_id===pid&&x.coach_id===co.id&&x.category===cat.key);return s?s.value:null;});
+    return {cat,byCoach,avg:catAvg(pid,cat.key)};
+  });
+  return `<div class="lb-wrap"><div class="lb-scroll"><table class="lb" style="min-width:0">
+    <thead><tr><th class="lcol">Category</th>${state.coaches.map(c=>`<th title="${esc(c.name)}">${initials(c.name)}</th>`).join('')}<th>AVG</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td><div class="cell" style="text-align:left;padding-left:13px;font-weight:700">${r.cat.label}</div></td>
+      ${r.byCoach.map(v=>`<td><div class="cell scorecell" style="background:${scoreColor(v)};color:${scoreText(v)}">${v??'–'}</div></td>`).join('')}
+      <td class="ovrcell"><div class="cell ovr" style="font-size:1.05rem;color:${scoreText(r.avg)}">${fmtScore(r.avg)}</div></td></tr>`).join('')}
+      <tr><td><div class="cell" style="text-align:left;padding-left:13px;font-weight:900;color:var(--flame-bright)">OVERALL</div></td>
+        <td colspan="${state.coaches.length}"></td>
+        <td class="ovrcell"><div class="cell ovr" style="color:${scoreText(overall(pid))}">${fmtScore(overall(pid))}</div></td></tr>
+    </tbody></table></div></div>`;
+}
+function vBreakdown(){
+  if(!state.players.length){
+    return `<div class="empty-state"><div class="ico">📋</div><div>No players yet. Add your roster on the Roster tab to see coach-by-coach breakdowns.</div></div>`;
+  }
+  const ids=state.players.slice().sort((a,b)=>(a.number??999)-(b.number??999));
+  let sel=state.breakdownPlayer;
+  if(!sel||!state.players.find(p=>p.id===sel)) sel=ids[0].id;
+  const p=state.players.find(x=>x.id===sel);
+  const notes=state.notes.filter(n=>n.player_id===sel&&n.text&&n.text.trim());
+  return `
+  <div class="sec-head"><h2>BREAKDOWN</h2><div class="rule"></div></div>
+  <p style="color:var(--text-mute);margin:-6px 2px 16px">Every coach's rating per category, side by side, with the averaged score.</p>
+  <div class="bd-pick"><label>Player</label>
+    <select class="inp" id="bdsel">${ids.map(pp=>`<option value="${pp.id}" ${pp.id===sel?'selected':''}>#${pp.number??'–'} · ${esc(pp.name)}${pp.status==='walkup'?' (walk-up)':''}</option>`).join('')}</select>
+  </div>
+  <div class="score-hd" style="margin-top:15px">
+    <div class="jersey ${p.status==='walkup'?'wk':''}">${p.number??'–'}</div>
+    <div style="flex:1"><div class="score-hd-name">${esc(p.name)}</div>
+      <div class="score-hd-meas">${MEAS.map(m=>`<span class="chip">${m.short} <b>${m.fmt(p[m.key]??null)}</b></span>`).join('')}</div></div>
+    <div style="text-align:right"><div class="scat-team" style="margin-bottom:2px">OVERALL</div>
+      <div style="font-family:var(--disp);font-size:2rem;line-height:1;color:${scoreText(overall(sel))}">${fmtScore(overall(sel))}</div>
+      <div class="pl-meta" style="margin-top:3px">${coachesScored(sel)}/${state.coaches.length} coaches</div></div>
+  </div>
+  ${breakdownTable(sel)}
+  <div class="sec-head" style="margin:24px 2px 12px"><h2 style="font-size:1.1rem">COACH NOTES</h2><div class="rule"></div></div>
+  ${notes.length?notes.map(n=>{const co=state.coaches.find(c=>c.id===n.coach_id);return `<div class="scat" style="margin-bottom:9px">
+    <div class="scat-team" style="margin-bottom:5px"><b>${esc(co?co.name:'Coach')}</b></div>
+    <div style="color:var(--text-soft)">${esc(n.text)}</div></div>`}).join('')
+    :`<p style="color:var(--text-dim);font-style:italic">No notes yet.</p>`}
+  `;
+}
+
+const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown};
 
 /* ---------- GATE / IDENTITY ---------- */
 function renderGate(){
@@ -606,6 +710,12 @@ function wire(){
     if(state.sort.key===k)state.sort.dir*=-1;
     else state.sort={key:k,dir:(k==='name'?1:-1)};
     render();});
+  // board mode toggle
+  document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{state.lbMode=b.dataset.mode;render();});
+  // inline editable score cells
+  document.querySelectorAll('[data-edit]').forEach(c=>c.onclick=e=>{e.stopPropagation();openRatePopover(c,c.dataset.pid,c.dataset.cat);});
+  // breakdown player selector
+  const bd=document.getElementById('bdsel');if(bd)bd.onchange=()=>{state.breakdownPlayer=bd.value;render();};
   // open player detail
   document.querySelectorAll('[data-player]').forEach(el=>{if(el.dataset.player&&!el.dataset.cat)el.onclick=()=>openPlayer(el.dataset.player);});
   // score shortcuts
@@ -623,11 +733,44 @@ function wire(){
 /* ---------- writes ---------- */
 function flag(){const f=document.getElementById('saveflag');f.classList.add('show');clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1100);}
 async function saveScore(pid,cat,val){
-  let row=state.scores.find(s=>s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat);
-  if(row)row.value=val; else{row={id:uuid(),player_id:pid,coach_id:state.me.id,category:cat,value:val};state.scores.push(row);}
-  // re-render just the detail to reflect selection + team avg
-  document.getElementById('main').innerHTML=scoreDetail(pid);wire();flag();
-  if(!DEMO){await sb.from('tryout_scores').upsert({player_id:pid,coach_id:state.me.id,category:cat,value:val},{onConflict:'player_id,coach_id,category'});}
+  if(val==null){ // clear my rating
+    state.scores=state.scores.filter(s=>!(s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat));
+  } else {
+    let row=state.scores.find(s=>s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat);
+    if(row)row.value=val; else state.scores.push({id:uuid(),player_id:pid,coach_id:state.me.id,category:cat,value:val});
+  }
+  flag();
+  // re-render current context
+  if(state.view==='score'&&state.scorePlayer){document.getElementById('main').innerHTML=scoreDetail(state.scorePlayer);wire();}
+  else{render();}
+  if(!DEMO){
+    if(val==null) await sb.from('tryout_scores').delete().match({player_id:pid,coach_id:state.me.id,category:cat});
+    else await sb.from('tryout_scores').upsert({player_id:pid,coach_id:state.me.id,category:cat,value:val},{onConflict:'player_id,coach_id,category'});
+  }
+}
+
+/* ---------- inline rating popover (leaderboard) ---------- */
+function closePop(){const p=document.getElementById('ratepop');if(p)p.remove();document.removeEventListener('click',popOutside,true);}
+function popOutside(e){if(!e.target.closest('#ratepop'))closePop();}
+function openRatePopover(anchor,pid,cat){
+  closePop();
+  const player=state.players.find(p=>p.id===pid);
+  const catDef=CATS.find(c=>c.key===cat);
+  const cur=myCatVal(pid,cat);
+  const pop=document.createElement('div');pop.className='rate-pop';pop.id='ratepop';
+  pop.innerHTML=`<div class="rp-head">${esc(player?player.name:'')} · ${catDef?catDef.label:''}</div>
+    <div class="rate-pop-grid">
+      ${Array.from({length:10},(_,i)=>i+1).map(n=>`<button class="rp ${cur===n?'on':''}" data-n="${n}" style="${cur===n?`background:${scoreColor(n).replace('0.20','0.6')};border-color:${scoreText(n)}`:''}">${n}</button>`).join('')}
+      ${cur!=null?`<button class="rp clear" data-n="clear">Clear my rating</button>`:''}
+    </div>`;
+  document.body.appendChild(pop);
+  const r=anchor.getBoundingClientRect();
+  let left=r.left+r.width/2-pop.offsetWidth/2;
+  left=Math.max(8,Math.min(left,window.innerWidth-pop.offsetWidth-8));
+  let top=r.bottom+6; if(top+pop.offsetHeight>window.innerHeight-8) top=r.top-pop.offsetHeight-6;
+  pop.style.left=left+'px';pop.style.top=Math.max(8,top)+'px';
+  pop.querySelectorAll('.rp').forEach(b=>b.onclick=e=>{e.stopPropagation();const n=b.dataset.n;closePop();saveScore(pid,cat,n==='clear'?null:+n);});
+  setTimeout(()=>document.addEventListener('click',popOutside,true),0);
 }
 async function saveNote(pid,text){
   let row=state.notes.find(n=>n.player_id===pid&&n.coach_id===state.me.id);
@@ -694,10 +837,6 @@ function playerModal(isWalkup=false,existing=null){
 function openPlayer(pid){
   const p=state.players.find(x=>x.id===pid);if(!p)return;
   const mr=document.getElementById('modal-root');
-  const rows=CATS.map(cat=>{
-    const byCoach=state.coaches.map(co=>{const s=state.scores.find(x=>x.player_id===pid&&x.coach_id===co.id&&x.category===cat.key);return s?s.value:null;});
-    return {cat,byCoach,avg:catAvg(pid,cat.key)};
-  });
   const notes=state.notes.filter(n=>n.player_id===pid&&n.text&&n.text.trim());
   mr.innerHTML=`<div class="ov" id="ov"><div class="sheet" style="max-width:680px"><div class="sheet-h">
     <div class="jersey ${p.status==='walkup'?'wk':''}" style="width:44px;height:44px">${p.number??'–'}</div>
@@ -708,15 +847,7 @@ function openPlayer(pid){
       <div class="score-hd-meas" style="margin-bottom:16px">
         ${MEAS.map(m=>`<span class="chip">${m.label} <b>${m.fmt(p[m.key]??null)}</b></span>`).join('')}
       </div>
-      <div class="lb-wrap"><div class="lb-scroll"><table class="lb" style="min-width:0">
-        <thead><tr><th class="lcol">Category</th>${state.coaches.map(c=>`<th>${initials(c.name)}</th>`).join('')}<th>AVG</th></tr></thead>
-        <tbody>${rows.map(r=>`<tr><td><div class="cell" style="text-align:left;padding-left:12px;font-weight:700">${r.cat.label}</div></td>
-          ${r.byCoach.map(v=>`<td><div class="cell scorecell" style="background:${scoreColor(v)};color:${scoreText(v)}">${v??'–'}</div></td>`).join('')}
-          <td class="ovrcell"><div class="cell ovr" style="font-size:1.05rem;color:${scoreText(r.avg)}">${fmtScore(r.avg)}</div></td></tr>`).join('')}
-          <tr><td><div class="cell" style="text-align:left;padding-left:12px;font-weight:900;color:var(--flame-bright)">OVERALL</div></td>
-            <td colspan="${state.coaches.length}"></td>
-            <td class="ovrcell"><div class="cell ovr" style="color:${scoreText(overall(pid))}">${fmtScore(overall(pid))}</div></td></tr>
-        </tbody></table></div></div>
+      ${breakdownTable(pid)}
       <div class="sec-head" style="margin:22px 2px 12px"><h2 style="font-size:1.1rem">COACH NOTES</h2><div class="rule"></div></div>
       ${notes.length?notes.map(n=>{const co=state.coaches.find(c=>c.id===n.coach_id);return `<div class="scat" style="margin-bottom:9px">
         <div class="scat-team" style="margin-bottom:5px"><b>${esc(co?co.name:'Coach')}</b></div>
