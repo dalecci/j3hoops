@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#07111E" />
-<title>J3 Hoops · Tryouts 2026</title>
-<meta name="description" content="J3 Hoops Tryout Evaluation — live coach scoring, averages, and rankings for the AAU travel team." />
+<meta name="theme-color" content="#0A0612" />
+<title>Jaguars Basketball · Tryouts</title>
+<meta name="description" content="Jaguars Basketball (SW Florida) Tryout Evaluation — live coach scoring, averages, and rankings for the AAU travel team." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Fraunces:opsz,ital,wght@9..144,1,500;9..144,1,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-deep:#07111E; --bg-dark:#0F2238; --bg-card:#0E1C2D; --bg-card-2:#142A45;
-    --flame:#FF6B1A; --flame-bright:#FF8534; --flame-deep:#C24700;
-    --flame-soft:rgba(255,107,26,0.10);
-    --gold:#C8A95C; --gold-bright:#E0BD68;
+    --bg-deep:#0A0612; --bg-dark:#160E24; --bg-card:#140B20; --bg-card-2:#251539;
+    --flame:#8B43E0; --flame-bright:#A66BF2; --flame-deep:#5B21B6;
+    --flame-soft:rgba(139,67,224,0.12);
+    --gold:#E3AE33; --gold-bright:#F4C84B;
     --text:#FFFFFF; --text-soft:rgba(255,255,255,0.78); --text-mute:rgba(255,255,255,0.55);
     --text-dim:rgba(255,255,255,0.32);
     --line:rgba(255,255,255,0.10); --line-soft:rgba(255,255,255,0.055);
@@ -25,8 +25,8 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html{background:var(--bg-deep);scroll-behavior:smooth}
   body{font-family:var(--sans);background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(255,107,26,0.10), transparent 60%),
-      radial-gradient(900px 600px at -10% 10%, rgba(200,169,92,0.07), transparent 55%),
+      radial-gradient(1200px 700px at 80% -10%, rgba(139,67,224,0.18), transparent 60%),
+      radial-gradient(900px 600px at -10% 10%, rgba(227,174,51,0.08), transparent 55%),
       var(--bg-deep);
     color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5;min-height:100vh;overflow-x:hidden}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
@@ -36,7 +36,7 @@
   /* ===== top bar ===== */
   .bar{position:sticky;top:0;z-index:80;backdrop-filter:blur(16px) saturate(150%);
     -webkit-backdrop-filter:blur(16px) saturate(150%);
-    background:rgba(7,17,30,0.80);border-bottom:1px solid var(--line)}
+    background:rgba(10,6,18,0.82);border-bottom:1px solid var(--line)}
   .bar-in{max-width:var(--maxw);margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:14px}
   .mark{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--text);min-width:0}
   .mark-badge{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
@@ -55,7 +55,7 @@
   .coachpill button:hover{color:var(--flame-bright)}
 
   /* ===== tabs ===== */
-  .tabs{position:sticky;top:61px;z-index:70;background:rgba(7,17,30,0.72);backdrop-filter:blur(10px);
+  .tabs{position:sticky;top:61px;z-index:70;background:rgba(10,6,18,0.74);backdrop-filter:blur(10px);
     -webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
   .tabs-in{max-width:var(--maxw);margin:0 auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
   .tab{padding:13px 16px;font-size:.82rem;font-weight:800;letter-spacing:.04em;color:var(--text-mute);
@@ -69,13 +69,13 @@
 
   /* ===== hero (leaderboard top) ===== */
   .hero{position:relative;border-radius:20px;overflow:hidden;margin-bottom:20px;
-    border:1px solid var(--line);background:linear-gradient(135deg,#10243c,#0a1828)}
+    border:1px solid var(--line);background:linear-gradient(135deg,#1c1033,#0c0716)}
   .hero-grid{position:absolute;inset:0;opacity:.5;pointer-events:none;
     background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
     background-size:46px 46px;mask-image:radial-gradient(ellipse 70% 100% at 80% 0%,#000,transparent 75%);
     -webkit-mask-image:radial-gradient(ellipse 70% 100% at 80% 0%,#000,transparent 75%)}
   .hero-glow{position:absolute;width:340px;height:340px;right:-60px;top:-130px;border-radius:50%;
-    background:radial-gradient(circle,rgba(255,107,26,.40),transparent 65%);pointer-events:none}
+    background:radial-gradient(circle,rgba(139,67,224,.45),transparent 65%);pointer-events:none}
   .hero-in{position:relative;padding:26px 24px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px}
   .hero-kick{font-size:.72rem;font-weight:900;letter-spacing:.28em;color:var(--flame-bright);text-transform:uppercase}
   .hero-h1{font-family:var(--disp);font-size:clamp(38px,7vw,72px);line-height:.92;letter-spacing:.01em;margin:6px 0 2px;
@@ -89,12 +89,12 @@
   .lb-wrap{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg-card)}
   .lb-scroll{overflow-x:auto}
   table.lb{border-collapse:collapse;width:100%;min-width:880px}
-  .lb thead th{position:sticky;top:0;background:#0b1b2c;z-index:2}
+  .lb thead th{position:sticky;top:0;background:#1a1030;z-index:2}
   .lb th{font-size:.64rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text-mute);
     padding:12px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;transition:.12s}
-  .lb th:hover{color:var(--text);background:#0e2236}
+  .lb th:hover{color:var(--text);background:#241538}
   .lb th.lcol{text-align:left;cursor:default}
-  .lb th.lcol:hover{background:#0b1b2c;color:var(--text-mute)}
+  .lb th.lcol:hover{background:#1a1030;color:var(--text-mute)}
   .lb th.sortcol{color:var(--flame-bright)}
   .lb th .ar{font-size:.6rem;margin-left:3px;opacity:.9}
   .lb th .grp{display:block;font-size:.55rem;color:var(--gold);letter-spacing:.12em;margin-bottom:2px;font-weight:800}
@@ -111,14 +111,14 @@
   .rank2{color:#D7E2EC}.rank3{color:#E08C4B}
   .jersey{width:40px;height:40px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
     font-family:var(--disp);font-size:1.15rem;color:#fff;
-    background:linear-gradient(135deg,var(--bg-card-2),#0c1e33);border:1px solid var(--line);position:relative}
-  .jersey.wk{border-color:rgba(255,107,26,.5);box-shadow:inset 0 0 0 1px rgba(255,107,26,.25)}
+    background:linear-gradient(135deg,var(--bg-card-2),#180d29);border:1px solid var(--line);position:relative}
+  .jersey.wk{border-color:rgba(166,107,242,.55);box-shadow:inset 0 0 0 1px rgba(166,107,242,.3)}
   .pl-name{font-weight:800;font-size:.95rem;line-height:1.15}
   .pl-meta{font-size:.68rem;color:var(--text-dim);font-weight:600;margin-top:1px}
   .wkpill{display:inline-block;font-size:.54rem;font-weight:900;letter-spacing:.1em;color:var(--flame-bright);
-    border:1px solid rgba(255,107,26,.4);border-radius:5px;padding:1px 4px;margin-left:5px;vertical-align:middle}
+    border:1px solid rgba(166,107,242,.5);border-radius:5px;padding:1px 4px;margin-left:5px;vertical-align:middle}
   .ovr{font-family:var(--disp);font-size:1.3rem}
-  td.ovrcell{background:rgba(255,107,26,.06)}
+  td.ovrcell{background:rgba(139,67,224,.10)}
   .meas{color:var(--gold-bright);font-weight:800}
   .nodata{color:var(--text-dim);font-weight:600}
 
@@ -141,7 +141,7 @@
   .roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:13px}
   .pcard{border:1px solid var(--line);border-radius:15px;background:var(--bg-card);padding:15px;
     transition:.15s;cursor:pointer;position:relative;overflow:hidden}
-  .pcard:hover{border-color:rgba(255,107,26,.45);transform:translateY(-2px)}
+  .pcard:hover{border-color:rgba(166,107,242,.5);transform:translateY(-2px)}
   .pcard-top{display:flex;align-items:center;gap:12px}
   .pcard .jersey{width:48px;height:48px;font-size:1.4rem}
   .pcard-name{font-weight:800;font-size:1.05rem}
@@ -161,7 +161,7 @@
     color:var(--text-mute);margin-bottom:6px}
   .inp{width:100%;padding:12px 13px;border-radius:10px;border:1px solid var(--line);
     background:rgba(255,255,255,.03);color:#fff;font-size:.95rem;font-weight:600;transition:.15s}
-  .inp:focus{outline:none;border-color:var(--flame);background:rgba(255,107,26,.05)}
+  .inp:focus{outline:none;border-color:var(--flame);background:rgba(139,67,224,.08)}
   .inp::placeholder{color:var(--text-dim)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
@@ -181,7 +181,7 @@
 
   /* ===== score screen ===== */
   .score-hd{display:flex;align-items:center;gap:15px;padding:18px;border-radius:16px;margin-bottom:16px;
-    border:1px solid var(--line);background:linear-gradient(135deg,#12273f,#0b1a2b);position:relative;overflow:hidden}
+    border:1px solid var(--line);background:linear-gradient(135deg,#1c1033,#0d0717);position:relative;overflow:hidden}
   .score-hd .jersey{width:60px;height:60px;font-size:1.7rem}
   .score-hd-name{font-family:var(--disp);font-size:1.7rem;line-height:1}
   .score-hd-meas{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
@@ -221,7 +221,7 @@
   .pinrow{display:flex;gap:10px;justify-content:center;margin:18px 0}
   .pininp{width:54px;height:64px;text-align:center;font-family:var(--disp);font-size:1.8rem;border-radius:13px;
     border:1px solid var(--line);background:var(--bg-card);color:#fff}
-  .pininp:focus{outline:none;border-color:var(--flame);background:rgba(255,107,26,.06)}
+  .pininp:focus{outline:none;border-color:var(--flame);background:rgba(139,67,224,.10)}
   .err{color:#ff7a7a;font-size:.8rem;font-weight:700;min-height:18px;margin-top:4px}
 
   .empty-state{text-align:center;padding:60px 20px;color:var(--text-mute)}
@@ -243,7 +243,7 @@
   .scorecell.editable:hover{outline:2px solid var(--flame);outline-offset:-3px}
   .scorecell.add{color:var(--flame-bright)!important;font-size:1.2rem}
   /* rating popover */
-  .rate-pop{position:fixed;z-index:300;background:#0c1d30;border:1px solid var(--line);border-radius:14px;
+  .rate-pop{position:fixed;z-index:300;background:#1a1030;border:1px solid var(--line);border-radius:14px;
     padding:9px;box-shadow:0 26px 60px -18px #000;animation:rise .14s ease}
   .rate-pop .rp-head{font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mute);
     text-align:center;margin-bottom:7px}
@@ -260,7 +260,7 @@
   select.inp{appearance:none;-webkit-appearance:none;cursor:pointer;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23FF8534' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
     background-repeat:no-repeat;background-position:right 13px center;padding-right:36px}
-  select.inp option{background:#0c1d30;color:#fff}
+  select.inp option{background:#1a1030;color:#fff}
   @media(max-width:640px){
     .hero-stats{margin-left:0;width:100%}
     .grid3{grid-template-columns:1fr 1fr}
@@ -298,6 +298,9 @@ const MEAS=[
   {key:'aau_years',label:'AAU yrs',short:'AAU',type:'number',fmt:v=>v!=null?v+'y':'—'},
   {key:'rec_years',label:'Rec yrs',short:'REC',type:'number',fmt:v=>v!=null?v+'y':'—'},
 ];
+
+function paw(sz,color){return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="currentColor" style="color:${color||'#F4C84B'}">
+  <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
 
 let DEMO=false;
 const state={coaches:[],players:[],scores:[],notes:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null};
@@ -444,8 +447,8 @@ function topBar(){
   const me=state.me;
   const view=me.viewOnly;
   return `<div class="bar"><div class="bar-in">
-    <a class="mark" href="#"><div class="mark-badge">J3</div>
-      <div class="mark-txt"><b>J3 HOOPS</b><span>Tryout Evaluations</span></div></a>
+    <a class="mark" href="#"><div class="mark-badge">${paw(22)}</div>
+      <div class="mark-txt"><b>JAGUARS</b><span>Tryout Evaluations</span></div></a>
     <div class="bar-spacer"></div>
     <div class="coachpill ${view?'view':''}"><span class="dot"></span>
       ${view?'Viewing only':esc(me.name)}
@@ -472,7 +475,7 @@ function vLeaderboard(){
   <div class="hero"><div class="hero-grid"></div><div class="hero-glow"></div>
     <div class="hero-in">
       <div>
-        <div class="hero-kick">AAU Travel · Spring 2026</div>
+        <div class="hero-kick">Jaguars Basketball · SW Florida</div>
         <h1 class="hero-h1">TRYOUT BOARD</h1>
         <div class="hero-sub">Live coach scoring — tap any column to rank.</div>
       </div>
@@ -660,8 +663,8 @@ const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBre
 /* ---------- GATE / IDENTITY ---------- */
 function renderGate(){
   $app.innerHTML=`<div class="gate"><div class="gate-card">
-    <div class="gate-badge">J3</div>
-    <div class="kick">AAU Travel · Spring 2026</div>
+    <div class="gate-badge">${paw(40)}</div>
+    <div class="kick">SW Florida · Jaguars Basketball</div>
     <h1>TRYOUTS</h1>
     <p class="lead">Sign in to score, or watch the live board.</p>
     <div id="gatebody"></div>
