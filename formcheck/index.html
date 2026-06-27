@@ -305,6 +305,7 @@
   <div style="font-weight:800; font-size:16px" id="ovTitle">Analyzing your shots…</div>
   <div class="pbar"><i id="ovBar"></i></div>
   <div class="sub" id="ovMsg" style="max-width:300px"></div>
+  <button class="btn ghost sm" id="ovCancel" style="max-width:200px;margin-top:8px">Cancel</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -501,61 +502,97 @@ function avatarLoop(){
 }
 
 /* ---------------- VIDEO CAPTURE ---------------- */
-let poseLandmarker=null, poseReady=false;
+let poseLandmarker=null, poseReady=false, cancelJob=false, monoTs=0;
 async function initPose(){
   if(poseReady) return;
-  $("#ovMsg").textContent="Loading AI pose model (first time only)…";
+  $("#ovMsg").textContent="Loading AI model (first time only)…";
   const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
-  poseLandmarker=await PoseLandmarker.createFromOptions(vision,{
-    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",delegate:"GPU"},
+  const build=(delegate)=>PoseLandmarker.createFromOptions(vision,{
+    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",delegate},
     runningMode:"VIDEO", numPoses:1
   });
+  try{ poseLandmarker=await build("GPU"); }
+  catch(e){ console.warn("GPU delegate unavailable, falling back to CPU:",e); poseLandmarker=await build("CPU"); }
   poseReady=true;
 }
-$("#btnUpload").onclick=()=>$("#fileInput").click();
+$("#btnUpload").onclick=()=>{ $("#fileInput").removeAttribute("capture"); $("#fileInput").click(); };
 $("#btnRecord").onclick=()=>{ $("#fileInput").setAttribute("capture","environment"); $("#fileInput").click(); };
 $("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(f) processVideo(f); e.target.value=""; };
+$("#ovCancel").onclick=()=>{ cancelJob=true; hideOverlay(); toast("Canceled"); };
+
+function cleanupVid(v,url){ try{ if(v){ v.pause(); if(v.parentNode) v.parentNode.removeChild(v); } }catch(e){} try{ if(url) URL.revokeObjectURL(url); }catch(e){} }
 
 async function processVideo(file){
+  cancelJob=false; monoTs=0;
   showOverlay("Analyzing your shots…");
+  let v=null, url=null;
   try{
     await initPose();
-    const url=URL.createObjectURL(file);
-    const v=document.createElement("video");
-    v.src=url; v.muted=true; v.playsInline=true;
-    await new Promise((res,rej)=>{v.onloadedmetadata=res; v.onerror=()=>rej("Could not read video");});
+    if(cancelJob) return;
+    setProgress(0.03,"Reading your clip…");
+    url=URL.createObjectURL(file);
+    v=document.createElement("video");
+    v.src=url; v.muted=true; v.playsInline=true; v.setAttribute("playsinline","");
+    v.style.cssText="position:fixed;left:-10000px;top:0;width:200px;opacity:0.01;pointer-events:none";
+    document.body.appendChild(v);
+    await new Promise((res,rej)=>{
+      v.onloadedmetadata=()=>res();
+      v.onerror=()=>rej("Couldn't read this video. Try a standard .mp4 or .mov.");
+      setTimeout(()=>rej("Video took too long to load — try a shorter clip."),20000);
+    });
+    if(cancelJob){ cleanupVid(v,url); return; }
     const dur=Math.min(v.duration||20, 30);
-    // sample frames
-    const FPS=Math.min(v.videoWidth>0?30:30, 30);
-    const step=1/30;
-    const frames=[]; let ts=0; let idx=0;
-    const total=Math.ceil(dur/step);
-    for(let t=0; t<dur; t+=step){
-      await seekTo(v,t);
-      const res=poseLandmarker.detectForVideo(v, performance.now());
-      if(res.landmarks && res.landmarks[0]){
-        frames.push({t, lm:res.landmarks[0].map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility}))});
-      }
-      idx++;
-      if(idx%3===0){ setProgress(idx/total*0.85, `Tracking body — frame ${idx}/${total}`); await new Promise(r=>setTimeout(r,0)); }
-    }
-    setProgress(0.9,"Finding your shots…");
-    if(frames.length<8){ throw "Couldn't track a body in this clip. Film side-on with the full body in frame, good lighting."; }
-    const analysis=analyzeFrames(frames, v);
-    state.shots=analysis.shots; state.thumbsVideo=v; state.videoURL=url; state.frames=frames;
-    state.activeShot=0;
+    const frames=[];
+    const SAMPLE_MS=70, MAX_FRAMES=260;
+    let lastT=-1;
+    // Play the clip and sample frames as they render — no seeking (seeking hangs on phone codecs).
+    await new Promise((resolve)=>{
+      let done=false;
+      const finish=()=>{ if(done)return; done=true; clearTimeout(watch); try{v.pause();}catch(e){} resolve(); };
+      const watch=setTimeout(finish, 75000); // hard cap: never hang
+      const grab=()=>{
+        if(done) return;
+        if(cancelJob){ finish(); return; }
+        const t=v.currentTime;
+        if(lastT<0 || t-lastT>=SAMPLE_MS/1000){
+          lastT=t;
+          try{
+            monoTs+=40;
+            const res=poseLandmarker.detectForVideo(v, monoTs);
+            if(res.landmarks && res.landmarks[0]) frames.push({t, lm:res.landmarks[0].map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility}))});
+          }catch(e){}
+          setProgress(0.06+Math.min(t/dur,1)*0.82, `Tracking body — ${t.toFixed(1)}s / ${dur.toFixed(1)}s · ${frames.length} frames`);
+        }
+        if(frames.length>=MAX_FRAMES || t>=dur || v.ended){ finish(); return; }
+        if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(grab);
+      };
+      v.onended=finish;
+      v.play().then(()=>{
+        if(v.requestVideoFrameCallback){ v.requestVideoFrameCallback(grab); }
+        else { // older browsers: timer-based sampling
+          const iv=setInterval(()=>{ if(done){clearInterval(iv);return;} grab(); if(done)clearInterval(iv); }, SAMPLE_MS);
+        }
+      }).catch((e)=>{ console.warn("play() failed",e); finish(); });
+    });
+    cleanupVid(v,url); v=null; url=null;
+    if(cancelJob) return;
+    setProgress(0.92,"Finding your shots…");
+    await new Promise(r=>setTimeout(r,20));
+    if(frames.length<8) throw "Couldn't track a body. Film side-on, full body in frame, steady camera, good light.";
+    const analysis=analyzeFrames(frames);
+    if(analysis.shots.length===0) throw "Tracked you, but no clear shot found. Make sure the ball goes UP and you stay in frame.";
+    state.shots=analysis.shots; state.frames=frames; state.activeShot=0;
     setProgress(1,"Done");
-    if(analysis.shots.length===0){ throw "No clear shots detected. Make sure the shooter releases the ball upward and stays in frame."; }
     buildResults(analysis);
     hideOverlay();
     showScreen("results");
   }catch(err){
+    cleanupVid(v,url);
     hideOverlay();
     toast(typeof err==="string"?err:"Analysis failed — try another clip.");
-    console.error(err);
+    console.error("FormCheck:",err);
   }
 }
-function seekTo(v,t){return new Promise(res=>{ const h=()=>{v.removeEventListener("seeked",h); res();}; v.addEventListener("seeked",h); v.currentTime=Math.min(t, (v.duration||t)-0.01);});}
 
 /* ---------------- ANALYSIS ---------------- */
 function pickSide(frames){
