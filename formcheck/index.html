@@ -55,6 +55,15 @@
   .chip{background:#0009; backdrop-filter:blur(6px); border:1px solid var(--line); color:var(--txt); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700}
   .chip.on{background:var(--orange); color:#1a0e02; border-color:var(--orange)}
   .phaseLabel{position:absolute; top:10px; left:12px; font-size:11px; font-weight:800; letter-spacing:1px; color:var(--orange2); text-transform:uppercase}
+  /* Real video review player */
+  .vidWrap{position:relative; background:#000; border-radius:16px; border:1px solid var(--line); overflow:hidden; margin-top:12px; line-height:0}
+  .vidWrap video{width:100%; display:block; background:#000}
+  .vidWrap #overlayCanvas{position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none}
+  .vidToggles{position:absolute; top:8px; left:8px; right:8px; display:flex; gap:6px; flex-wrap:wrap; z-index:2}
+  .vidToggles .chip{font-size:11px; padding:5px 9px}
+  .vidCtl{position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:8px; padding:10px; background:linear-gradient(0deg,#000c,#0000); z-index:2}
+  .vidCtl button{background:#000a; backdrop-filter:blur(4px); border:1px solid var(--line); color:#fff; min-width:34px; height:34px; border-radius:50%; font-size:14px; flex:0 0 auto; display:flex; align-items:center; justify-content:center}
+  .vidCtl input[type=range]{flex:1; accent-color:var(--orange); height:4px}
   /* Big buttons */
   .btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px; border-radius:14px; font-weight:800; font-size:15px}
   .btn.primary{background:linear-gradient(180deg,var(--orange2),var(--orange)); color:#1a0e02}
@@ -227,13 +236,23 @@
       <h2 id="shotTitle">Shot 1</h2>
       <div class="scoreBig"><svg class="ring" id="shotRing" viewBox="0 0 36 36" style="width:54px;height:54px;flex-basis:54px"></svg></div>
     </div>
-    <div class="avatarWrap" style="margin-top:10px">
-      <canvas id="shotCanvas" width="528" height="320"></canvas>
-      <div class="avatarCtl">
-        <button class="chip on" id="ghostToggle">👻 Pro overlay</button>
-        <button class="chip" id="skelToggle">🦴 Skeleton</button>
+    <div class="vidWrap" id="vidWrap" style="margin-top:10px">
+      <video id="reviewVideo" playsinline muted preload="auto"></video>
+      <canvas id="overlayCanvas" width="540" height="960"></canvas>
+      <div class="vidToggles">
+        <button class="chip on" id="skelToggle">🦴 Lines</button>
+        <button class="chip on" id="angleToggle">📐 Angle</button>
+        <button class="chip" id="ghostToggle">👻 Pro form</button>
+      </div>
+      <div class="vidCtl">
+        <button id="vPlay">▶</button>
+        <button id="vPrev">⟨</button>
+        <input type="range" id="vScrub" min="0" max="1000" value="0" />
+        <button id="vNext">⟩</button>
+        <button id="vSlow">🐢</button>
       </div>
     </div>
+    <div class="sub" style="margin-top:8px">▶ Plays just this shot on a loop · 🐢 slow-mo · ⟨ ⟩ step frame-by-frame</div>
     <div id="metricList" style="margin-top:14px"></div>
   </div>
 
@@ -374,8 +393,8 @@ const METRIC_ORDER = ["elbow","timing","tempo","knee","setpt","follow","balance"
 
 let state = {
   model:"curry", mode:"jump", hand:"R",
-  shots:[], activeShot:0, session:null,
-  showGhost:true, showSkel:true
+  shots:[], activeShot:0, session:null, frames:[], videoURL:null, videoW:0, videoH:0,
+  showGhost:false, showSkel:true, showAngles:true
 };
 
 /* ---------------- POSE LANDMARK INDICES ---------------- */
@@ -524,6 +543,7 @@ function cleanupVid(v,url){ try{ if(v){ v.pause(); if(v.parentNode) v.parentNode
 
 async function processVideo(file){
   cancelJob=false; monoTs=0;
+  if(state.videoURL){ try{URL.revokeObjectURL(state.videoURL);}catch(e){} state.videoURL=null; }
   showOverlay("Analyzing your shots…");
   let v=null, url=null;
   try{
@@ -544,7 +564,7 @@ async function processVideo(file){
     const dur=Math.min(v.duration||20, 30);
     const frames=[];
     const SAMPLE_MS=70, MAX_FRAMES=260;
-    let lastT=-1;
+    let lastT=-1, lastThumbT=-1, thumbCv=null, thumbCtx=null;
     // Play the clip and sample frames as they render — no seeking (seeking hangs on phone codecs).
     await new Promise((resolve)=>{
       let done=false;
@@ -559,7 +579,19 @@ async function processVideo(file){
           try{
             monoTs+=40;
             const res=poseLandmarker.detectForVideo(v, monoTs);
-            if(res.landmarks && res.landmarks[0]) frames.push({t, lm:res.landmarks[0].map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility}))});
+            if(res.landmarks && res.landmarks[0]){
+              const fr={t, lm:res.landmarks[0].map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility}))};
+              // capture a small real-frame snapshot for thumbnails (throttled)
+              if(lastThumbT<0 || t-lastThumbT>=0.13){
+                lastThumbT=t;
+                try{
+                  if(!thumbCv){ const w=160, h=Math.round(160*((v.videoHeight/v.videoWidth)||1.4)); thumbCv=document.createElement("canvas"); thumbCv.width=w; thumbCv.height=h; thumbCtx=thumbCv.getContext("2d"); }
+                  thumbCtx.drawImage(v,0,0,thumbCv.width,thumbCv.height);
+                  fr.thumb=thumbCv.toDataURL("image/jpeg",0.5);
+                }catch(e){}
+              }
+              frames.push(fr);
+            }
           }catch(e){}
           setProgress(0.06+Math.min(t/dur,1)*0.82, `Tracking body — ${t.toFixed(1)}s / ${dur.toFixed(1)}s · ${frames.length} frames`);
         }
@@ -574,7 +606,10 @@ async function processVideo(file){
         }
       }).catch((e)=>{ console.warn("play() failed",e); finish(); });
     });
-    cleanupVid(v,url); v=null; url=null;
+    // keep the clip for playback in results — remove the working element but DON'T revoke the URL
+    const vw=v.videoWidth, vh=v.videoHeight;
+    try{ v.pause(); if(v.parentNode) v.parentNode.removeChild(v); }catch(e){}
+    state.videoURL=url; state.videoW=vw; state.videoH=vh; v=null; url=null;
     if(cancelJob) return;
     setProgress(0.92,"Finding your shots…");
     await new Promise(r=>setTimeout(r,20));
@@ -745,18 +780,31 @@ function renderReel(){
     drawShotThumb(i);
   });
 }
+function nearestFrame(t){ let best=0,bd=1e9; state.frames.forEach((f,i)=>{const d=Math.abs(f.t-t); if(d<bd){bd=d;best=i;}}); return best; }
+function nearestThumb(t){ let best=-1,bd=1e9; state.frames.forEach((f,i)=>{ if(f.thumb){const d=Math.abs(f.t-t); if(d<bd){bd=d;best=i;}} }); return best; }
 function drawShotThumb(i){
   const cv=$("#thumb"+i); if(!cv) return; const ctx=cv.getContext("2d");
-  const s=state.shots[i]; const rel=s.series[s.keys.relIdx];
+  const s=state.shots[i]; const relT=s.series[s.keys.relIdx].t;
   ctx.fillStyle="#0e121b"; ctx.fillRect(0,0,cv.width,cv.height);
-  drawPoseSkeleton(ctx,cv.width,cv.height,rel.lm,"#ff9d4d",2);
+  const fi=nearestThumb(relT);
+  if(fi>=0 && state.frames[fi].thumb){
+    const img=new Image();
+    img.onload=()=>{ const ir=img.width/img.height, cr=cv.width/cv.height; let dw,dh,dx,dy;
+      if(ir>cr){dh=cv.height;dw=dh*ir;dx=(cv.width-dw)/2;dy=0;}else{dw=cv.width;dh=dw/ir;dx=0;dy=(cv.height-dh)/2;}
+      ctx.drawImage(img,dx,dy,dw,dh);
+      drawPoseSkeleton(ctx,cv.width,cv.height,state.frames[fi].lm,"#39d98a",1.4);
+    };
+    img.src=state.frames[fi].thumb;
+  } else {
+    drawPoseSkeleton(ctx,cv.width,cv.height,s.series[s.keys.relIdx].lm,"#ff9d4d",2);
+  }
 }
 
 function renderShot(i){
   const s=state.shots[i]; const m=MODELS[state.model];
   $("#shotTitle").textContent=`Shot ${i+1}`;
   drawRing($("#shotRing"), s.score, s.score>=80?"#27c281":s.score>=60?"#ffcf4d":"#ff5a5a");
-  drawShotCanvas();
+  showShotInPlayer(i);
   // metrics
   const ml=$("#metricList"); ml.innerHTML="";
   METRIC_ORDER.forEach(key=>{
@@ -824,24 +872,61 @@ function renderKinetic(s){
   else v.innerHTML=`⚠️ <b class="bad">Shooting on the way down</b> — release ${Math.round(timing)}ms after your peak. Start your shot motion earlier so the ball leaves as you rise.`;
 }
 
-/* shot canvas with skeleton + ghost overlay */
-function drawShotCanvas(){
-  const cv=$("#shotCanvas"), ctx=cv.getContext("2d");
-  const s=state.shots[state.activeShot]; const rel=s.series[s.keys.relIdx];
-  ctx.fillStyle="#0e121b"; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle="#1c212d"; for(let gx=0;gx<cv.width;gx+=44){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,cv.height);ctx.stroke();}
-  // ghost: ideal pro at release
-  if(state.showGhost){
-    const p=shooterPose(0.7,MODELS[state.model]);
-    drawStick(ctx,cv.width,cv.height,p,"#4d9dff",0.35,0.9,0.05,0.02);
-  }
-  if(state.showSkel) drawPoseSkeleton(ctx,cv.width,cv.height,rel.lm,"#ff9d4d",4, s.side);
-  // angle annotations
-  const j=J(s.side);
-  drawAngleArc(ctx,cv.width,cv.height,rel.lm[j.sh],rel.lm[j.el],rel.lm[j.wr], s.metrics.elbow, MODELS[state.model].targets.elbow);
+/* ---- REAL VIDEO REVIEW PLAYER: your footage with the skeleton drawn on top ---- */
+const _p={video:null,canvas:null,ctx:null,timer:null,playing:false,slow:false,shotIdx:0,winStart:0,winEnd:0,inited:false};
+function initPlayer(){
+  if(_p.inited) return;
+  _p.video=$("#reviewVideo"); _p.canvas=$("#overlayCanvas"); _p.ctx=_p.canvas.getContext("2d");
+  const v=_p.video;
+  v.addEventListener("loadedmetadata",()=>{ _p.canvas.width=v.videoWidth||540; _p.canvas.height=v.videoHeight||960; drawOverlayAt(v.currentTime); });
+  v.addEventListener("seeked",()=>{ if(!_p.playing) drawOverlayAt(v.currentTime); });
+  $("#vPlay").onclick=()=>_p.playing?pausePlayer():playPlayer();
+  $("#vScrub").oninput=(e)=>{ pausePlayer(); const f=e.target.value/1000; v.currentTime=_p.winStart+f*(_p.winEnd-_p.winStart); };
+  $("#vPrev").onclick=()=>stepFrame(-1);
+  $("#vNext").onclick=()=>stepFrame(1);
+  $("#vSlow").onclick=()=>{ _p.slow=!_p.slow; $("#vSlow").classList.toggle("on",_p.slow); v.playbackRate=_p.slow?0.25:1; };
+  $("#skelToggle").onclick=()=>{ state.showSkel=!state.showSkel; $("#skelToggle").classList.toggle("on",state.showSkel); drawOverlayAt(v.currentTime); };
+  $("#angleToggle").onclick=()=>{ state.showAngles=!state.showAngles; $("#angleToggle").classList.toggle("on",state.showAngles); drawOverlayAt(v.currentTime); };
+  $("#ghostToggle").onclick=()=>{ state.showGhost=!state.showGhost; $("#ghostToggle").classList.toggle("on",state.showGhost); drawOverlayAt(v.currentTime); };
+  _p.inited=true;
 }
-$("#ghostToggle").onclick=()=>{state.showGhost=!state.showGhost; $("#ghostToggle").classList.toggle("on",state.showGhost); drawShotCanvas();};
-$("#skelToggle").onclick=()=>{state.showSkel=!state.showSkel; $("#skelToggle").classList.toggle("on",state.showSkel); drawShotCanvas();};
+function showShotInPlayer(i){
+  initPlayer();
+  const v=_p.video, s=state.shots[i]; _p.shotIdx=i;
+  if(!state.videoURL){ // no clip kept (shouldn't happen) — clear overlay
+    _p.ctx&&_p.ctx.clearRect(0,0,_p.canvas.width,_p.canvas.height); return;
+  }
+  _p.winStart=Math.max(0, s.series[s.keys.dipIdx].t-0.15);
+  _p.winEnd=s.series[s.keys.relIdx].t+0.6;
+  const jump=()=>{ pausePlayer(); _p.winEnd=Math.min(v.duration||_p.winEnd,_p.winEnd); try{ v.currentTime=s.series[s.keys.relIdx].t; }catch(e){} $("#vScrub").value=1000; drawOverlayAt(s.series[s.keys.relIdx].t); };
+  if(v.src!==state.videoURL){ v.src=state.videoURL; v.addEventListener("loadedmetadata",jump,{once:true}); }
+  else if(v.readyState>=1){ jump(); }
+  else { v.addEventListener("loadedmetadata",jump,{once:true}); }
+}
+function drawOverlayAt(t){
+  const c=_p.ctx,cv=_p.canvas; if(!c) return;
+  c.clearRect(0,0,cv.width,cv.height);
+  const s=state.shots[_p.shotIdx]; if(!s||!state.frames.length) return;
+  const lm=state.frames[nearestFrame(t)].lm;
+  if(state.showGhost){ const pp=shooterPose(0.7,MODELS[state.model]); drawStick(c,cv.width,cv.height,pp,"#4d9dff",0.28,0.85,0.05,0.05); }
+  if(state.showSkel) drawPoseSkeleton(c,cv.width,cv.height,lm,"#39d98a",Math.max(3,cv.width/170));
+  if(state.showAngles){ const j=J(s.side); drawAngleArc(c,cv.width,cv.height,lm[j.sh],lm[j.el],lm[j.wr], angle(lm[j.sh],lm[j.el],lm[j.wr]), MODELS[state.model].targets.elbow); }
+}
+function playPlayer(){
+  const v=_p.video; _p.playing=true; $("#vPlay").textContent="⏸";
+  if(v.currentTime<_p.winStart || v.currentTime>=_p.winEnd-0.02) { try{v.currentTime=_p.winStart;}catch(e){} }
+  v.play().catch(()=>{});
+  const loop=()=>{
+    if(!_p.playing) return;
+    if(v.currentTime>=_p.winEnd){ try{v.currentTime=_p.winStart;}catch(e){} }
+    drawOverlayAt(v.currentTime);
+    $("#vScrub").value=clamp((v.currentTime-_p.winStart)/((_p.winEnd-_p.winStart)||1)*1000,0,1000);
+    _p.timer=setTimeout(loop,33); // setTimeout (not rAF) so it keeps running if tab backgrounds
+  };
+  loop();
+}
+function pausePlayer(){ _p.playing=false; const pb=$("#vPlay"); if(pb)pb.textContent="▶"; try{_p.video.pause();}catch(e){} if(_p.timer){clearTimeout(_p.timer);_p.timer=null;} }
+function stepFrame(dir){ pausePlayer(); const v=_p.video; v.currentTime=clamp(v.currentTime+dir/30,_p.winStart,_p.winEnd); }
 
 const BONES=[[L.Rsh,L.Rel],[L.Rel,L.Rwr],[L.Lsh,L.Lel],[L.Lel,L.Lwr],[L.Rsh,L.Lsh],[L.Rsh,L.Rhip],[L.Lsh,L.Lhip],[L.Rhip,L.Lhip],[L.Rhip,L.Rkn],[L.Rkn,L.Ran],[L.Lhip,L.Lkn],[L.Lkn,L.Lan]];
 function drawPoseSkeleton(ctx,W,H,lm,color,lw){
