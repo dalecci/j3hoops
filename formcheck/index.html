@@ -156,6 +156,10 @@
       <button data-mode="jump" class="active">🏀 Jump Shot</button>
       <button data-mode="ft">🆓 Free Throw</button>
     </div>
+    <div class="seg" id="handSeg" style="margin-top:8px">
+      <button data-hand="R" class="active">🤚 Right-handed</button>
+      <button data-hand="L">✋ Left-handed</button>
+    </div>
     <div class="avatarWrap">
       <div class="phaseLabel" id="avPhase">Set Point</div>
       <canvas id="avatar" width="528" height="300"></canvas>
@@ -368,7 +372,7 @@ const MODELS = {
 const METRIC_ORDER = ["elbow","timing","tempo","knee","setpt","follow","balance","arc"];
 
 let state = {
-  model:"curry", mode:"jump",
+  model:"curry", mode:"jump", hand:"R",
   shots:[], activeShot:0, session:null,
   showGhost:true, showSkel:true
 };
@@ -422,6 +426,10 @@ $$("#modeSeg button").forEach(b=>b.onclick=()=>{
   if(state.mode==="ft" && state.model==="jump"){}
   resetAvatar();
 });
+$$("#handSeg button").forEach(b=>b.onclick=()=>{
+  state.hand=b.dataset.hand;
+  $$("#handSeg button").forEach(x=>x.classList.toggle("active",x===b));
+});
 
 /* ---------------- REFERENCE AVATAR ANIMATION ---------------- */
 // Parametric stick-figure shooter. t in [0,1] across the motion.
@@ -457,10 +465,13 @@ function shooterPose(t,m){
   // at full extension straighten
   if(armUp>0.7){ const e=(armUp-0.7)/0.3; elbow.y=shoulder.y+0.10-0.10*e; wrist.y=shoulder.y-0.16-0.06*e; elbow.x=shoulder.x+0.05; wrist.x=shoulder.x+0.04; }
   const ball={x:wrist.x+0.02, y:Math.min(wrist.y-0.03, ballY)};
-  // guide arm (left)
+  // guide arm (off-hand)
   const elbowL={x:shoulder.x-0.10,y:shoulder.y+0.10};
   const wristL={x:wrist.x-0.02,y:wrist.y+0.04};
-  return {head,shoulder,hip,knee,ankle,elbow,wrist,elbowL,wristL,ball,armUp,wristExt};
+  const pts={head,shoulder,hip,knee,ankle,elbow,wrist,elbowL,wristL,ball};
+  // Default pose is right-handed (ball in right hand). Mirror for lefties.
+  if(state.hand==="L"){ for(const k in pts){ pts[k]={x:1-pts[k].x, y:pts[k].y}; } }
+  return {...pts,armUp,wristExt};
 }
 function drawStick(ctx,W,H,p,color,alpha=1,scale=1,ox=0,oy=0){
   const X=v=>(ox+v*scale)*W, Y=v=>(oy+v*scale)*H;
@@ -485,8 +496,8 @@ function avatarLoop(){
   const p=shooterPose(avT,m);
   drawStick(avCtx,W,H,p,"#ff9d4d",1);
   $("#avPhase").textContent=avPhaseName;
-  if(avPlaying){ avT+= (avSlow?0.0035:0.011); if(avT>1) avT=0; }
-  avRAF=requestAnimationFrame(avatarLoop);
+  if(avPlaying){ avT+= (avSlow?0.0036:0.011); if(avT>1) avT=0; }
+  avRAF=setTimeout(avatarLoop,33); // setTimeout (not rAF) so it animates even in a backgrounded tab
 }
 
 /* ---------------- VIDEO CAPTURE ---------------- */
