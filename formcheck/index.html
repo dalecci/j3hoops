@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0d12" />
+<title>FormCheck — AI Shooting Form Analyzer</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#141821; --panel2:#1c212d; --line:#262c3a;
+    --txt:#eef2f8; --muted:#8a93a6; --orange:#ff7a18; --orange2:#ff9d4d;
+    --green:#27c281; --red:#ff5a5a; --yellow:#ffcf4d; --blue:#4d9dff;
+    --shadow:0 8px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overscroll-behavior:none}
+  body{max-width:560px; margin:0 auto; min-height:100vh; padding:0 0 90px}
+  h1,h2,h3{margin:0}
+  button{font-family:inherit; cursor:pointer; border:none}
+  .hidden{display:none !important}
+  /* Header */
+  header{position:sticky; top:0; z-index:30; background:linear-gradient(180deg,#0b0d12,#0b0d12f0);
+    backdrop-filter:blur(8px); padding:14px 16px 10px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px}
+  .logo{font-weight:800; font-size:20px; letter-spacing:.5px}
+  .logo b{color:var(--orange)}
+  .logo small{display:block; font-size:10px; color:var(--muted); font-weight:600; letter-spacing:2px}
+  .grow{flex:1}
+  .pill{background:var(--panel2); border:1px solid var(--line); color:var(--txt);
+    padding:7px 12px; border-radius:999px; font-size:12px; font-weight:700}
+  /* Screens */
+  .screen{padding:16px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px; box-shadow:var(--shadow)}
+  .card h2{font-size:15px; letter-spacing:.3px; margin-bottom:4px}
+  .card .sub{color:var(--muted); font-size:12.5px; line-height:1.45}
+  .row{display:flex; gap:10px}
+  .row.wrap{flex-wrap:wrap}
+  /* Model selector */
+  .models{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
+  .model{background:var(--panel2); border:2px solid var(--line); border-radius:16px; padding:12px 8px; text-align:center; transition:.15s}
+  .model.active{border-color:var(--orange); background:linear-gradient(180deg,#2a1c10,#1c212d)}
+  .model .nm{font-weight:800; font-size:14px}
+  .model .tag{font-size:10px; color:var(--muted); margin-top:2px; line-height:1.3; height:26px}
+  .model .badge{font-size:9px; font-weight:800; color:var(--orange); letter-spacing:1px}
+  /* Mode toggle */
+  .seg{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:4px; gap:4px}
+  .seg button{flex:1; background:transparent; color:var(--muted); padding:9px; border-radius:9px; font-weight:700; font-size:13px}
+  .seg button.active{background:var(--orange); color:#1a0e02}
+  /* Avatar canvas */
+  .avatarWrap{position:relative; background:radial-gradient(120% 90% at 50% 10%,#1a2030,#0e121b); border-radius:16px; border:1px solid var(--line); overflow:hidden; margin-top:12px}
+  canvas{display:block; width:100%}
+  .avatarCtl{position:absolute; bottom:10px; left:0; right:0; display:flex; justify-content:center; gap:8px}
+  .chip{background:#0009; backdrop-filter:blur(6px); border:1px solid var(--line); color:var(--txt); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700}
+  .chip.on{background:var(--orange); color:#1a0e02; border-color:var(--orange)}
+  .phaseLabel{position:absolute; top:10px; left:12px; font-size:11px; font-weight:800; letter-spacing:1px; color:var(--orange2); text-transform:uppercase}
+  /* Big buttons */
+  .btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px; border-radius:14px; font-weight:800; font-size:15px}
+  .btn.primary{background:linear-gradient(180deg,var(--orange2),var(--orange)); color:#1a0e02}
+  .btn.ghost{background:var(--panel2); border:1px solid var(--line); color:var(--txt)}
+  .btn.sm{padding:11px; font-size:13px}
+  /* Bottom nav */
+  nav{position:fixed; bottom:0; left:0; right:0; z-index:40; background:#0d1017f2; backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; max-width:560px; margin:0 auto}
+  nav button{flex:1; background:none; color:var(--muted); padding:10px 0 14px; font-size:10.5px; font-weight:700; display:flex; flex-direction:column; align-items:center; gap:4px}
+  nav button.active{color:var(--orange)}
+  nav .ic{font-size:19px; line-height:1}
+  /* Shot reel */
+  .reel{display:flex; gap:10px; overflow-x:auto; padding:4px 0 8px; -webkit-overflow-scrolling:touch}
+  .shotCard{flex:0 0 130px; background:var(--panel2); border:2px solid var(--line); border-radius:14px; padding:10px; text-align:center}
+  .shotCard.active{border-color:var(--orange)}
+  .shotCard .sc{font-size:30px; font-weight:900; line-height:1}
+  .shotCard .lbl{font-size:11px; color:var(--muted); margin-top:2px}
+  .shotThumb{width:100%; height:74px; object-fit:cover; border-radius:8px; background:#000; margin-bottom:8px}
+  /* Score ring */
+  .scoreBig{display:flex; align-items:center; gap:16px}
+  .ring{width:96px; height:96px; flex:0 0 96px}
+  .scoreMeta{flex:1}
+  .scoreMeta .grade{font-size:13px; font-weight:800; letter-spacing:.5px}
+  /* Angle bars */
+  .metric{margin-bottom:12px}
+  .metric .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px}
+  .metric .mname{font-size:13px; font-weight:700}
+  .metric .mval{font-size:12px; font-weight:800}
+  .barTrack{position:relative; height:12px; background:var(--panel2); border-radius:999px; border:1px solid var(--line); overflow:hidden}
+  .barTarget{position:absolute; top:0; bottom:0; background:#27c28122; border-left:2px dashed var(--green); border-right:2px dashed var(--green)}
+  .barFill{position:absolute; top:0; bottom:0; left:0; border-radius:999px}
+  .barMark{position:absolute; top:-3px; width:4px; height:18px; border-radius:2px; transform:translateX(-50%)}
+  .metric .cue{font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.4}
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--yellow)}
+  /* Kinetic timeline */
+  .kin{margin-top:6px}
+  .kinBar{position:relative; height:34px; background:var(--panel2); border-radius:10px; border:1px solid var(--line); overflow:hidden}
+  .kinSeg{position:absolute; top:0; bottom:0; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#0b0d12; text-transform:uppercase; letter-spacing:.5px}
+  .kinMark{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--txt)}
+  .kinMark::after{content:attr(data-l); position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--txt); white-space:nowrap; font-weight:700}
+  .legend{display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:10.5px; color:var(--muted)}
+  .legend span{display:flex; align-items:center; gap:5px}
+  .dot{width:9px; height:9px; border-radius:3px; display:inline-block}
+  /* Tale of tape */
+  table.tape{width:100%; border-collapse:collapse; font-size:12.5px}
+  table.tape td,table.tape th{padding:8px 6px; border-bottom:1px solid var(--line); text-align:center}
+  table.tape th{color:var(--muted); font-weight:700; font-size:11px}
+  table.tape td:first-child{text-align:left; color:var(--muted)}
+  table.tape .you{font-weight:800}
+  /* Feedback */
+  .fb{display:flex; gap:10px; padding:11px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; margin-bottom:9px}
+  .fb .ico{font-size:18px; flex:0 0 auto}
+  .fb .t{font-size:13px; font-weight:700; margin-bottom:2px}
+  .fb .d{font-size:12px; color:var(--muted); line-height:1.45}
+  .fb.good{border-color:#27c28155} .fb.fix{border-color:#ff5a5a55}
+  /* Trends */
+  .statGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  .stat{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center}
+  .stat .v{font-size:22px; font-weight:900}
+  .stat .l{font-size:10px; color:var(--muted); margin-top:2px}
+  .trendItem{display:flex; align-items:center; gap:12px; padding:10px; border-bottom:1px solid var(--line)}
+  .trendItem .d{flex:1}
+  .empty{text-align:center; color:var(--muted); padding:40px 20px; font-size:13px; line-height:1.6}
+  /* progress overlay */
+  .overlay{position:fixed; inset:0; z-index:100; background:#0b0d12ee; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:30px; text-align:center}
+  .spinner{width:54px; height:54px; border:5px solid var(--line); border-top-color:var(--orange); border-radius:50%; animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pbar{width:80%; max-width:280px; height:8px; background:var(--panel2); border-radius:999px; overflow:hidden}
+  .pbar i{display:block; height:100%; width:0; background:var(--orange); transition:width .2s}
+  .qbadge{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; border:1px solid var(--line)}
+  .qbadge.good{color:var(--green); border-color:#27c28155}
+  .qbadge.warn{color:var(--yellow); border-color:#ffcf4d55}
+  .toast{position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--panel2); border:1px solid var(--line); color:var(--txt); padding:11px 18px; border-radius:12px; font-size:13px; font-weight:600; z-index:200; box-shadow:var(--shadow); opacity:0; transition:.3s; pointer-events:none}
+  .toast.show{opacity:1}
+  input[type=text]{background:var(--panel2); border:1px solid var(--line); color:var(--txt); padding:11px; border-radius:11px; font-size:14px; width:100%; font-family:inherit}
+  label.fld{font-size:11px; color:var(--muted); font-weight:700; display:block; margin-bottom:6px; letter-spacing:.5px}
+  details{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:0 12px; margin-top:8px}
+  details summary{padding:12px 0; font-weight:700; font-size:13px; cursor:pointer}
+  details .body{padding-bottom:12px; font-size:12.5px; color:var(--muted); line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">FORM<b>CHECK</b><small>J3 HOOPS · AI SHOT LAB</small></div>
+  <div class="grow"></div>
+  <button class="pill" id="modelPill">🏀 Curry</button>
+</header>
+
+<!-- ============ HOME / CAPTURE ============ -->
+<section class="screen" id="screen-home">
+  <div class="card">
+    <h2>1 · Pick your model</h2>
+    <div class="sub">Choose the shooter you want to copy. Their ideal motion plays below — match it.</div>
+    <div class="models" id="modelGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Shot type</h2>
+    <div class="seg" id="modeSeg" style="margin-top:10px">
+      <button data-mode="jump" class="active">🏀 Jump Shot</button>
+      <button data-mode="ft">🆓 Free Throw</button>
+    </div>
+    <div class="avatarWrap">
+      <div class="phaseLabel" id="avPhase">Set Point</div>
+      <canvas id="avatar" width="528" height="300"></canvas>
+      <div class="avatarCtl">
+        <button class="chip on" id="avPlay">▶ Playing</button>
+        <button class="chip" id="avSlow">🐢 Slow-mo</button>
+      </div>
+    </div>
+    <div class="sub" id="modelDesc" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Record your shots</h2>
+    <div class="sub">Film <b>side-on</b> (phone on a tripod, hip height, ~12 ft, full body in frame). Get <b>3–4 shots in one ~20s clip</b>. For best results use iPhone <b>Slo-mo (0.5×)</b> — it captures the fast release.</div>
+    <div class="row" style="margin-top:14px; flex-direction:column; gap:10px">
+      <button class="btn primary" id="btnUpload">⬆️ Upload a clip</button>
+      <button class="btn ghost" id="btnRecord">🎥 Record now</button>
+    </div>
+    <input type="file" id="fileInput" accept="video/*" capture="environment" class="hidden" />
+  </div>
+
+  <div class="card" style="background:none; box-shadow:none; border-style:dashed">
+    <details>
+      <summary>📐 How the analysis works (and its limits)</summary>
+      <div class="body">FormCheck uses on-device AI pose tracking (no video leaves your phone). It measures the angles & timing it can see from a 2D side view — elbow, knee, set point, release timing vs your jump, tempo, balance and consistency across reps. Arc angle and release height are <b>estimates</b> shown as cues, not lab-exact. Film square side-on for honest numbers.</div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section class="screen hidden" id="screen-results">
+  <div class="card" id="qualityCard">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <div>
+        <h2 id="resTitle">Session Results</h2>
+        <div class="sub" id="resMeta"></div>
+      </div>
+      <span class="qbadge good" id="qBadge">●</span>
+    </div>
+  </div>
+
+  <!-- Consistency -->
+  <div class="card">
+    <h2>Consistency Score</h2>
+    <div class="sub">How repeatable your shots are — the #1 thing that builds a reliable jumper.</div>
+    <div class="scoreBig" style="margin-top:12px">
+      <svg class="ring" id="consRing" viewBox="0 0 36 36"></svg>
+      <div class="scoreMeta">
+        <div class="grade" id="consGrade"></div>
+        <div class="sub" id="consDesc" style="margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shot reel -->
+  <div class="card">
+    <h2>Your Shots</h2>
+    <div class="sub">Every shot scored against your model. Tap one to break it down.</div>
+    <div class="reel" id="shotReel" style="margin-top:10px"></div>
+  </div>
+
+  <!-- Per-shot breakdown -->
+  <div class="card">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <h2 id="shotTitle">Shot 1</h2>
+      <div class="scoreBig"><svg class="ring" id="shotRing" viewBox="0 0 36 36" style="width:54px;height:54px;flex-basis:54px"></svg></div>
+    </div>
+    <div class="avatarWrap" style="margin-top:10px">
+      <canvas id="shotCanvas" width="528" height="320"></canvas>
+      <div class="avatarCtl">
+        <button class="chip on" id="ghostToggle">👻 Pro overlay</button>
+        <button class="chip" id="skelToggle">🦴 Skeleton</button>
+      </div>
+    </div>
+    <div id="metricList" style="margin-top:14px"></div>
+  </div>
+
+  <!-- Kinetic sequence -->
+  <div class="card" id="kinCard">
+    <h2>Kinetic Sequence — jump vs arm timing</h2>
+    <div class="sub">Elite shooters release <b>on the way up</b>. Here's when each piece fires in your shot.</div>
+    <div class="kin" style="margin-top:18px">
+      <div class="kinBar" id="kinBar"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--blue)"></i>Dip / load</span>
+        <span><i class="dot" style="background:var(--orange)"></i>Leg drive</span>
+        <span><i class="dot" style="background:var(--green)"></i>Arm extension</span>
+      </div>
+    </div>
+    <div class="sub" id="kinVerdict" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Tale of the tape -->
+  <div class="card">
+    <h2>Tale of the Tape</h2>
+    <div class="sub">Your average vs the model.</div>
+    <table class="tape" id="tapeTable" style="margin-top:8px"></table>
+  </div>
+
+  <!-- Feedback -->
+  <div class="card">
+    <h2>What to change</h2>
+    <div id="feedbackList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <label class="fld">SAVE THIS SESSION AS</label>
+    <input type="text" id="playerName" placeholder="Player name (e.g. Marcus)" />
+    <button class="btn primary" id="btnSave" style="margin-top:12px">💾 Save to history</button>
+    <button class="btn ghost sm" id="btnNew" style="margin-top:10px">＋ New session</button>
+  </div>
+</section>
+
+<!-- ============ TRENDS ============ -->
+<section class="screen hidden" id="screen-trends">
+  <div class="card">
+    <h2>Progress</h2>
+    <div class="sub">Consistency and form over time. Pick a player to filter.</div>
+    <div class="seg" id="playerFilter" style="margin-top:10px"></div>
+  </div>
+  <div class="card" id="trendStatsCard">
+    <div class="statGrid" id="trendStats"></div>
+  </div>
+  <div class="card">
+    <h2>Consistency trend</h2>
+    <svg id="trendChart" viewBox="0 0 320 140" style="width:100%; margin-top:10px"></svg>
+    <div class="sub" id="trendNote" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>Sessions</h2>
+    <div id="historyList"></div>
+  </div>
+</section>
+
+<nav>
+  <button data-screen="home" class="active"><span class="ic">🎯</span>Capture</button>
+  <button data-screen="results"><span class="ic">📊</span>Results</button>
+  <button data-screen="trends"><span class="ic">📈</span>Trends</button>
+</nav>
+
+<div class="overlay hidden" id="overlay">
+  <div class="spinner"></div>
+  <div style="font-weight:800; font-size:16px" id="ovTitle">Analyzing your shots…</div>
+  <div class="pbar"><i id="ovBar"></i></div>
+  <div class="sub" id="ovMsg" style="max-width:300px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------------- MODEL PROFILES ---------------- */
+// Targets are reference ranges from published shooting data; arc/release-height are cues.
+const MODELS = {
+  curry: {
+    name:"Curry", emoji:"🏀", badge:"QUICK · DEEP RANGE",
+    tag:"Low dip → fast high release",
+    desc:"Stephen Curry shoots <b>on the way up</b> with a deep leg load and a low gather that whips into a high, lightning-quick release (~0.4s). Power comes from the legs, which is how he shoots from the logo.",
+    dip:0.9, jump:1, hold:0.5, tempo:0.85,
+    targets:{
+      elbow:{min:85,max:95,ideal:90,label:"Elbow at release",unit:"°",cue:"Form an L — elbow under the ball, ~90°."},
+      knee:{min:38,max:58,ideal:48,label:"Knee bend (load)",unit:"°",cue:"Load deep — legs are your power & range."},
+      timing:{min:-180,max:30,ideal:-90,label:"Release vs jump apex",unit:"ms",cue:"Release before the top of your jump — shoot on the rise."},
+      tempo:{min:240,max:460,ideal:360,label:"Shot tempo (dip→release)",unit:"ms",cue:"One fast, fluid motion — no hitch."},
+      setpt:{min:-8,max:14,ideal:4,label:"Set point height",unit:"",cue:"Bring the ball up to forehead height before release."},
+      follow:{min:60,max:100,ideal:80,label:"Follow-through hold",unit:"%",cue:"Hold the goose-neck until the ball lands."},
+      balance:{min:0,max:9,ideal:3,label:"Balance / drift",unit:"",cue:"Land where you took off — square and balanced."},
+      arc:{min:46,max:56,ideal:51,label:"Release arc (est.)",unit:"°",cue:"Aim for a high ~50° arc — bigger window in the rim.",cueOnly:true}
+    }
+  },
+  klay: {
+    name:"Klay", emoji:"🎯", badge:"CATCH & SHOOT",
+    tag:"No dip · machine repeatable",
+    desc:"Klay Thompson is the textbook catch-and-shoot: almost <b>no dip</b>, ball held high, and the same exact motion every single rep (0.79s catch-to-release). Repeatability over flash.",
+    dip:0.35, jump:0.85, hold:0.6, tempo:0.8,
+    targets:{
+      elbow:{min:85,max:95,ideal:90,label:"Elbow at release",unit:"°",cue:"Elbow stacked under the ball, ~90°."},
+      knee:{min:30,max:50,ideal:40,label:"Knee bend (load)",unit:"°",cue:"Light, consistent dip — don't over-load."},
+      timing:{min:-150,max:40,ideal:-60,label:"Release vs jump apex",unit:"ms",cue:"Catch and rise — release quick off the gather."},
+      tempo:{min:220,max:420,ideal:320,label:"Shot tempo (dip→release)",unit:"ms",cue:"Minimal dip = fastest path to release."},
+      setpt:{min:-2,max:18,ideal:8,label:"Set point height",unit:"",cue:"Start high — no wasted dip below the chest."},
+      follow:{min:60,max:100,ideal:80,label:"Follow-through hold",unit:"%",cue:"Same finish every rep — square and held."},
+      balance:{min:0,max:8,ideal:2,label:"Balance / drift",unit:"",cue:"Feet square, no drift — identical landing each time."},
+      arc:{min:44,max:52,ideal:48,label:"Release arc (est.)",unit:"°",cue:"Clean ~47° arc, repeated exactly.",cueOnly:true}
+    }
+  },
+  nash: {
+    name:"Nash", emoji:"🪣", badge:"90% EFFICIENCY",
+    tag:"Elbow tuck · perfect finish",
+    desc:"Steve Nash is the most efficient shooter ever (90%+ FT). Tucked elbow, dead-straight line, deliberate rhythm, and a follow-through held <b>until the ball lands</b>. The blueprint for free throws.",
+    dip:0.5, jump:0, hold:0.95, tempo:0.55,
+    targets:{
+      elbow:{min:88,max:98,ideal:93,label:"Elbow at release",unit:"°",cue:"Tuck the elbow in — straight line to the rim."},
+      knee:{min:25,max:48,ideal:36,label:"Knee bend (load)",unit:"°",cue:"Soft, rhythmic dip — legs feed the shot."},
+      timing:{min:-9999,max:9999,ideal:0,label:"Release vs jump apex",unit:"ms",cue:"",cueOnly:true,ft:true},
+      tempo:{min:400,max:760,ideal:560,label:"Shot tempo (dip→release)",unit:"ms",cue:"Smooth, unhurried rhythm — same every time."},
+      setpt:{min:-4,max:16,ideal:6,label:"Set point height",unit:"",cue:"Consistent set point at the forehead."},
+      follow:{min:75,max:100,ideal:92,label:"Follow-through hold",unit:"%",cue:"Hold the finish until the ball hits the rim."},
+      balance:{min:0,max:6,ideal:1,label:"Balance / drift",unit:"",cue:"Rock-solid base, zero drift."},
+      arc:{min:45,max:54,ideal:49,label:"Release arc (est.)",unit:"°",cue:"Soft ~49° arc with backspin.",cueOnly:true}
+    }
+  }
+};
+const METRIC_ORDER = ["elbow","timing","tempo","knee","setpt","follow","balance","arc"];
+
+let state = {
+  model:"curry", mode:"jump",
+  shots:[], activeShot:0, session:null,
+  showGhost:true, showSkel:true
+};
+
+/* ---------------- POSE LANDMARK INDICES ---------------- */
+const L = {nose:0, Lsh:11,Rsh:12, Lel:13,Rel:14, Lwr:15,Rwr:16, Lhip:23,Rhip:24, Lkn:25,Rkn:26, Lan:27,Ran:28};
+
+/* ---------------- UTIL ---------------- */
+const $ = s=>document.querySelector(s);
+const $$ = s=>document.querySelectorAll(s);
+function toast(m){const t=$("#toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200);}
+function angle(a,b,c){ // angle at b in degrees
+  const ab={x:a.x-b.x,y:a.y-b.y}, cb={x:c.x-b.x,y:c.y-b.y};
+  const dot=ab.x*cb.x+ab.y*cb.y;
+  const m=Math.hypot(ab.x,ab.y)*Math.hypot(cb.x,cb.y)||1e-6;
+  return Math.acos(Math.max(-1,Math.min(1,dot/m)))*180/Math.PI;
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function mean(a){return a.reduce((s,x)=>s+x,0)/(a.length||1);}
+function std(a){const m=mean(a); return Math.sqrt(mean(a.map(x=>(x-m)**2)));}
+
+/* ---------------- NAV ---------------- */
+$$("nav button").forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
+function showScreen(s){
+  $$(".screen").forEach(x=>x.classList.add("hidden"));
+  $("#screen-"+s).classList.remove("hidden");
+  $$("nav button").forEach(b=>b.classList.toggle("active",b.dataset.screen===s));
+  if(s==="trends") renderTrends();
+  window.scrollTo(0,0);
+}
+
+/* ---------------- MODEL PICKER ---------------- */
+function renderModels(){
+  const g=$("#modelGrid"); g.innerHTML="";
+  Object.entries(MODELS).forEach(([k,m])=>{
+    const d=document.createElement("div");
+    d.className="model"+(state.model===k?" active":"");
+    d.innerHTML=`<div class="badge">${m.badge.split(" · ")[0]}</div><div class="nm">${m.emoji} ${m.name}</div><div class="tag">${m.tag}</div>`;
+    d.onclick=()=>{state.model=k; renderModels(); updateModelUI(); resetAvatar();};
+    g.appendChild(d);
+  });
+}
+function updateModelUI(){
+  const m=MODELS[state.model];
+  $("#modelPill").textContent=`${m.emoji} ${m.name}`;
+  $("#modelDesc").innerHTML=m.desc;
+}
+$$("#modeSeg button").forEach(b=>b.onclick=()=>{
+  state.mode=b.dataset.mode;
+  $$("#modeSeg button").forEach(x=>x.classList.toggle("active",x===b));
+  if(state.mode==="ft" && state.model==="jump"){}
+  resetAvatar();
+});
+
+/* ---------------- REFERENCE AVATAR ANIMATION ---------------- */
+// Parametric stick-figure shooter. t in [0,1] across the motion.
+const avCanvas=$("#avatar"), avCtx=avCanvas.getContext("2d");
+let avT=0, avPlaying=true, avSlow=false, avRAF=null, avPhaseName="";
+function resetAvatar(){avT=0;}
+$("#avPlay").onclick=()=>{avPlaying=!avPlaying; $("#avPlay").classList.toggle("on",avPlaying); $("#avPlay").textContent=avPlaying?"▶ Playing":"⏸ Paused";};
+$("#avSlow").onclick=()=>{avSlow=!avSlow; $("#avSlow").classList.toggle("on",avSlow); $("#avSlow").textContent=avSlow?"🐢 Slow-mo ON":"🐢 Slow-mo";};
+
+function shooterPose(t,m){
+  // returns joint coords in a 0..1 box (x right, y down). t:0..1
+  // phases: 0-.28 dip, .28-.6 drive, .6-.74 release, .74-1 follow
+  const dip=m.dip, jumpH=m.jump*0.13;
+  let kneeBend, armUp, ballY, jump=0, wristExt;
+  if(t<0.28){ const p=t/0.28; kneeBend=p*dip; armUp=0.1*p; ballY=0.62-0.05*p; jump=0; wristExt=0; }
+  else if(t<0.6){ const p=(t-0.28)/0.32; kneeBend=dip*(1-p); armUp=0.1+0.55*p; ballY=0.62-0.32*p; jump=jumpH*p; wristExt=0.2*p; }
+  else if(t<0.74){ const p=(t-0.6)/0.14; kneeBend=0; armUp=0.65+0.35*p; ballY=0.30-0.22*p; jump=jumpH; wristExt=0.2+0.5*p; }
+  else { const p=(t-0.74)/0.26; kneeBend=0; armUp=1; ballY=0.08-0.02*p; jump=jumpH*(1-p*0.7); wristExt=0.7+0.3*p; }
+  avPhaseName = t<0.28?"Dip / Gather": t<0.6?"Leg Drive": t<0.74?"Release":"Follow-through";
+
+  const cx=0.5, hipY=0.55-jump, kf=kneeBend;
+  const hip={x:cx,y:hipY};
+  const knee={x:cx+0.02,y:hipY+0.16+0.02*kf};
+  const ankle={x:cx+0.015,y:hipY+0.32 - (jump>0?0:0) + (kf*0.0)};
+  ankle.y = 0.9 - jump; // feet near ground, lift on jump
+  knee.y = (hip.y+ankle.y)/2 + kf*0.05;
+  knee.x = cx+0.03+kf*0.02;
+  const shoulder={x:cx,y:hipY-0.17};
+  const head={x:cx,y:shoulder.y-0.09};
+  // shooting arm (right): elbow tuck, wrist rises with armUp
+  const elbow={x:shoulder.x+0.06, y:shoulder.y+0.10-0.02*armUp};
+  const wrist={x:shoulder.x+0.05+0.01*armUp, y:shoulder.y+0.14 - (0.30*armUp)};
+  // at full extension straighten
+  if(armUp>0.7){ const e=(armUp-0.7)/0.3; elbow.y=shoulder.y+0.10-0.10*e; wrist.y=shoulder.y-0.16-0.06*e; elbow.x=shoulder.x+0.05; wrist.x=shoulder.x+0.04; }
+  const ball={x:wrist.x+0.02, y:Math.min(wrist.y-0.03, ballY)};
+  // guide arm (left)
+  const elbowL={x:shoulder.x-0.10,y:shoulder.y+0.10};
+  const wristL={x:wrist.x-0.02,y:wrist.y+0.04};
+  return {head,shoulder,hip,knee,ankle,elbow,wrist,elbowL,wristL,ball,armUp,wristExt};
+}
+function drawStick(ctx,W,H,p,color,alpha=1,scale=1,ox=0,oy=0){
+  const X=v=>(ox+v*scale)*W, Y=v=>(oy+v*scale)*H;
+  ctx.save(); ctx.globalAlpha=alpha; ctx.lineWidth=6*scale; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle=color;
+  const seg=(a,b)=>{ctx.beginPath();ctx.moveTo(X(a.x),Y(a.y));ctx.lineTo(X(b.x),Y(b.y));ctx.stroke();};
+  // body
+  seg(p.shoulder,p.hip); seg(p.hip,p.knee); seg(p.knee,p.ankle);
+  seg(p.shoulder,p.elbowL); seg(p.elbowL,p.wristL);
+  seg(p.shoulder,p.elbow); seg(p.elbow,p.wrist);
+  // head
+  ctx.beginPath(); ctx.arc(X(p.head.x),Y(p.head.y),16*scale,0,7); ctx.fillStyle=color; ctx.fill();
+  // ball
+  if(p.ball){ctx.beginPath(); ctx.arc(X(p.ball.x),Y(p.ball.y),11*scale,0,7); ctx.fillStyle="#ff7a18"; ctx.globalAlpha=alpha; ctx.fill(); ctx.strokeStyle="#0b0d12"; ctx.lineWidth=2; ctx.stroke();}
+  ctx.restore();
+}
+function avatarLoop(){
+  const m=MODELS[state.model];
+  const W=avCanvas.width, H=avCanvas.height;
+  avCtx.clearRect(0,0,W,H);
+  // floor
+  avCtx.strokeStyle="#262c3a"; avCtx.lineWidth=2; avCtx.beginPath(); avCtx.moveTo(20,H*0.9); avCtx.lineTo(W-20,H*0.9); avCtx.stroke();
+  const p=shooterPose(avT,m);
+  drawStick(avCtx,W,H,p,"#ff9d4d",1);
+  $("#avPhase").textContent=avPhaseName;
+  if(avPlaying){ avT+= (avSlow?0.0035:0.011); if(avT>1) avT=0; }
+  avRAF=requestAnimationFrame(avatarLoop);
+}
+
+/* ---------------- VIDEO CAPTURE ---------------- */
+let poseLandmarker=null, poseReady=false;
+async function initPose(){
+  if(poseReady) return;
+  $("#ovMsg").textContent="Loading AI pose model (first time only)…";
+  const vision=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
+  poseLandmarker=await PoseLandmarker.createFromOptions(vision,{
+    baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",delegate:"GPU"},
+    runningMode:"VIDEO", numPoses:1
+  });
+  poseReady=true;
+}
+$("#btnUpload").onclick=()=>$("#fileInput").click();
+$("#btnRecord").onclick=()=>{ $("#fileInput").setAttribute("capture","environment"); $("#fileInput").click(); };
+$("#fileInput").onchange=e=>{ const f=e.target.files[0]; if(f) processVideo(f); e.target.value=""; };
+
+async function processVideo(file){
+  showOverlay("Analyzing your shots…");
+  try{
+    await initPose();
+    const url=URL.createObjectURL(file);
+    const v=document.createElement("video");
+    v.src=url; v.muted=true; v.playsInline=true;
+    await new Promise((res,rej)=>{v.onloadedmetadata=res; v.onerror=()=>rej("Could not read video");});
+    const dur=Math.min(v.duration||20, 30);
+    // sample frames
+    const FPS=Math.min(v.videoWidth>0?30:30, 30);
+    const step=1/30;
+    const frames=[]; let ts=0; let idx=0;
+    const total=Math.ceil(dur/step);
+    for(let t=0; t<dur; t+=step){
+      await seekTo(v,t);
+      const res=poseLandmarker.detectForVideo(v, performance.now());
+      if(res.landmarks && res.landmarks[0]){
+        frames.push({t, lm:res.landmarks[0].map(p=>({x:p.x,y:p.y,z:p.z,v:p.visibility}))});
+      }
+      idx++;
+      if(idx%3===0){ setProgress(idx/total*0.85, `Tracking body — frame ${idx}/${total}`); await new Promise(r=>setTimeout(r,0)); }
+    }
+    setProgress(0.9,"Finding your shots…");
+    if(frames.length<8){ throw "Couldn't track a body in this clip. Film side-on with the full body in frame, good lighting."; }
+    const analysis=analyzeFrames(frames, v);
+    state.shots=analysis.shots; state.thumbsVideo=v; state.videoURL=url; state.frames=frames;
+    state.activeShot=0;
+    setProgress(1,"Done");
+    if(analysis.shots.length===0){ throw "No clear shots detected. Make sure the shooter releases the ball upward and stays in frame."; }
+    buildResults(analysis);
+    hideOverlay();
+    showScreen("results");
+  }catch(err){
+    hideOverlay();
+    toast(typeof err==="string"?err:"Analysis failed — try another clip.");
+    console.error(err);
+  }
+}
+function seekTo(v,t){return new Promise(res=>{ const h=()=>{v.removeEventListener("seeked",h); res();}; v.addEventListener("seeked",h); v.currentTime=Math.min(t, (v.duration||t)-0.01);});}
+
+/* ---------------- ANALYSIS ---------------- */
+function pickSide(frames){
+  // shooting arm = wrist that reaches highest (lowest y) at any point
+  let lMin=1,rMin=1;
+  frames.forEach(f=>{ lMin=Math.min(lMin,f.lm[L.Lwr].y); rMin=Math.min(rMin,f.lm[L.Rwr].y); });
+  return rMin<=lMin ? "R":"L";
+}
+function J(side){ return side==="R"
+  ? {sh:L.Rsh,el:L.Rel,wr:L.Rwr,hip:L.Rhip,kn:L.Rkn,an:L.Ran}
+  : {sh:L.Lsh,el:L.Lel,wr:L.Lwr,hip:L.Lhip,kn:L.Lkn,an:L.Lan}; }
+
+function analyzeFrames(frames, v){
+  const side=pickSide(frames);
+  const j=J(side);
+  // wrist height series (invert y so up = larger)
+  const series=frames.map(f=>({t:f.t, wy:1-f.lm[j.wr].y, hipy:1-f.lm[j.hip].y, any:1-f.lm[j.an].y,
+    elbow:angle(f.lm[j.sh],f.lm[j.el],f.lm[j.wr]),
+    knee:angle(f.lm[j.hip],f.lm[j.kn],f.lm[j.an]),
+    lm:f.lm}));
+  // detect shots: local maxima of wrist height above threshold, separated
+  const wy=series.map(s=>s.wy);
+  const maxW=Math.max(...wy), minW=Math.min(...wy);
+  const thr=minW+(maxW-minW)*0.62;
+  const peaks=[];
+  for(let i=2;i<series.length-2;i++){
+    if(wy[i]>thr && wy[i]>=wy[i-1] && wy[i]>=wy[i+1] && wy[i]>wy[i-2] && wy[i]>=wy[i+2]){
+      if(peaks.length===0 || (i-peaks[peaks.length-1])>Math.max(6, series.length*0.05)) peaks.push(i);
+      else if(wy[i]>wy[peaks[peaks.length-1]]) peaks[peaks.length-1]=i;
+    }
+  }
+  const shots=[];
+  peaks.forEach((pk,si)=>{
+    // window: back to previous dip (local min of wrist) for start, forward a bit
+    let start=pk; while(start>0 && wy[start]>minW+(maxW-minW)*0.30 && (pk-start)<series.length*0.5) start--;
+    let dipIdx=start; for(let i=start;i<=pk;i++){ if(wy[i]<wy[dipIdx]) dipIdx=i; }
+    // deepest knee bend index between dip and peak (min knee angle)
+    let loadIdx=dipIdx; for(let i=dipIdx;i<=pk;i++){ if(series[i].knee<series[loadIdx].knee) loadIdx=i; }
+    // release = peak (max wrist height / extension)
+    const relIdx=pk;
+    // jump apex = max hip height around release window
+    let apexIdx=relIdx; const w0=Math.max(dipIdx,relIdx-8), w1=Math.min(series.length-1,relIdx+8);
+    for(let i=w0;i<=w1;i++){ if(series[i].hipy>series[apexIdx].hipy) apexIdx=i; }
+    // set point = where wrist passes shoulder height on the way up (elbow ~ before full ext)
+    let setIdx=Math.round((loadIdx+relIdx)/2);
+    const m=computeMetrics(series,{dipIdx,loadIdx,relIdx,apexIdx,setIdx},j,side);
+    shots.push({idx:si, side, keys:{dipIdx,loadIdx,relIdx,apexIdx,setIdx}, metrics:m, series});
+  });
+  // score each shot
+  shots.forEach(s=> s.score = scoreShot(s.metrics));
+  // quality
+  const avgVis=mean(frames.flatMap(f=>[f.lm[j.sh].v,f.lm[j.el].v,f.lm[j.wr].v,f.lm[j.kn].v]));
+  const quality= avgVis>0.7 ? "good":"warn";
+  return {shots, side, quality, fps:30};
+}
+
+function computeMetrics(series,k,j,side){
+  const rel=series[k.relIdx], load=series[k.loadIdx], apex=series[k.apexIdx], set=series[k.setIdx], dip=series[k.dipIdx];
+  const elbow=rel.elbow;
+  const kneeBend=180-load.knee; // flexion amount
+  const timing=(rel.t-apex.t)*1000; // ms; negative = release before apex
+  const tempo=(rel.t-dip.t)*1000;
+  // set point height: wrist vs nose at set frame (positive = wrist above nose)
+  const nose=set.lm[L.nose];
+  const setpt=( (1-set.lm[j.wr].y) - (1-nose.y) )*100;
+  // follow-through: wrist stays high & extended after release (look 4 frames later)
+  const after=series[Math.min(series.length-1,k.relIdx+4)];
+  const follow=clamp(((after.elbow-90)/90*100 + ( (1-after.lm[j.wr].y)>(1-rel.lm[j.wr].y)*0.92?60:30)),0,100);
+  // balance: ankle x drift takeoff->landing
+  const drift=Math.abs(rel.lm[j.an].x - dip.lm[j.an].x)*100;
+  // arc estimate: forearm vector angle at release (elbow->wrist) from horizontal
+  const dx=rel.lm[j.wr].x-rel.lm[j.el].x, dy=(1-rel.lm[j.wr].y)-(1-rel.lm[j.el].y);
+  let arc=Math.atan2(dy,Math.abs(dx)||1e-3)*180/Math.PI; arc=clamp(arc,20,80);
+  return {elbow, knee:kneeBend, timing, tempo, setpt, follow, balance:drift, arc};
+}
+
+function scoreMetric(val, tgt){
+  if(tgt.ft||tgt.cueOnly && tgt.min<=-9999) return null;
+  const {min,max,ideal}=tgt;
+  if(val>=min && val<=max){
+    // within range: closeness to ideal
+    const half=Math.max(ideal-min,max-ideal)||1;
+    return clamp(100-Math.abs(val-ideal)/half*15,85,100);
+  }
+  const d= val<min ? (min-val) : (val-max);
+  const span=Math.max((max-min),1);
+  return clamp(85 - d/span*120, 0, 84);
+}
+function scoreShot(m){
+  const t=MODELS[state.model].targets;
+  let sum=0,n=0;
+  METRIC_ORDER.forEach(key=>{
+    const tgt=t[key]; if(!tgt) return;
+    if(tgt.cueOnly) return; // cues don't score
+    if(state.mode==="ft" && (key==="timing")) return;
+    const sc=scoreMetric(m[key],tgt);
+    if(sc===null) return;
+    sum+=sc; n++;
+  });
+  return Math.round(n?sum/n:0);
+}
+
+/* ---------------- BUILD RESULTS ---------------- */
+function buildResults(analysis){
+  const m=MODELS[state.model];
+  $("#resTitle").textContent=`${m.emoji} ${m.name} Model · ${state.mode==="ft"?"Free Throw":"Jump Shot"}`;
+  $("#resMeta").textContent=`${analysis.shots.length} shot${analysis.shots.length>1?"s":""} detected · analyzed on-device`;
+  const qb=$("#qBadge");
+  qb.className="qbadge "+(analysis.quality==="good"?"good":"warn");
+  qb.textContent= analysis.quality==="good" ? "● Good capture" : "● Low confidence — check angle";
+
+  // consistency
+  const cons=consistency(analysis.shots);
+  drawRing($("#consRing"), cons.score, cons.score>=75?"#27c281":cons.score>=55?"#ffcf4d":"#ff5a5a");
+  $("#consGrade").innerHTML=`<span style="color:${cons.score>=75?'var(--green)':cons.score>=55?'var(--yellow)':'var(--red)'}">${cons.label}</span> · ${cons.score}/100`;
+  $("#consDesc").textContent=cons.desc;
+
+  renderReel();
+  renderShot(0);
+  renderTape(analysis.shots);
+  renderFeedback(analysis.shots, cons);
+  $("#playerName").value="";
+}
+function consistency(shots){
+  if(shots.length<2) return {score:60,label:"Need more reps",desc:"Record 3–4 shots in one clip to measure repeatability."};
+  const keys=["elbow","tempo","setpt","arc"].concat(state.mode==="ft"?[]:["timing"]);
+  let varScore=[];
+  keys.forEach(k=>{
+    const vals=shots.map(s=>s.metrics[k]);
+    const sd=std(vals), mu=Math.abs(mean(vals))||1;
+    const cv=sd/(mu+ (k==="timing"||k==="setpt"?30:1));
+    varScore.push(clamp(100-cv*220,0,100));
+  });
+  const score=Math.round(mean(varScore));
+  const label=score>=80?"Elite":score>=65?"Solid":score>=50?"Streaky":"Inconsistent";
+  const desc=score>=65?"Your reps look alike — that repeatability is what makes shots fall.":"Your shots vary rep to rep. Groove the same motion every time.";
+  return {score,label,desc};
+}
+
+function renderReel(){
+  const r=$("#shotReel"); r.innerHTML="";
+  state.shots.forEach((s,i)=>{
+    const c=document.createElement("div");
+    c.className="shotCard"+(i===state.activeShot?" active":"");
+    const col=s.score>=80?"var(--green)":s.score>=60?"var(--yellow)":"var(--red)";
+    c.innerHTML=`<canvas class="shotThumb" width="120" height="74" id="thumb${i}"></canvas>
+      <div class="sc" style="color:${col}">${s.score}</div><div class="lbl">Shot ${i+1}</div>`;
+    c.onclick=()=>{state.activeShot=i; renderReel(); renderShot(i);};
+    r.appendChild(c);
+    drawShotThumb(i);
+  });
+}
+function drawShotThumb(i){
+  const cv=$("#thumb"+i); if(!cv) return; const ctx=cv.getContext("2d");
+  const s=state.shots[i]; const rel=s.series[s.keys.relIdx];
+  ctx.fillStyle="#0e121b"; ctx.fillRect(0,0,cv.width,cv.height);
+  drawPoseSkeleton(ctx,cv.width,cv.height,rel.lm,"#ff9d4d",2);
+}
+
+function renderShot(i){
+  const s=state.shots[i]; const m=MODELS[state.model];
+  $("#shotTitle").textContent=`Shot ${i+1}`;
+  drawRing($("#shotRing"), s.score, s.score>=80?"#27c281":s.score>=60?"#ffcf4d":"#ff5a5a");
+  drawShotCanvas();
+  // metrics
+  const ml=$("#metricList"); ml.innerHTML="";
+  METRIC_ORDER.forEach(key=>{
+    const tgt=m.targets[key]; if(!tgt) return;
+    if(state.mode==="ft" && key==="timing") return;
+    const val=s.metrics[key];
+    ml.appendChild(metricBar(key,val,tgt));
+  });
+  renderKinetic(s);
+}
+function metricBar(key,val,tgt){
+  const el=document.createElement("div"); el.className="metric";
+  const sc= tgt.cueOnly?null:scoreMetric(val,tgt);
+  const inRange= val>=tgt.min && val<=tgt.max;
+  const col= tgt.cueOnly?"var(--blue)": inRange?"var(--green)":"var(--red)";
+  // scale for bar display
+  const lo=Math.min(tgt.min,val)- (Math.abs(tgt.max-tgt.min)*0.4);
+  const hi=Math.max(tgt.max,val)+ (Math.abs(tgt.max-tgt.min)*0.4);
+  const span=(hi-lo)||1;
+  const tL=(tgt.min-lo)/span*100, tW=(tgt.max-tgt.min)/span*100;
+  const mk=clamp((val-lo)/span*100,0,100);
+  const disp = key==="timing" ? (val>0?`+${Math.round(val)}`:Math.round(val))+"ms"
+            : key==="tempo" ? Math.round(val)+"ms"
+            : key==="setpt"||key==="balance" ? val.toFixed(1)
+            : Math.round(val)+(tgt.unit||"");
+  el.innerHTML=`<div class="top"><span class="mname">${tgt.label}${tgt.cueOnly?' <span style="color:var(--blue);font-size:10px">CUE</span>':''}</span>
+    <span class="mval" style="color:${col}">${disp}</span></div>
+    <div class="barTrack">
+      <div class="barTarget" style="left:${clamp(tL,0,100)}%; width:${clamp(tW,0,100)}%"></div>
+      <div class="barMark" style="left:${mk}%; background:${col}"></div>
+    </div>
+    <div class="cue">${ tgt.cueOnly? '💡 '+tgt.cue : (inRange?'✅ ':'⚠️ ')+tgt.cue}</div>`;
+  return el;
+}
+
+/* kinetic sequence bar */
+function renderKinetic(s){
+  if(state.mode==="ft"){ $("#kinCard").classList.add("hidden"); return; }
+  $("#kinCard").classList.remove("hidden");
+  const k=s.keys, ser=s.series;
+  const t0=ser[k.dipIdx].t, tEnd=ser[Math.min(ser.length-1,k.relIdx+3)].t;
+  const span=(tEnd-t0)||1;
+  const pct=t=>clamp((t-t0)/span*100,0,100);
+  const bar=$("#kinBar"); bar.innerHTML="";
+  const segs=[
+    {a:k.dipIdx,b:k.loadIdx,c:"var(--blue)",l:"Dip"},
+    {a:k.loadIdx,b:k.relIdx,c:"var(--orange)",l:"Drive"},
+    {a:k.relIdx,b:Math.min(ser.length-1,k.relIdx+3),c:"var(--green)",l:"Arm"}
+  ];
+  segs.forEach(g=>{
+    const left=pct(ser[g.a].t), w=pct(ser[g.b].t)-pct(ser[g.a].t);
+    const d=document.createElement("div"); d.className="kinSeg";
+    d.style.cssText=`left:${left}%; width:${Math.max(w,2)}%; background:${g.c}`; d.textContent=w>10?g.l:"";
+    bar.appendChild(d);
+  });
+  // apex + release markers
+  [["Apex",k.apexIdx],["Release",k.relIdx]].forEach(([lab,idx])=>{
+    const mk=document.createElement("div"); mk.className="kinMark"; mk.dataset.l=lab; mk.style.left=pct(ser[idx].t)+"%";
+    bar.appendChild(mk);
+  });
+  const timing=s.metrics.timing;
+  const v=$("#kinVerdict");
+  if(timing<-30) v.innerHTML=`✅ <b class="ok">Shooting on the way up</b> — you release ${Math.abs(Math.round(timing))}ms before your jump peaks. That's the elite pattern (Curry/Klay).`;
+  else if(timing<=60) v.innerHTML=`👍 <b class="warn">Right at the top</b> — release ${timing>0?'+':''}${Math.round(timing)}ms vs apex. Try triggering a touch earlier to shoot on the rise.`;
+  else v.innerHTML=`⚠️ <b class="bad">Shooting on the way down</b> — release ${Math.round(timing)}ms after your peak. Start your shot motion earlier so the ball leaves as you rise.`;
+}
+
+/* shot canvas with skeleton + ghost overlay */
+function drawShotCanvas(){
+  const cv=$("#shotCanvas"), ctx=cv.getContext("2d");
+  const s=state.shots[state.activeShot]; const rel=s.series[s.keys.relIdx];
+  ctx.fillStyle="#0e121b"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle="#1c212d"; for(let gx=0;gx<cv.width;gx+=44){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,cv.height);ctx.stroke();}
+  // ghost: ideal pro at release
+  if(state.showGhost){
+    const p=shooterPose(0.7,MODELS[state.model]);
+    drawStick(ctx,cv.width,cv.height,p,"#4d9dff",0.35,0.9,0.05,0.02);
+  }
+  if(state.showSkel) drawPoseSkeleton(ctx,cv.width,cv.height,rel.lm,"#ff9d4d",4, s.side);
+  // angle annotations
+  const j=J(s.side);
+  drawAngleArc(ctx,cv.width,cv.height,rel.lm[j.sh],rel.lm[j.el],rel.lm[j.wr], s.metrics.elbow, MODELS[state.model].targets.elbow);
+}
+$("#ghostToggle").onclick=()=>{state.showGhost=!state.showGhost; $("#ghostToggle").classList.toggle("on",state.showGhost); drawShotCanvas();};
+$("#skelToggle").onclick=()=>{state.showSkel=!state.showSkel; $("#skelToggle").classList.toggle("on",state.showSkel); drawShotCanvas();};
+
+const BONES=[[L.Rsh,L.Rel],[L.Rel,L.Rwr],[L.Lsh,L.Lel],[L.Lel,L.Lwr],[L.Rsh,L.Lsh],[L.Rsh,L.Rhip],[L.Lsh,L.Lhip],[L.Rhip,L.Lhip],[L.Rhip,L.Rkn],[L.Rkn,L.Ran],[L.Lhip,L.Lkn],[L.Lkn,L.Lan]];
+function drawPoseSkeleton(ctx,W,H,lm,color,lw){
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineCap="round";
+  BONES.forEach(([a,b])=>{ if(lm[a].v>0.3&&lm[b].v>0.3){ctx.beginPath();ctx.moveTo(lm[a].x*W,lm[a].y*H);ctx.lineTo(lm[b].x*W,lm[b].y*H);ctx.stroke();} });
+  ctx.fillStyle=color;
+  [L.nose,L.Rsh,L.Rel,L.Rwr,L.Rhip,L.Rkn,L.Ran,L.Lsh,L.Lel,L.Lwr].forEach(i=>{ if(lm[i].v>0.3){ctx.beginPath();ctx.arc(lm[i].x*W,lm[i].y*H,lw*0.9,0,7);ctx.fill();} });
+  ctx.restore();
+}
+function drawAngleArc(ctx,W,H,a,b,c,val,tgt){
+  const inRange=val>=tgt.min&&val<=tgt.max;
+  const col=inRange?"#27c281":"#ff5a5a";
+  ctx.save();
+  const bx=b.x*W, by=b.y*H;
+  const a1=Math.atan2(a.y-b.y,a.x-b.x), a2=Math.atan2(c.y-b.y,c.x-b.x);
+  ctx.strokeStyle=col; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(bx,by,22,a1,a2, a2<a1); ctx.stroke();
+  ctx.fillStyle=col; ctx.font="bold 13px -apple-system,sans-serif";
+  ctx.fillText(Math.round(val)+"°", bx+12, by-12);
+  ctx.restore();
+}
+
+/* tale of the tape */
+function renderTape(shots){
+  const t=MODELS[state.model].targets; const tbl=$("#tapeTable");
+  let rows=`<tr><th>Metric</th><th>You (avg)</th><th>${MODELS[state.model].name} target</th></tr>`;
+  METRIC_ORDER.forEach(key=>{
+    const tgt=t[key]; if(!tgt) return;
+    if(state.mode==="ft" && key==="timing") return;
+    const avg=mean(shots.map(s=>s.metrics[key]));
+    const inRange=avg>=tgt.min&&avg<=tgt.max;
+    const disp= key==="timing"?(avg>0?'+':'')+Math.round(avg)+"ms": key==="tempo"?Math.round(avg)+"ms": key==="setpt"||key==="balance"?avg.toFixed(1):Math.round(avg)+(tgt.unit||"");
+    const tgtDisp= tgt.cueOnly? `~${tgt.ideal}${tgt.unit}`: `${tgt.min}–${tgt.max}${tgt.unit||""}`;
+    const col=tgt.cueOnly?"var(--blue)":inRange?"var(--green)":"var(--red)";
+    rows+=`<tr><td>${tgt.label}</td><td class="you" style="color:${col}">${disp} ${tgt.cueOnly?'':(inRange?'✓':'✗')}</td><td>${tgtDisp}</td></tr>`;
+  });
+  tbl.innerHTML=rows;
+}
+
+/* feedback */
+function renderFeedback(shots,cons){
+  const t=MODELS[state.model].targets; const fl=$("#feedbackList"); fl.innerHTML="";
+  const items=[];
+  METRIC_ORDER.forEach(key=>{
+    const tgt=t[key]; if(!tgt||tgt.cueOnly) return;
+    if(state.mode==="ft" && key==="timing") return;
+    const avg=mean(shots.map(s=>s.metrics[key]));
+    const inRange=avg>=tgt.min&&avg<=tgt.max;
+    const sc=scoreMetric(avg,tgt)??100;
+    items.push({key,tgt,avg,inRange,sc});
+  });
+  // worst 3 fixes
+  const fixes=items.filter(i=>!i.inRange).sort((a,b)=>a.sc-b.sc).slice(0,3);
+  const goods=items.filter(i=>i.inRange).sort((a,b)=>b.sc-a.sc).slice(0,2);
+  fixes.forEach(i=>{
+    const d=document.createElement("div"); d.className="fb fix";
+    const dir = i.avg<i.tgt.min? "too low":"too high";
+    d.innerHTML=`<div class="ico">🔧</div><div><div class="t">${i.tgt.label} — ${dir}</div><div class="d">${i.tgt.cue} <i>(${drillFor(i.key,state.model)})</i></div></div>`;
+    fl.appendChild(d);
+  });
+  goods.forEach(i=>{
+    const d=document.createElement("div"); d.className="fb good";
+    d.innerHTML=`<div class="ico">✅</div><div><div class="t">${i.tgt.label} — dialed in</div><div class="d">Right in ${MODELS[state.model].name}'s range. Keep it.</div></div>`;
+    fl.appendChild(d);
+  });
+  if(cons.score<65){
+    const d=document.createElement("div"); d.className="fb fix";
+    d.innerHTML=`<div class="ico">🔁</div><div><div class="t">Build repeatability</div><div class="d">Your reps vary. Do 50 form shots focusing on the exact same motion before adding distance.</div></div>`;
+    fl.appendChild(d);
+  }
+}
+function drillFor(key,model){
+  const D={elbow:"Wall form-shooting, elbow under ball",timing:"1-2 hop drill — release as you rise",tempo:"Catch-and-shoot reps, no hitch",knee:"Chair shooting → explode up",setpt:"High-pocket catch reps",follow:"Hold the finish until ball lands (Nash drill)",balance:"Land-in-the-circle drill",arc:"Shoot over a chair / high-arc reps"};
+  return D[key]||"Form reps";
+}
+
+/* ---------------- RING ---------------- */
+function drawRing(svg,score,color){
+  const r=15.9155;
+  svg.innerHTML=`<path d="M18 2.1 a ${r} ${r} 0 0 1 0 31.8 a ${r} ${r} 0 0 1 0 -31.8" fill="none" stroke="#262c3a" stroke-width="3.2"/>
+   <path d="M18 2.1 a ${r} ${r} 0 0 1 0 31.8 a ${r} ${r} 0 0 1 0 -31.8" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${score} 100"/>
+   <text x="18" y="19" text-anchor="middle" font-size="9" font-weight="800" fill="#eef2f8">${score}</text>
+   <text x="18" y="25" text-anchor="middle" font-size="3.4" fill="#8a93a6">/ 100</text>`;
+}
+
+/* ---------------- SAVE / SUPABASE ---------------- */
+$("#btnSave").onclick=saveSession;
+$("#btnNew").onclick=()=>{ showScreen("home"); };
+async function saveSession(){
+  const name=($("#playerName").value||"Player").trim();
+  const m=MODELS[state.model];
+  const cons=consistency(state.shots);
+  const avgScore=Math.round(mean(state.shots.map(s=>s.score)));
+  const avgMetrics={}; METRIC_ORDER.forEach(k=>avgMetrics[k]=+mean(state.shots.map(s=>s.metrics[k])).toFixed(1));
+  const rec={ player_name:name, model:state.model, mode:state.mode,
+    shot_count:state.shots.length, consistency:cons.score, avg_score:avgScore,
+    metrics:avgMetrics, shots:state.shots.map(s=>({score:s.score,metrics:s.metrics})) };
+  // local cache always
+  const local=JSON.parse(localStorage.getItem("formcheck_sessions")||"[]");
+  rec.created_at=new Date().toISOString();
+  local.unshift(rec); localStorage.setItem("formcheck_sessions",JSON.stringify(local.slice(0,200)));
+  // supabase
+  try{
+    const {error}=await sb.from("formcheck_sessions").insert([{
+      player_name:name, model:state.model, mode:state.mode, shot_count:state.shots.length,
+      consistency:cons.score, avg_score:avgScore, metrics:avgMetrics, shots:rec.shots
+    }]);
+    if(error) throw error;
+    toast("✅ Saved to history");
+  }catch(e){
+    console.warn("Supabase save failed, kept local:",e.message||e);
+    toast("Saved locally (cloud sync pending)");
+  }
+  showScreen("trends");
+}
+
+/* ---------------- TRENDS ---------------- */
+let trendFilter="all";
+async function loadSessions(){
+  let rows=[];
+  try{
+    const {data,error}=await sb.from("formcheck_sessions").select("*").order("created_at",{ascending:false}).limit(200);
+    if(error) throw error; rows=data||[];
+  }catch(e){
+    rows=JSON.parse(localStorage.getItem("formcheck_sessions")||"[]");
+  }
+  return rows;
+}
+async function renderTrends(){
+  const rows=await loadSessions();
+  // player filter
+  const players=[...new Set(rows.map(r=>r.player_name))];
+  const pf=$("#playerFilter"); pf.innerHTML="";
+  ["all",...players].forEach(p=>{
+    const b=document.createElement("button"); b.textContent=p==="all"?"All":p; b.className=(trendFilter===p?"active":"");
+    b.onclick=()=>{trendFilter=p; renderTrends();}; pf.appendChild(b);
+  });
+  const data= trendFilter==="all"?rows:rows.filter(r=>r.player_name===trendFilter);
+  if(data.length===0){ $("#trendStats").innerHTML=""; $("#historyList").innerHTML=`<div class="empty">No saved sessions yet.<br>Analyze a clip and tap <b>Save</b> to start tracking progress.</div>`; $("#trendChart").innerHTML=""; $("#trendNote").textContent=""; return; }
+  const lastCons=data[0].consistency, lastScore=data[0].avg_score;
+  const bestCons=Math.max(...data.map(d=>d.consistency));
+  $("#trendStats").innerHTML=`
+    <div class="stat"><div class="v" style="color:var(--orange)">${data.length}</div><div class="l">SESSIONS</div></div>
+    <div class="stat"><div class="v" style="color:var(--green)">${lastCons}</div><div class="l">LAST CONSISTENCY</div></div>
+    <div class="stat"><div class="v">${bestCons}</div><div class="l">BEST</div></div>`;
+  drawTrendChart(data.slice().reverse());
+  // history
+  const hl=$("#historyList"); hl.innerHTML="";
+  data.forEach(d=>{
+    const dt=new Date(d.created_at); const m=MODELS[d.model]||{emoji:"🏀",name:d.model};
+    const col=d.consistency>=75?"var(--green)":d.consistency>=55?"var(--yellow)":"var(--red)";
+    const it=document.createElement("div"); it.className="trendItem";
+    it.innerHTML=`<svg class="ring" viewBox="0 0 36 36" style="width:42px;height:42px;flex:0 0 42px"></svg>
+      <div class="d"><div style="font-weight:700;font-size:13px">${d.player_name} · ${m.emoji} ${m.name}</div>
+      <div class="sub" style="font-size:11px">${dt.toLocaleDateString()} · ${d.shot_count} shots · ${d.mode==="ft"?"FT":"Jumper"} · avg form ${d.avg_score}</div></div>
+      <div style="font-weight:900;color:${col};font-size:18px">${d.consistency}</div>`;
+    hl.appendChild(it);
+    drawRing(it.querySelector(".ring"), d.consistency, col);
+  });
+}
+function drawTrendChart(data){
+  const svg=$("#trendChart"); const W=320,H=140,pad=24;
+  if(data.length<2){ svg.innerHTML=`<text x="160" y="70" text-anchor="middle" fill="#8a93a6" font-size="11">Save 2+ sessions to see a trend line</text>`; $("#trendNote").textContent=""; return; }
+  const xs=(i)=>pad+i/(data.length-1)*(W-pad*2);
+  const ys=(v)=>H-pad-(v/100)*(H-pad*1.5);
+  let path="",dots="";
+  data.forEach((d,i)=>{ const x=xs(i),y=ys(d.consistency); path+=(i?"L":"M")+x+" "+y+" "; dots+=`<circle cx="${x}" cy="${y}" r="3.2" fill="#ff7a18"/>`; });
+  // gridlines
+  let grid=""; [25,50,75,100].forEach(g=>{ const y=ys(g); grid+=`<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="#262c3a" stroke-width="1"/><text x="4" y="${y+3}" fill="#8a93a6" font-size="7">${g}</text>`; });
+  svg.innerHTML=grid+`<path d="${path}" fill="none" stroke="#ff7a18" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
+  const delta=data[data.length-1].consistency-data[0].consistency;
+  $("#trendNote").innerHTML= delta>0?`📈 Up <b class="ok">${delta} pts</b> since your first session here. Keep grooving it.`: delta<0?`📉 Down ${Math.abs(delta)} pts — refocus on the same motion every rep.`:`Holding steady. Push for more reps.`;
+}
+
+/* ---------------- OVERLAY ---------------- */
+function showOverlay(t){ $("#ovTitle").textContent=t; $("#ovBar").style.width="0%"; $("#ovMsg").textContent=""; $("#overlay").classList.remove("hidden"); }
+function setProgress(p,msg){ $("#ovBar").style.width=Math.round(p*100)+"%"; if(msg)$("#ovMsg").textContent=msg; }
+function hideOverlay(){ $("#overlay").classList.add("hidden"); }
+
+/* ---------------- INIT ---------------- */
+renderModels(); updateModelUI(); avatarLoop();
+showScreen("home");
+</script>
+</body>
+</html>
