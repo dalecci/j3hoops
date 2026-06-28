@@ -95,7 +95,18 @@
   .barTarget{position:absolute; top:0; bottom:0; background:#27c28122; border-left:2px dashed var(--green); border-right:2px dashed var(--green)}
   .barFill{position:absolute; top:0; bottom:0; left:0; border-radius:999px}
   .barMark{position:absolute; top:-3px; width:4px; height:18px; border-radius:2px; transform:translateX(-50%)}
-  .metric .cue{font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.4}
+  .metric .cue{font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.4}
+  .metric.bad{background:#ff5a5a14; border:1px solid #ff5a5a4d; border-radius:13px; padding:11px; margin-bottom:12px}
+  .metric.good{border:1px solid transparent}
+  .mbadge{font-size:10px; font-weight:800; padding:3px 9px; border-radius:999px; letter-spacing:.4px; white-space:nowrap}
+  .mbadge.good{color:var(--green); background:#27c28122}
+  .mbadge.bad{color:#fff; background:var(--red)}
+  .mbadge.cue{color:var(--blue); background:#4d9dff22}
+  .barDot{position:absolute; top:50%; width:15px; height:15px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid #0b0d12; box-shadow:0 0 0 1.5px #ffffff55, 0 1px 4px #000a; z-index:2}
+  .barTrack.bad{background:#ff5a5a26; border-color:#ff5a5a55}
+  .barTrack.good{background:var(--panel2)}
+  .mrow{display:flex; justify-content:space-between; align-items:baseline; margin-top:7px}
+  .mtgt{font-size:11px; color:var(--muted)}
   .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--yellow)}
   /* Kinetic timeline */
   .kin{margin-top:6px}
@@ -346,7 +357,7 @@ const MODELS = {
     desc:"Stephen Curry shoots <b>on the way up</b> with a deep leg load and a low gather that whips into a high, lightning-quick release (~0.4s). Power comes from the legs, which is how he shoots from the logo.",
     dip:0.9, jump:1, hold:0.5, tempo:0.85,
     targets:{
-      elbow:{min:85,max:95,ideal:90,label:"Elbow at release",unit:"°",cue:"Form an L — elbow under the ball, ~90°."},
+      elbow:{min:85,max:95,ideal:90,label:"Elbow at set point (the L)",unit:"°",cue:"Form an L — elbow under the ball, ~90° before you push up."},
       knee:{min:38,max:58,ideal:48,label:"Knee bend (load)",unit:"°",cue:"Load deep — legs are your power & range."},
       timing:{min:-180,max:30,ideal:-90,label:"Release vs jump apex",unit:"ms",cue:"Release before the top of your jump — shoot on the rise."},
       tempo:{min:240,max:460,ideal:360,label:"Shot tempo (dip→release)",unit:"ms",cue:"One fast, fluid motion — no hitch."},
@@ -362,7 +373,7 @@ const MODELS = {
     desc:"Klay Thompson is the textbook catch-and-shoot: almost <b>no dip</b>, ball held high, and the same exact motion every single rep (0.79s catch-to-release). Repeatability over flash.",
     dip:0.35, jump:0.85, hold:0.6, tempo:0.8,
     targets:{
-      elbow:{min:85,max:95,ideal:90,label:"Elbow at release",unit:"°",cue:"Elbow stacked under the ball, ~90°."},
+      elbow:{min:85,max:95,ideal:90,label:"Elbow at set point (the L)",unit:"°",cue:"Elbow stacked under the ball, ~90° at the set point."},
       knee:{min:30,max:50,ideal:40,label:"Knee bend (load)",unit:"°",cue:"Light, consistent dip — don't over-load."},
       timing:{min:-150,max:40,ideal:-60,label:"Release vs jump apex",unit:"ms",cue:"Catch and rise — release quick off the gather."},
       tempo:{min:220,max:420,ideal:320,label:"Shot tempo (dip→release)",unit:"ms",cue:"Minimal dip = fastest path to release."},
@@ -378,7 +389,7 @@ const MODELS = {
     desc:"Steve Nash is the most efficient shooter ever (90%+ FT). Tucked elbow, dead-straight line, deliberate rhythm, and a follow-through held <b>until the ball lands</b>. The blueprint for free throws.",
     dip:0.5, jump:0, hold:0.95, tempo:0.55,
     targets:{
-      elbow:{min:88,max:98,ideal:93,label:"Elbow at release",unit:"°",cue:"Tuck the elbow in — straight line to the rim."},
+      elbow:{min:88,max:98,ideal:93,label:"Elbow at set point (the L)",unit:"°",cue:"Tuck the elbow in to ~90° — straight line to the rim."},
       knee:{min:25,max:48,ideal:36,label:"Knee bend (load)",unit:"°",cue:"Soft, rhythmic dip — legs feed the shot."},
       timing:{min:-9999,max:9999,ideal:0,label:"Release vs jump apex",unit:"ms",cue:"",cueOnly:true,ft:true},
       tempo:{min:400,max:760,ideal:560,label:"Shot tempo (dip→release)",unit:"ms",cue:"Smooth, unhurried rhythm — same every time."},
@@ -413,6 +424,8 @@ function angle(a,b,c){ // angle at b in degrees
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function mean(a){return a.reduce((s,x)=>s+x,0)/(a.length||1);}
 function std(a){const m=mean(a); return Math.sqrt(mean(a.map(x=>(x-m)**2)));}
+function median(a){ if(!a.length)return 0; const b=a.slice().sort((x,y)=>x-y); const m=Math.floor(b.length/2); return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+function medianFilter(arr,win){ return arr.map((_,i)=>{ const s=[]; for(let k=-win;k<=win;k++){ const j=i+k; if(j>=0&&j<arr.length) s.push(arr[j]); } return median(s); }); }
 
 /* ---------------- NAV ---------------- */
 $$("nav button").forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
@@ -640,14 +653,37 @@ function J(side){ return side==="R"
   ? {sh:L.Rsh,el:L.Rel,wr:L.Rwr,hip:L.Rhip,kn:L.Rkn,an:L.Ran}
   : {sh:L.Lsh,el:L.Lel,wr:L.Lwr,hip:L.Lhip,kn:L.Lkn,an:L.Lan}; }
 
-function analyzeFrames(frames, v){
+// Visibility-weighted knee flexion using BOTH legs (robust to side-view leg overlap).
+function kneeFlexion(lm){
+  const kl=angle(lm[L.Lhip],lm[L.Lkn],lm[L.Lan]), vl=Math.min(lm[L.Lhip].v,lm[L.Lkn].v,lm[L.Lan].v);
+  const kr=angle(lm[L.Rhip],lm[L.Rkn],lm[L.Ran]), vr=Math.min(lm[L.Rhip].v,lm[L.Rkn].v,lm[L.Ran].v);
+  const w=vl+vr;
+  const interior = w<0.2 ? (kl+kr)/2 : (kl*vl+kr*vr)/w;
+  return clamp(180-interior, 0, 90); // flexion amount
+}
+function analyzeFrames(frames){
+  const N=frames.length, W=2;
   const side=pickSide(frames);
   const j=J(side);
-  // wrist height series (invert y so up = larger)
-  const series=frames.map(f=>({t:f.t, wy:1-f.lm[j.wr].y, hipy:1-f.lm[j.hip].y, any:1-f.lm[j.an].y,
-    elbow:angle(f.lm[j.sh],f.lm[j.el],f.lm[j.wr]),
-    knee:angle(f.lm[j.hip],f.lm[j.kn],f.lm[j.an]),
-    lm:f.lm}));
+  // Angle measurements come from RAW landmarks → median-filtered, which deletes single-frame pose
+  // spikes (impulse noise). Mean-smoothing first would smear a spike too wide for the median to remove.
+  const rawKnee=frames.map(f=>kneeFlexion(f.lm));
+  const rawElbow=frames.map(f=>angle(f.lm[j.sh],f.lm[j.el],f.lm[j.wr]));
+  const legVis=frames.map(f=>Math.min(f.lm[j.hip].v,f.lm[j.kn].v,f.lm[j.an].v));
+  const kfMF=medianFilter(rawKnee,2), eMF=medianFilter(rawElbow,2);
+  // Mean-smoothed landmarks: only for a steady video overlay + stable geometry (not for the graded angles)
+  const sm=frames.map((f,i)=>{
+    const lm=f.lm.map((_,li)=>{
+      let sx=0,sy=0,sw=0,vmax=0;
+      for(let k=-W;k<=W;k++){ const jj=i+k; if(jj<0||jj>=N)continue; const p=frames[jj].lm[li]; const w=Math.max(0.05,p.v); sx+=p.x*w; sy+=p.y*w; sw+=w; vmax=Math.max(vmax,p.v); }
+      return {x:sx/sw, y:sy/sw, v:vmax};
+    });
+    return {t:f.t, lm};
+  });
+  frames.forEach((f,i)=>{ f.lm=sm[i].lm; }); // write smoothed back for the overlay
+  const series=sm.map((f,i)=>({t:f.t, wy:1-f.lm[j.wr].y, hipy:1-f.lm[j.hip].y, any:1-f.lm[j.an].y,
+    elbow:eMF[i], elbowMF:eMF[i], kneeFlex:rawKnee[i], kneeFlexMF:kfMF[i],
+    legVis:legVis[i], lm:f.lm}));
   // detect shots: local maxima of wrist height above threshold, separated
   const wy=series.map(s=>s.wy);
   const maxW=Math.max(...wy), minW=Math.min(...wy);
@@ -664,21 +700,33 @@ function analyzeFrames(frames, v){
     // window: back to previous dip (local min of wrist) for start, forward a bit
     let start=pk; while(start>0 && wy[start]>minW+(maxW-minW)*0.30 && (pk-start)<series.length*0.5) start--;
     let dipIdx=start; for(let i=start;i<=pk;i++){ if(wy[i]<wy[dipIdx]) dipIdx=i; }
-    // deepest knee bend index between dip and peak (min knee angle)
-    let loadIdx=dipIdx; for(let i=dipIdx;i<=pk;i++){ if(series[i].knee<series[loadIdx].knee) loadIdx=i; }
-    // release = peak (max wrist height / extension)
+    // deepest LOAD = max knee flexion in dip→release, but only from frames with good leg visibility,
+    // and taken as the median of the most-bent few frames (not a single outlier spike).
+    const lo=Math.max(0,dipIdx), hi=pk;
+    const cand=[];
+    for(let i=lo;i<=hi;i++){ if(series[i].legVis>0.5) cand.push({i,flex:series[i].kneeFlexMF}); }
+    let loadIdx, loadFlex;
+    if(cand.length){
+      cand.sort((a,b)=>b.flex-a.flex);
+      const top=cand.slice(0, Math.max(1,Math.round(cand.length*0.2)));
+      top.sort((a,b)=>a.flex-b.flex);
+      const med=top[Math.floor(top.length/2)];
+      loadIdx=med.i; loadFlex=median(top.map(x=>x.flex));
+    } else {
+      // fallback: median flexion across window
+      loadIdx=Math.round((lo+hi)/2); loadFlex=median(series.slice(lo,hi+1).map(s=>s.kneeFlexMF));
+    }
     const relIdx=pk;
-    // jump apex = max hip height around release window
     let apexIdx=relIdx; const w0=Math.max(dipIdx,relIdx-8), w1=Math.min(series.length-1,relIdx+8);
     for(let i=w0;i<=w1;i++){ if(series[i].hipy>series[apexIdx].hipy) apexIdx=i; }
-    // set point = where wrist passes shoulder height on the way up (elbow ~ before full ext)
-    let setIdx=Math.round((loadIdx+relIdx)/2);
-    const m=computeMetrics(series,{dipIdx,loadIdx,relIdx,apexIdx,setIdx},j,side);
+    // SET POINT = the cocked "L": as the wrist rises above the shoulder, the frame where the elbow is most flexed (~90°), BEFORE it extends to release.
+    let setIdx=-1, bestElb=999;
+    for(let i=loadIdx;i<=relIdx;i++){ const f=series[i]; if(f.lm[j.wr].y < f.lm[j.sh].y && f.elbowMF<bestElb){ bestElb=f.elbowMF; setIdx=i; } }
+    if(setIdx<0){ setIdx=Math.round((loadIdx+relIdx)/2); for(let i=setIdx;i<=relIdx;i++){ if(series[i].elbowMF<series[setIdx].elbowMF) setIdx=i; } }
+    const m=computeMetrics(series,{dipIdx,loadIdx,relIdx,apexIdx,setIdx,loadFlex},j,side);
     shots.push({idx:si, side, keys:{dipIdx,loadIdx,relIdx,apexIdx,setIdx}, metrics:m, series});
   });
-  // score each shot
   shots.forEach(s=> s.score = scoreShot(s.metrics));
-  // quality
   const avgVis=mean(frames.flatMap(f=>[f.lm[j.sh].v,f.lm[j.el].v,f.lm[j.wr].v,f.lm[j.kn].v]));
   const quality= avgVis>0.7 ? "good":"warn";
   return {shots, side, quality, fps:30};
@@ -686,8 +734,8 @@ function analyzeFrames(frames, v){
 
 function computeMetrics(series,k,j,side){
   const rel=series[k.relIdx], load=series[k.loadIdx], apex=series[k.apexIdx], set=series[k.setIdx], dip=series[k.dipIdx];
-  const elbow=rel.elbow;
-  const kneeBend=180-load.knee; // flexion amount
+  const elbow=set.elbowMF!=null?set.elbowMF:set.elbow; // elbow at the cocked set-point L (median-filtered), NOT at full extension
+  const kneeBend=clamp(k.loadFlex!=null?k.loadFlex:load.kneeFlex, 0, 90); // robust flexion (median of deepest frames)
   const timing=(rel.t-apex.t)*1000; // ms; negative = release before apex
   const tempo=(rel.t-dip.t)*1000;
   // set point height: wrist vs nose at set frame (positive = wrist above nose)
@@ -816,27 +864,34 @@ function renderShot(i){
   renderKinetic(s);
 }
 function metricBar(key,val,tgt){
-  const el=document.createElement("div"); el.className="metric";
-  const sc= tgt.cueOnly?null:scoreMetric(val,tgt);
+  const cueOnly=!!tgt.cueOnly;
   const inRange= val>=tgt.min && val<=tgt.max;
-  const col= tgt.cueOnly?"var(--blue)": inRange?"var(--green)":"var(--red)";
+  const status= cueOnly?"cue":(inRange?"good":"bad");
+  const el=document.createElement("div"); el.className="metric "+status;
+  const col= cueOnly?"var(--blue)": inRange?"var(--green)":"var(--red)";
   // scale for bar display
   const lo=Math.min(tgt.min,val)- (Math.abs(tgt.max-tgt.min)*0.4);
   const hi=Math.max(tgt.max,val)+ (Math.abs(tgt.max-tgt.min)*0.4);
   const span=(hi-lo)||1;
   const tL=(tgt.min-lo)/span*100, tW=(tgt.max-tgt.min)/span*100;
   const mk=clamp((val-lo)/span*100,0,100);
-  const disp = key==="timing" ? (val>0?`+${Math.round(val)}`:Math.round(val))+"ms"
-            : key==="tempo" ? Math.round(val)+"ms"
-            : key==="setpt"||key==="balance" ? val.toFixed(1)
-            : Math.round(val)+(tgt.unit||"");
-  el.innerHTML=`<div class="top"><span class="mname">${tgt.label}${tgt.cueOnly?' <span style="color:var(--blue);font-size:10px">CUE</span>':''}</span>
-    <span class="mval" style="color:${col}">${disp}</span></div>
-    <div class="barTrack">
+  const fmt=v=> key==="timing" ? (v>0?`+${Math.round(v)}`:Math.round(v))+"ms"
+            : key==="tempo" ? Math.round(v)+"ms"
+            : key==="setpt"||key==="balance" ? v.toFixed(1)
+            : Math.round(v)+(tgt.unit||"");
+  const disp=fmt(val);
+  const dir = inRange?"" : (val<tgt.min?"TOO LOW":"TOO HIGH");
+  const badge = cueOnly?`<span class="mbadge cue">CUE</span>`
+    : inRange?`<span class="mbadge good">✓ GOOD</span>`
+    : `<span class="mbadge bad">✗ ${dir}</span>`;
+  const tgtTxt = cueOnly?`aim ~${tgt.ideal}${tgt.unit||""}` : `target ${fmt(tgt.min).replace(/ms|°/,'')}–${fmt(tgt.max)}`;
+  el.innerHTML=`<div class="top"><span class="mname">${tgt.label}</span>${badge}</div>
+    <div class="barTrack ${status}">
       <div class="barTarget" style="left:${clamp(tL,0,100)}%; width:${clamp(tW,0,100)}%"></div>
-      <div class="barMark" style="left:${mk}%; background:${col}"></div>
+      <div class="barDot" style="left:${mk}%; background:${col}"></div>
     </div>
-    <div class="cue">${ tgt.cueOnly? '💡 '+tgt.cue : (inRange?'✅ ':'⚠️ ')+tgt.cue}</div>`;
+    <div class="mrow"><span class="mval" style="color:${col}">${disp}</span><span class="mtgt">${tgtTxt}</span></div>
+    <div class="cue">${ cueOnly? '💡 '+tgt.cue : (inRange?'✅ ':'⚠️ ')+tgt.cue}</div>`;
   return el;
 }
 
@@ -898,7 +953,8 @@ function showShotInPlayer(i){
   }
   _p.winStart=Math.max(0, s.series[s.keys.dipIdx].t-0.15);
   _p.winEnd=s.series[s.keys.relIdx].t+0.6;
-  const jump=()=>{ pausePlayer(); _p.winEnd=Math.min(v.duration||_p.winEnd,_p.winEnd); try{ v.currentTime=s.series[s.keys.relIdx].t; }catch(e){} $("#vScrub").value=1000; drawOverlayAt(s.series[s.keys.relIdx].t); };
+  _p.setT=s.series[s.keys.setIdx].t; // the cocked-L frame (where elbow is graded)
+  const jump=()=>{ pausePlayer(); _p.winEnd=Math.min(v.duration||_p.winEnd,_p.winEnd); try{ v.currentTime=_p.setT; }catch(e){} $("#vScrub").value=clamp((_p.setT-_p.winStart)/((_p.winEnd-_p.winStart)||1)*1000,0,1000); drawOverlayAt(_p.setT); };
   if(v.src!==state.videoURL){ v.src=state.videoURL; v.addEventListener("loadedmetadata",jump,{once:true}); }
   else if(v.readyState>=1){ jump(); }
   else { v.addEventListener("loadedmetadata",jump,{once:true}); }
@@ -908,9 +964,16 @@ function drawOverlayAt(t){
   c.clearRect(0,0,cv.width,cv.height);
   const s=state.shots[_p.shotIdx]; if(!s||!state.frames.length) return;
   const lm=state.frames[nearestFrame(t)].lm;
-  if(state.showGhost){ const pp=shooterPose(0.7,MODELS[state.model]); drawStick(c,cv.width,cv.height,pp,"#4d9dff",0.28,0.85,0.05,0.05); }
-  if(state.showSkel) drawPoseSkeleton(c,cv.width,cv.height,lm,"#39d98a",Math.max(3,cv.width/170));
-  if(state.showAngles){ const j=J(s.side); drawAngleArc(c,cv.width,cv.height,lm[j.sh],lm[j.el],lm[j.wr], angle(lm[j.sh],lm[j.el],lm[j.wr]), MODELS[state.model].targets.elbow); }
+  const lw=Math.max(3,cv.width/160);
+  if(state.showGhost){ const pp=shooterPose(0.7,MODELS[state.model]); drawStick(c,cv.width,cv.height,pp,"#4d9dff",0.25,0.85,0.05,0.05); }
+  if(state.showSkel) drawPoseSkeleton(c,cv.width,cv.height,lm,"#e6ebf3",lw); // your form = clean white lines
+  if(state.showAngles){
+    const j=J(s.side);
+    // Elbow checkpoint + GREEN ideal-form guide — shown at/near the set-point frame (where it's graded)
+    if(Math.abs(t-(_p.setT||0))<0.25){
+      drawAngleArc(c,cv.width,cv.height, lm[j.sh],lm[j.el],lm[j.wr], s.metrics.elbow, MODELS[state.model].targets.elbow);
+    }
+  }
 }
 function playPlayer(){
   const v=_p.video; _p.playing=true; $("#vPlay").textContent="⏸";
@@ -936,15 +999,32 @@ function drawPoseSkeleton(ctx,W,H,lm,color,lw){
   [L.nose,L.Rsh,L.Rel,L.Rwr,L.Rhip,L.Rkn,L.Ran,L.Lsh,L.Lel,L.Lwr].forEach(i=>{ if(lm[i].v>0.3){ctx.beginPath();ctx.arc(lm[i].x*W,lm[i].y*H,lw*0.9,0,7);ctx.fill();} });
   ctx.restore();
 }
+// Draws: your actual forearm (graded red/green) + a GREEN dashed "perfect" forearm showing the target angle.
 function drawAngleArc(ctx,W,H,a,b,c,val,tgt){
   const inRange=val>=tgt.min&&val<=tgt.max;
   const col=inRange?"#27c281":"#ff5a5a";
-  ctx.save();
   const bx=b.x*W, by=b.y*H;
-  const a1=Math.atan2(a.y-b.y,a.x-b.x), a2=Math.atan2(c.y-b.y,c.x-b.x);
-  ctx.strokeStyle=col; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(bx,by,22,a1,a2, a2<a1); ctx.stroke();
-  ctx.fillStyle=col; ctx.font="bold 13px -apple-system,sans-serif";
-  ctx.fillText(Math.round(val)+"°", bx+12, by-12);
+  const flen=Math.hypot((c.x-b.x)*W,(c.y-b.y)*H);
+  ctx.save(); ctx.lineCap="round";
+  // GREEN ideal forearm = upper-arm direction rotated by the target angle toward the wrist side
+  const uaAng=Math.atan2(a.y-b.y,a.x-b.x);
+  const cross=(a.x-b.x)*(c.y-b.y)-(a.y-b.y)*(c.x-b.x);
+  const sign=cross>=0?1:-1;
+  const idealAng=uaAng+sign*((tgt.ideal||90)*Math.PI/180);
+  const ix=bx+Math.cos(idealAng)*flen, iy=by+Math.sin(idealAng)*flen;
+  ctx.strokeStyle="#27e08a"; ctx.lineWidth=Math.max(4,W/150); ctx.setLineDash([Math.max(8,W/55),Math.max(6,W/90)]); ctx.globalAlpha=0.95;
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(ix,iy); ctx.stroke();
+  ctx.setLineDash([]); ctx.beginPath(); ctx.arc(ix,iy,Math.max(5,W/110),0,7); ctx.fillStyle="#27e08a"; ctx.fill();
+  // YOUR actual forearm, recolored by pass/fail
+  ctx.globalAlpha=1; ctx.strokeStyle=col; ctx.lineWidth=Math.max(5,W/130);
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(c.x*W,c.y*H); ctx.stroke();
+  ctx.beginPath(); ctx.arc(bx,by,Math.max(5,W/120),0,7); ctx.fillStyle=col; ctx.fill();
+  // labels
+  const fs=Math.max(15,W/32);
+  ctx.textBaseline="middle"; ctx.font=`bold ${fs}px -apple-system,sans-serif`;
+  ctx.fillStyle=col; ctx.fillText(`${Math.round(val)}°`, bx+W/36, by-fs*0.2);
+  ctx.fillStyle="#27e08a"; ctx.font=`800 ${fs*0.62}px -apple-system,sans-serif`;
+  ctx.fillText(`ideal ${tgt.ideal||90}°`, ix+W/90, iy);
   ctx.restore();
 }
 
