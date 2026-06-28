@@ -253,7 +253,7 @@
       <div class="vidToggles">
         <button class="chip on" id="skelToggle">🦴 Lines</button>
         <button class="chip on" id="angleToggle">📐 Angle</button>
-        <button class="chip" id="ghostToggle">👻 Pro form</button>
+        <button class="chip" id="ghostToggle" style="background:#00e5ff22;border-color:#00e5ff;color:#7af0ff">✨ Perfect shot</button>
       </div>
       <div class="vidCtl">
         <button id="vPlay">▶</button>
@@ -965,8 +965,8 @@ function drawOverlayAt(t){
   const s=state.shots[_p.shotIdx]; if(!s||!state.frames.length) return;
   const lm=state.frames[nearestFrame(t)].lm;
   const lw=Math.max(3,cv.width/160);
-  if(state.showGhost){ const pp=shooterPose(0.7,MODELS[state.model]); drawStick(c,cv.width,cv.height,pp,"#4d9dff",0.25,0.85,0.05,0.05); }
   if(state.showSkel) drawPoseSkeleton(c,cv.width,cv.height,lm,"#e6ebf3",lw); // your form = clean white lines
+  if(state.showGhost) drawPerfectOverlay(c,cv.width,cv.height,lm,s,idealPhaseT(t,s)); // bright cyan perfect-form ghost, aligned to you
   if(state.showAngles){
     const j=J(s.side);
     // Elbow checkpoint + GREEN ideal-form guide — shown at/near the set-point frame (where it's graded)
@@ -974,6 +974,42 @@ function drawOverlayAt(t){
       drawAngleArc(c,cv.width,cv.height, lm[j.sh],lm[j.el],lm[j.wr], s.metrics.elbow, MODELS[state.model].targets.elbow);
     }
   }
+}
+// Map video time → ideal-motion phase t (0..1), anchored to this shot's key frames so the perfect form stays in sync with you.
+function idealPhaseT(time,s){
+  const ser=s.series,k=s.keys;
+  const A=[[ser[k.dipIdx].t,0.02],[ser[k.loadIdx].t,0.18],[ser[k.setIdx].t,0.55],[ser[k.relIdx].t,0.70],[ser[k.relIdx].t+0.6,1.0]];
+  if(time<=A[0][0]) return 0;
+  for(let i=1;i<A.length;i++){ if(time<=A[i][0]){ const f=(time-A[i-1][0])/((A[i][0]-A[i-1][0])||1); return A[i-1][1]+f*(A[i][1]-A[i-1][1]); } }
+  return 1;
+}
+// Draws the IDEAL shooter (bright cyan) scaled & anchored to YOUR body so you can compare perfect-vs-you.
+function drawPerfectOverlay(ctx,W,H,plm,s,t){
+  const p=shooterPose(t,MODELS[state.model]); // ideal pose in a 0..1 box (already mirrored by handedness)
+  const poseHip=p.hip, poseTorso=Math.hypot(p.shoulder.x-poseHip.x,p.shoulder.y-poseHip.y)||0.2;
+  const pHip={x:(plm[L.Lhip].x+plm[L.Rhip].x)/2, y:(plm[L.Lhip].y+plm[L.Rhip].y)/2};
+  const pSh ={x:(plm[L.Lsh].x +plm[L.Rsh].x)/2,  y:(plm[L.Lsh].y +plm[L.Rsh].y)/2};
+  const pTorso=Math.hypot(pSh.x-pHip.x,pSh.y-pHip.y)||0.15;
+  const sc=pTorso/poseTorso;
+  // match which way you're facing (compare your shooting wrist vs hip to the ideal's)
+  const jw = s.side==="R"?L.Rwr:L.Lwr;
+  const youSign = Math.sign((plm[jw].x - pHip.x)) || 1;
+  const ideSign = Math.sign((p.wrist.x - poseHip.x)) || 1;
+  const fx = youSign===ideSign?1:-1;
+  const tx=pt=>({x:(pHip.x+fx*(pt.x-poseHip.x)*sc)*W, y:(pHip.y+(pt.y-poseHip.y)*sc)*H});
+  ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#00e5ff"; ctx.globalAlpha=0.9; ctx.lineWidth=Math.max(4,W/130);
+  ctx.shadowColor="#00e5ff"; ctx.shadowBlur=Math.max(4,W/120);
+  const seg=(a,b)=>{const A=tx(a),B=tx(b);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();};
+  seg(p.shoulder,p.hip); seg(p.hip,p.knee); seg(p.knee,p.ankle);
+  seg(p.shoulder,p.elbowL); seg(p.elbowL,p.wristL);
+  seg(p.shoulder,p.elbow); seg(p.elbow,p.wrist);
+  const hd=tx(p.head); ctx.beginPath(); ctx.arc(hd.x,hd.y,Math.max(8,sc*W*0.03),0,7); ctx.fillStyle="#00e5ff"; ctx.fill();
+  if(p.ball){ const b=tx(p.ball); ctx.globalAlpha=0.55; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(7,sc*W*0.025),0,7); ctx.fillStyle="#00e5ff"; ctx.fill(); }
+  ctx.shadowBlur=0; ctx.globalAlpha=1;
+  // label
+  ctx.fillStyle="#00e5ff"; ctx.font=`800 ${Math.max(13,W/40)}px -apple-system,sans-serif`; ctx.textBaseline="top";
+  ctx.fillText(`✨ ${MODELS[state.model].name}'s perfect form`, W*0.04, H*0.03);
+  ctx.restore();
 }
 function playPlayer(){
   const v=_p.video; _p.playing=true; $("#vPlay").textContent="⏸";
