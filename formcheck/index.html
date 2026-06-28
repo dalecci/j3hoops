@@ -983,30 +983,46 @@ function idealPhaseT(time,s){
   for(let i=1;i<A.length;i++){ if(time<=A[i][0]){ const f=(time-A[i-1][0])/((A[i][0]-A[i-1][0])||1); return A[i-1][1]+f*(A[i][1]-A[i-1][1]); } }
   return 1;
 }
-// Draws the IDEAL shooter (bright cyan) scaled & anchored to YOUR body so you can compare perfect-vs-you.
+// SIDE-PROFILE ideal shooter (faces +x). Single leg line, one shooting arm — matches a side-on camera.
+function shooterProfile(t,m){
+  const dip=m.dip, jumpH=m.jump*0.10;
+  let kneeBend,armUp,jump;
+  if(t<0.28){ const p=t/0.28; kneeBend=p*dip; armUp=0.10*p; jump=0; }
+  else if(t<0.60){ const p=(t-0.28)/0.32; kneeBend=dip*(1-p); armUp=0.10+0.55*p; jump=jumpH*p; }
+  else if(t<0.74){ const p=(t-0.60)/0.14; kneeBend=0; armUp=0.65+0.35*p; jump=jumpH; }
+  else { const p=(t-0.74)/0.26; kneeBend=0; armUp=1; jump=jumpH*(1-0.6*p); }
+  const cx=0.5, hipY=0.55-jump, shoulderY=hipY-0.18, ankleY=0.90-jump;
+  const hip={x:cx,y:hipY};
+  const shoulder={x:cx-0.015,y:shoulderY};
+  const head={x:cx+0.012,y:shoulderY-0.10};
+  const knee={x:cx+0.02+kneeBend*0.11, y:(hipY+ankleY)/2 + kneeBend*0.05};
+  const ankle={x:cx+0.02, y:ankleY};
+  let elbow={x:cx+0.045, y:shoulderY+0.10-armUp*0.07};
+  let wrist={x:cx+0.05+armUp*0.05, y:shoulderY+0.16-armUp*0.40};
+  if(armUp>0.7){ const e=(armUp-0.7)/0.3; elbow={x:cx+0.05,y:shoulderY+0.04-0.10*e}; wrist={x:cx+0.06,y:shoulderY-0.22-0.05*e}; }
+  const ball={x:wrist.x+0.025,y:wrist.y-0.02};
+  return {head,shoulder,hip,knee,ankle,elbow,wrist,ball};
+}
+// Draws the side-profile ideal shooter (bright cyan), scaled & anchored to YOUR body, facing the way you face.
 function drawPerfectOverlay(ctx,W,H,plm,s,t){
-  const p=shooterPose(t,MODELS[state.model]); // ideal pose in a 0..1 box (already mirrored by handedness)
-  const poseHip=p.hip, poseTorso=Math.hypot(p.shoulder.x-poseHip.x,p.shoulder.y-poseHip.y)||0.2;
+  const p=shooterProfile(t,MODELS[state.model]);
+  const poseHip=p.hip, poseTorso=Math.hypot(p.shoulder.x-poseHip.x,p.shoulder.y-poseHip.y)||0.18;
   const pHip={x:(plm[L.Lhip].x+plm[L.Rhip].x)/2, y:(plm[L.Lhip].y+plm[L.Rhip].y)/2};
   const pSh ={x:(plm[L.Lsh].x +plm[L.Rsh].x)/2,  y:(plm[L.Lsh].y +plm[L.Rsh].y)/2};
   const pTorso=Math.hypot(pSh.x-pHip.x,pSh.y-pHip.y)||0.15;
   const sc=pTorso/poseTorso;
-  // match which way you're facing (compare your shooting wrist vs hip to the ideal's)
-  const jw = s.side==="R"?L.Rwr:L.Lwr;
-  const youSign = Math.sign((plm[jw].x - pHip.x)) || 1;
-  const ideSign = Math.sign((p.wrist.x - poseHip.x)) || 1;
-  const fx = youSign===ideSign?1:-1;
+  const jw = s.side==="R"?L.Rwr:L.Lwr; // face the way you face (shooting wrist relative to hips)
+  const youSign = Math.sign(plm[jw].x - pHip.x) || 1;
+  const fx = youSign>=0 ? 1 : -1; // profile faces +x by default; flip if you face -x
   const tx=pt=>({x:(pHip.x+fx*(pt.x-poseHip.x)*sc)*W, y:(pHip.y+(pt.y-poseHip.y)*sc)*H});
-  ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#00e5ff"; ctx.globalAlpha=0.9; ctx.lineWidth=Math.max(4,W/130);
-  ctx.shadowColor="#00e5ff"; ctx.shadowBlur=Math.max(4,W/120);
+  ctx.save(); ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle="#00e5ff"; ctx.globalAlpha=0.92; ctx.lineWidth=Math.max(5,W/120);
+  ctx.shadowColor="#00e5ff"; ctx.shadowBlur=Math.max(5,W/110);
   const seg=(a,b)=>{const A=tx(a),B=tx(b);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();};
-  seg(p.shoulder,p.hip); seg(p.hip,p.knee); seg(p.knee,p.ankle);
-  seg(p.shoulder,p.elbowL); seg(p.elbowL,p.wristL);
-  seg(p.shoulder,p.elbow); seg(p.elbow,p.wrist);
-  const hd=tx(p.head); ctx.beginPath(); ctx.arc(hd.x,hd.y,Math.max(8,sc*W*0.03),0,7); ctx.fillStyle="#00e5ff"; ctx.fill();
-  if(p.ball){ const b=tx(p.ball); ctx.globalAlpha=0.55; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(7,sc*W*0.025),0,7); ctx.fillStyle="#00e5ff"; ctx.fill(); }
+  seg(p.shoulder,p.hip); seg(p.hip,p.knee); seg(p.knee,p.ankle);  // torso + single leg
+  seg(p.shoulder,p.elbow); seg(p.elbow,p.wrist);                  // shooting arm
+  const hd=tx(p.head); ctx.beginPath(); ctx.arc(hd.x,hd.y,Math.max(8,sc*W*0.028),0,7); ctx.fillStyle="#00e5ff"; ctx.fill();
+  const b=tx(p.ball); ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(7,sc*W*0.022),0,7); ctx.fillStyle="#00e5ff"; ctx.fill();
   ctx.shadowBlur=0; ctx.globalAlpha=1;
-  // label
   ctx.fillStyle="#00e5ff"; ctx.font=`800 ${Math.max(13,W/40)}px -apple-system,sans-serif`; ctx.textBaseline="top";
   ctx.fillText(`✨ ${MODELS[state.model].name}'s perfect form`, W*0.04, H*0.03);
   ctx.restore();
