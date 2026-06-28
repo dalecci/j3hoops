@@ -555,7 +555,7 @@ $("#ovCancel").onclick=()=>{ cancelJob=true; hideOverlay(); toast("Canceled"); }
 function cleanupVid(v,url){ try{ if(v){ v.pause(); if(v.parentNode) v.parentNode.removeChild(v); } }catch(e){} try{ if(url) URL.revokeObjectURL(url); }catch(e){} }
 
 async function processVideo(file){
-  cancelJob=false; monoTs=0;
+  cancelJob=false; // NOTE: do NOT reset monoTs — MediaPipe needs globally-increasing timestamps across every upload
   if(state.videoURL){ try{URL.revokeObjectURL(state.videoURL);}catch(e){} state.videoURL=null; }
   showOverlay("Analyzing your shots…");
   let v=null, url=null;
