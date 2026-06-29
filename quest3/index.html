@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v0.8 · 2026-06-29</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v0.9 · 2026-06-29 · drill</div>
 
 <script type="importmap">
 {
@@ -396,7 +396,7 @@ for (let i=0; i<2; i++) {
 
   const grab = () => {
     try {
-      if (held || menuOpen) return;
+      if (held || menuOpen || drillActive) return;
       held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
       history[i].length = 0;
       dbgHeld = true; drawScore();
@@ -574,6 +574,169 @@ function step(dt) {
   ball.rotation.z -= vel.x * dt * 2.2;
 }
 
+// ---------- Phase 1 drill: off-ball screen & cut ----------
+const drill = new THREE.Group(); drill.visible = false; arena.add(drill);
+let drillActive = false, drillState = 'ready';
+let dwell = 0, passT = 0, drillTimer = 0, drillReps = 0, drillT = 0;
+const _pc = new THREE.Vector3();
+
+// arena-local spots
+const POS = {
+  start:    new THREE.Vector3( 0.0, 0,  1.6),
+  screen:   new THREE.Vector3(-1.5, 0, -1.3),
+  defender: new THREE.Vector3(-1.8, 0, -0.5),
+  wing:     new THREE.Vector3(-3.4, 0, -0.1),
+  post:     new THREE.Vector3( 1.8, 0, -2.0),
+  roll:     new THREE.Vector3(-0.2, 0, -3.6),
+};
+const passFrom = new THREE.Vector3(POS.post.x + 0.26, 1.05, POS.post.z + 0.10);
+const passTo   = new THREE.Vector3(POS.roll.x, 1.15, POS.roll.z);
+
+function makeFigure(color, withBall) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6 });
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.9, 6, 12), mat);
+  body.position.y = 0.85; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), mat);
+  head.position.y = 1.55; head.castShadow = true; g.add(head);
+  g.userData.mat = mat;
+  if (withBall) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12),
+      new THREE.MeshStandardMaterial({ color:0xd9712b, roughness:0.85 }));
+    b.position.set(0.26, 1.05, 0.10); g.add(b); g.userData.ball = b;
+  }
+  return g;
+}
+const figPost = makeFigure(0x2f6df6, true);  figPost.position.copy(POS.post);     drill.add(figPost);
+const figWing = makeFigure(0x2f6df6, false); figWing.position.copy(POS.wing);     drill.add(figWing);
+const figDef  = makeFigure(0xe2473a, false); figDef.position.copy(POS.defender);  drill.add(figDef);
+
+// floor markers
+function ring(spot, color) {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.03, 8, 32),
+    new THREE.MeshBasicMaterial({ color }));
+  m.rotation.x = -Math.PI/2; m.position.set(spot.x, 0.03, spot.z); drill.add(m); return m;
+}
+const screenRing = ring(POS.screen, 0xffc94d);
+const rollRing   = ring(POS.roll,   0xffc94d); rollRing.visible = false;
+
+// a translucent "wall" at the screen spot, facing the defender
+const screenWall = new THREE.Mesh(
+  new THREE.BoxGeometry(0.55, 1.3, 0.1),
+  new THREE.MeshStandardMaterial({ color:0xe7b84b, emissive:0x5a4708, transparent:true, opacity:0.5 })
+);
+screenWall.position.set(POS.screen.x, 0.65, POS.screen.z);
+screenWall.lookAt(POS.defender.x, 0.65, POS.defender.z);
+drill.add(screenWall);
+
+// glowing path arrows (tube + cone head)
+function tubeArrow(points, color) {
+  const g = new THREE.Group();
+  const curve = new THREE.CatmullRomCurve3(points);
+  const mat = new THREE.MeshBasicMaterial({ color });
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.035, 8, false), mat));
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.22, 12), mat);
+  const end = points[points.length-1], prev = points[points.length-2];
+  head.position.copy(end);
+  head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), end.clone().sub(prev).normalize());
+  g.add(head); drill.add(g); return g;
+}
+const Y = 0.05;
+const arrowToScreen = tubeArrow([
+  new THREE.Vector3(POS.start.x, Y, POS.start.z),
+  new THREE.Vector3(POS.screen.x, Y, POS.screen.z)], 0x35c46a);
+const arrowToRoll = tubeArrow([
+  new THREE.Vector3(POS.screen.x, Y, POS.screen.z),
+  new THREE.Vector3((POS.screen.x+POS.roll.x)/2 - 0.4, Y, (POS.screen.z+POS.roll.z)/2),
+  new THREE.Vector3(POS.roll.x, Y, POS.roll.z)], 0xffc94d);
+arrowToRoll.visible = false;
+
+// pass ball
+const passBall = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12),
+  new THREE.MeshStandardMaterial({ color:0xd9712b, roughness:0.85 }));
+passBall.visible = false; drill.add(passBall);
+
+// instruction panel
+const drillCv = document.createElement('canvas'); drillCv.width = 640; drillCv.height = 220;
+const drillTex = new THREE.CanvasTexture(drillCv); drillTex.colorSpace = THREE.SRGBColorSpace;
+const drillPanel = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.52),
+  new THREE.MeshBasicMaterial({ map:drillTex, transparent:true }));
+drillPanel.position.set(0, 2.35, -2.0); drill.add(drillPanel);
+function drillSay(title, sub) {
+  const c = drillCv.getContext('2d'); c.clearRect(0,0,640,220);
+  c.fillStyle = 'rgba(10,16,30,.85)'; roundRect(c,0,0,640,220,26); c.fill();
+  c.strokeStyle = 'rgba(231,184,75,.5)'; c.lineWidth = 5; roundRect(c,3,3,634,214,24); c.stroke();
+  c.textAlign = 'center'; c.fillStyle = '#fff';
+  c.font = '700 46px -apple-system,Segoe UI,Roboto,sans-serif'; c.fillText(title, 320, 92);
+  if (sub) { c.fillStyle = '#9fb0d6'; c.font = '600 30px -apple-system,Segoe UI,Roboto,sans-serif'; c.fillText(sub, 320, 152); }
+  drillTex.needsUpdate = true;
+}
+
+function resetDrill() {
+  drillState = 'ready'; dwell = 0; passT = 0;
+  screenRing.visible = true; screenRing.material.color.setHex(0xffc94d); screenRing.scale.setScalar(1);
+  rollRing.visible = false; rollRing.scale.setScalar(1);
+  arrowToScreen.visible = true; arrowToRoll.visible = false;
+  screenWall.visible = true; screenWall.material.color.setHex(0xe7b84b); screenWall.material.emissive.setHex(0x5a4708);
+  passBall.visible = false;
+  if (figPost.userData.ball) figPost.userData.ball.visible = true;
+  figDef.userData.mat.emissive.setHex(0x000000);
+  drillSay('Screen the red defender', 'Get set on the gold marker, then roll to the rim');
+}
+function setScreened() {
+  drillState = 'screened'; dwell = 0;
+  screenRing.material.color.setHex(0x35c46a);
+  screenWall.material.color.setHex(0x35c46a); screenWall.material.emissive.setHex(0x176b34);
+  arrowToScreen.visible = false; arrowToRoll.visible = true; rollRing.visible = true;
+  figDef.userData.mat.emissive.setHex(0x551111);
+  blip(700, 0.06, 'square', 0.16);
+  drillSay('Screen set!', 'Now roll to the rim and catch it');
+}
+function startPass() {
+  drillState = 'pass'; passT = 0;
+  arrowToRoll.visible = false; rollRing.visible = false;
+  if (figPost.userData.ball) figPost.userData.ball.visible = false;
+  passBall.visible = true; passBall.position.copy(passFrom);
+  blip(520, 0.07, 'sine', 0.16);
+  drillSay('Here comes the pass!', '');
+}
+function scoreDrill() {
+  drillState = 'done'; drillTimer = 1.8; drillReps++;
+  passBall.visible = false; swish();
+  drillSay('Bucket! Great read.', 'Reps made: ' + drillReps);
+}
+function updateDrill(dt) {
+  if (!drillActive || paused) return;
+  drillT += dt;
+  camera.getWorldPosition(_pc); arena.worldToLocal(_pc);   // player head in arena-local
+  const px = _pc.x, pz = _pc.z;
+  const pulse = 1 + 0.12 * Math.sin(drillT * 4);
+  if (drillState === 'ready') {
+    screenRing.scale.setScalar(pulse);
+    if (Math.hypot(px - POS.screen.x, pz - POS.screen.z) < 0.65) { dwell += dt; if (dwell > 0.5) setScreened(); }
+    else dwell = 0;
+  } else if (drillState === 'screened') {
+    rollRing.scale.setScalar(pulse);
+    if (Math.hypot(px - POS.roll.x, pz - POS.roll.z) < 1.0) startPass();
+  } else if (drillState === 'pass') {
+    passT += dt / 0.55; const t = Math.min(passT, 1);
+    passBall.position.lerpVectors(passFrom, passTo, t);
+    passBall.position.y += Math.sin(t * Math.PI) * 0.4;
+    if (passT >= 1) scoreDrill();
+  } else if (drillState === 'done') {
+    drillTimer -= dt; if (drillTimer <= 0) resetDrill();
+  }
+}
+function startDrill() {
+  drillActive = true; drill.visible = true;
+  ball.visible = false; scoreboard.visible = false;
+  resetDrill();
+}
+function stopDrill() {
+  drillActive = false; drill.visible = false;
+  ball.visible = true; scoreboard.visible = true;
+}
+
 // ---------- pause / exit menu ----------
 let menuBtnPrev = false;
 const raycaster = new THREE.Raycaster();
@@ -589,10 +752,10 @@ reticle.visible = false; scene.add(reticle);
 const menuGroup = new THREE.Group(); menuGroup.visible = false; scene.add(menuGroup);
 
 const backdrop = new THREE.Mesh(
-  new THREE.PlaneGeometry(1.06, 1.80),
+  new THREE.PlaneGeometry(1.1, 1.74),
   new THREE.MeshBasicMaterial({ color:0x0a1224, transparent:true, opacity:0.92 })
 );
-backdrop.position.set(0, -0.05, -0.012); menuGroup.add(backdrop);
+backdrop.position.set(0, 0.0, -0.012); menuGroup.add(backdrop);
 
 function textPlane(text, w, h, font, color, py) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512*h/w);
@@ -604,7 +767,7 @@ function textPlane(text, w, h, font, color, py) {
     new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   m.position.set(0, py, 0); menuGroup.add(m);
 }
-textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.66);
+textPlane('PAUSED', 0.55, 0.14, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.70);
 
 function makeButton(label, action, y) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
@@ -614,17 +777,18 @@ function makeButton(label, action, y) {
   c.fillStyle = '#f3f7ff'; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.font = '700 56px -apple-system,Segoe UI,Roboto,sans-serif'; c.fillText(label, 256, 68);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.17),
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.15),
     new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   m.position.set(0, y, 0); m.userData.action = action;
   menuGroup.add(m); buttonMeshes.push(m);
 }
-makeButton('Resume',             'resume',      0.40);
-makeButton('Toggle Passthrough', 'passthrough', 0.21);
-makeButton('Toggle Hardwood',    'hardwood',    0.02);
-makeButton('Recenter Court',     'recenter',   -0.17);
-makeButton('Reset Score',        'reset',      -0.36);
-makeButton('Exit to Start',      'exit',       -0.55);
+makeButton('Resume',             'resume',      0.48);
+makeButton('Start / Stop Drill', 'drill',       0.30);
+makeButton('Toggle Passthrough', 'passthrough', 0.12);
+makeButton('Toggle Hardwood',    'hardwood',   -0.06);
+makeButton('Recenter Court',     'recenter',   -0.24);
+makeButton('Reset Score',        'reset',      -0.42);
+makeButton('Exit to Start',      'exit',       -0.60);
 
 function ctrlRay(ctrl) {
   _rot.identity().extractRotation(ctrl.matrixWorld);
@@ -655,6 +819,7 @@ function recenterCourt() {
 }
 function doAction(a) {
   if (a === 'resume') closeMenu();
+  else if (a === 'drill') { drillActive ? stopDrill() : startDrill(); closeMenu(); }
   else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
   else if (a === 'hardwood') { setHardwood(!hardwoodOn); closeMenu(); }
   else if (a === 'recenter') { recenterCourt(); closeMenu(); }
@@ -703,6 +868,7 @@ renderer.setAnimationLoop(() => {
   try { updateHands(); }          catch (e) { logOnce('hands', e); }
   try { pollMenuButton(); }       catch (e) { logOnce('menubtn', e); }
   try { step(dt); }               catch (e) { logOnce('step', e); }
+  try { updateDrill(dt); }        catch (e) { logOnce('drill', e); }
   try { if (menuOpen) updateHover(); } catch (e) { logOnce('hover', e); }
   if (flash > 0) { flash -= dt; if (flash <= 0) drawScore(); }
   renderer.render(scene, camera);
