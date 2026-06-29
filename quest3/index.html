@@ -44,6 +44,7 @@
       <div class="step"><div class="n">3</div><p>Drain it through the hoop for a <b>make</b>. Build a streak.</p></div>
       <div class="step"><div class="n">4</div><p>Squeeze again any time to get a fresh ball.</p></div>
       <div class="step"><div class="n">5</div><p>Press the <b>B</b> or <b>Y</b> button to open the <b>menu</b> — resume, recenter, reset, or exit back here.</p></div>
+      <div class="step"><div class="n">✋</div><p><b>No controllers?</b> Use your hands — <b>pinch</b> (thumb + index) to grab &amp; shoot, and <b>tap your wrist</b> with the other index finger to open the menu.</p></div>
     </div>
     <div id="enterWrap"></div>
     <div id="status">Checking your headset…</div>
@@ -336,6 +337,7 @@ let menuOpen = false, paused = false;
 const grips = [];
 const controllers = [];
 const lasers = [];
+const gloves = [];
 const history = [[], []];   // recent {p, t} per controller for throw velocity
 for (let i=0; i<2; i++) {
   const ctrl = renderer.xr.getController(i);
@@ -349,7 +351,7 @@ for (let i=0; i<2; i++) {
     new THREE.SphereGeometry(0.035, 16, 12),
     new THREE.MeshStandardMaterial({ color:0x3a6df6, emissive:0x16306e, roughness:0.5 })
   );
-  grip.add(glove);
+  grip.add(glove); gloves[i] = glove;
 
   // pointer laser (only shown while the menu is open)
   const laser = new THREE.Line(
@@ -360,7 +362,8 @@ for (let i=0; i<2; i++) {
 
   const grab = () => {
     if (held || menuOpen) return;
-    held = grip; history[i].length = 0;
+    held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
+    history[i].length = 0;
     ensureAudio();
   };
   const release = () => {
@@ -383,6 +386,71 @@ for (let i=0; i<2; i++) {
   ctrl.addEventListener('squeezeend', release);
   ctrl.addEventListener('selectstart', () => { if (menuOpen) clickMenu(ctrl); else grab(); });
   ctrl.addEventListener('selectend', release);
+}
+
+// ---------- hands (Quest 3 hand tracking) ----------
+const HAND_JOINTS = ['wrist',
+  'thumb-metacarpal','thumb-phalanx-proximal','thumb-phalanx-distal','thumb-tip',
+  'index-finger-metacarpal','index-finger-phalanx-proximal','index-finger-phalanx-intermediate','index-finger-phalanx-distal','index-finger-tip',
+  'middle-finger-metacarpal','middle-finger-phalanx-proximal','middle-finger-phalanx-intermediate','middle-finger-phalanx-distal','middle-finger-tip',
+  'ring-finger-metacarpal','ring-finger-phalanx-proximal','ring-finger-phalanx-intermediate','ring-finger-phalanx-distal','ring-finger-tip',
+  'pinky-finger-metacarpal','pinky-finger-phalanx-proximal','pinky-finger-phalanx-intermediate','pinky-finger-phalanx-distal','pinky-finger-tip'];
+const hands = [];
+const handTracked = [false, false];
+const palmAnchor = [new THREE.Object3D(), new THREE.Object3D()];
+const wristOrb = [];
+const pokePrev = [false, false];
+palmAnchor.forEach(a => scene.add(a));
+
+for (let i=0; i<2; i++) {
+  const hand = renderer.xr.getHand(i); scene.add(hand); hands[i] = hand;
+  // simple joint dots so the hand is visible without external assets
+  const dotMat = new THREE.MeshStandardMaterial({ color:0xe9eefc, roughness:0.45, emissive:0x14306e, emissiveIntensity:0.25 });
+  const pool = [];
+  for (let j=0; j<HAND_JOINTS.length; j++) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.008, 8, 6), dotMat);
+    s.visible = false; scene.add(s); pool.push(s);
+  }
+  hand.userData.pool = pool;
+  // a glowing "wrist watch" orb you tap to open the menu
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.016, 16, 12),
+    new THREE.MeshStandardMaterial({ color:0x2f6df6, emissive:0x1a3aa0, emissiveIntensity:0.9 })
+  );
+  orb.visible = false; scene.add(orb); wristOrb[i] = orb;
+}
+
+function jointWorld(hand, name, out) {
+  const j = hand.joints && hand.joints[name];
+  if (!j) return null;
+  out.setFromMatrixPosition(j.matrixWorld);
+  return (out.x === 0 && out.y === 0 && out.z === 0) ? null : out;
+}
+const _jv = new THREE.Vector3(), _wp = new THREE.Vector3(), _mp = new THREE.Vector3(), _jp = new THREE.Vector3();
+function updateHands() {
+  for (let i=0; i<2; i++) {
+    const hand = hands[i];
+    const tracked = !!jointWorld(hand, 'wrist', _wp);
+    handTracked[i] = tracked;
+    if (gloves[i]) gloves[i].visible = !tracked;       // hide controller glove when the hand is live
+    const pool = hand.userData.pool;
+    if (!tracked) { for (const s of pool) s.visible = false; wristOrb[i].visible = false; continue; }
+    for (let j=0; j<HAND_JOINTS.length; j++) {
+      const p = jointWorld(hand, HAND_JOINTS[j], _jp);
+      if (p) { pool[j].visible = true; pool[j].position.copy(p); } else pool[j].visible = false;
+    }
+    const mid = jointWorld(hand, 'middle-finger-metacarpal', _mp);
+    palmAnchor[i].position.copy(mid ? _mp.add(_wp).multiplyScalar(0.5) : _wp);
+    wristOrb[i].visible = true; wristOrb[i].position.copy(jointWorld(hand, 'wrist', _wp));
+  }
+  // tap one wrist with the other index finger to toggle the menu
+  for (let i=0; i<2; i++) {
+    if (!handTracked[i] || !handTracked[1-i]) { pokePrev[i] = false; continue; }
+    const tip = jointWorld(hands[1-i], 'index-finger-tip', _jv);
+    const poking = !!(tip && tip.distanceTo(wristOrb[i].position) < 0.04);
+    if (poking && !pokePrev[i]) { menuOpen ? closeMenu() : openMenu(); blip(620, 0.05, 'square', 0.12); }
+    pokePrev[i] = poking;
+  }
 }
 
 // ---------- audio (simple synth blips) ----------
@@ -580,6 +648,7 @@ function pollMenuButton() {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
+  updateHands();
   pollMenuButton();
   step(dt);
   if (menuOpen) updateHover();
@@ -598,7 +667,7 @@ const intro = document.getElementById('intro');
 if ('xr' in navigator) {
   navigator.xr.isSessionSupported('immersive-vr').then(ok => {
     if (ok) {
-      const btn = VRButton.createButton(renderer);
+      const btn = VRButton.createButton(renderer, { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] });
       btn.classList.add('xrbtn');
       btn.style.position='static'; btn.style.transform='none'; btn.style.margin='0 auto';
       btn.style.background='#2f6df6'; btn.style.border='0'; btn.style.borderRadius='12px';
