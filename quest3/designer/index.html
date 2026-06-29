@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>J3 HOOPS — Play Designer</title>
+<style>
+  :root { --gold:#e7b84b; --blue:#2f6df6; --red:#e2473a; --green:#35c46a;
+          --bg:#0b0f1a; --panel:#141a2b; --line:#243049; --txt:#e9eefc; --dim:#8ea0c8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--line);
+    background:#0e1424; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; letter-spacing:.04em; font-weight:800;
+    background:linear-gradient(90deg,var(--gold),#fff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  header .sp { flex:1; }
+  input, select, button { font-family:inherit; font-size:13.5px; }
+  input[type=text], select { background:#0c1322; border:1px solid var(--line); color:var(--txt);
+    border-radius:8px; padding:7px 10px; }
+  .chk { display:flex; align-items:center; gap:6px; color:var(--dim); font-size:13px; }
+  .chk input { width:15px; height:15px; accent-color:var(--blue); }
+  button { background:#1b2543; border:1px solid var(--line); color:var(--txt); border-radius:8px;
+    padding:7px 12px; cursor:pointer; }
+  button:hover { background:#243259; }
+  button.primary { background:var(--blue); border-color:var(--blue); }
+  button.gold { background:var(--gold); border-color:var(--gold); color:#241c05; font-weight:700; }
+  main { display:flex; height:calc(100% - 53px); }
+  .tools { width:152px; border-right:1px solid var(--line); padding:10px; background:#0e1424;
+    display:flex; flex-direction:column; gap:7px; overflow:auto; }
+  .tools .lbl { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin:8px 2px 2px; }
+  .tools button { text-align:left; }
+  .tools button.active { background:var(--blue); border-color:var(--blue); }
+  .stage { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:14px; }
+  canvas { background:#10182a; border-radius:12px; border:1px solid var(--line); box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  .props { width:264px; border-left:1px solid var(--line); padding:14px; background:var(--panel); overflow:auto; }
+  .props h3 { font-size:12px; color:var(--gold); text-transform:uppercase; letter-spacing:.06em; margin:2px 0 10px; }
+  .row { margin:9px 0; }
+  .row label { display:block; color:var(--dim); font-size:12px; margin-bottom:4px; }
+  .row input[type=text], .row input[type=number], .row select { width:100%; }
+  .row input[type=range] { width:100%; accent-color:var(--gold); }
+  .hint { color:var(--dim); font-size:12px; line-height:1.5; }
+  .pill { display:inline-block; background:#0c1322; border:1px solid var(--line); border-radius:20px;
+    padding:3px 10px; font-size:12px; color:var(--dim); }
+  .danger { color:#ff8585; }
+  #status { padding:6px 16px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px; background:#0e1424; }
+</style>
+</head>
+<body>
+<header>
+  <h1>J3 HOOPS · PLAY DESIGNER</h1>
+  <input type="text" id="playName" placeholder="Play name…" style="width:200px;" />
+  <label class="chk"><input type="checkbox" id="hasDefense" checked /> Include defense</label>
+  <label class="chk">Trainee: <select id="roleSel"></select></label>
+  <div class="sp"></div>
+  <select id="savedList" title="Saved plays"><option value="">— saved plays —</option></select>
+  <button id="loadBtn">Load</button>
+  <button id="newBtn">New</button>
+  <button id="saveBtn" class="gold">Save</button>
+  <button id="exportBtn">Export</button>
+  <button id="importBtn">Import</button>
+  <input type="file" id="importFile" accept="application/json" style="display:none" />
+</header>
+<main>
+  <div class="tools">
+    <div class="lbl">Tools</div>
+    <button data-tool="select" class="active">▣ Select / Move</button>
+    <button data-tool="route">➜ Draw Route</button>
+    <button data-tool="pick">⊥ Add Pick</button>
+    <button data-tool="pass">⇢ Add Pass</button>
+    <button data-tool="delete" class="danger">✕ Delete</button>
+    <div class="lbl">Add players</div>
+    <button id="addO">+ Offense</button>
+    <button id="addD">+ Defender</button>
+    <button id="matchD">Auto-match D</button>
+    <div class="lbl">Reset</div>
+    <button id="clearRoutes">Clear routes</button>
+    <button id="seedBtn">Seed 5-out</button>
+  </div>
+  <div class="stage"><canvas id="court" width="720" height="672"></canvas></div>
+  <div class="props" id="props"></div>
+</main>
+<div id="status">Ready. Add players, draw routes, drop picks — then name it and Save.</div>
+
+<script>
+// ---------- court coordinate system (matches the simulator's arena-local meters) ----------
+const CW = 720, CH = 672;
+const canvas = document.getElementById('court');
+const dpr = window.devicePixelRatio || 1;
+canvas.width = CW * dpr; canvas.height = CH * dpr;
+canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
+const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+// meters: x ∈ [-7.5,7.5]  z ∈ [-5 (baseline/hoop), 9 (backcourt)]
+const m2x = x => (x + 7.5) / 15 * CW;
+const m2y = z => (z + 5) / 14 * CH;
+const x2m = px => px / CW * 15 - 7.5;
+const y2m = py => py / CH * 14 - 5;
+const PPM = CW / 15; // pixels per meter (x)
+
+// ---------- state ----------
+const HOOP = { x:0, z:-4.7 };
+let play, tool = 'select', selected = null, drag = null, activeRoute = null, passFrom = null;
+
+function newPlay() { return { id:null, name:'', hasDefense:true, role:'O1', players:[], picks:[], routes:{}, passes:[] }; }
+function seedOffense() {
+  const spots = [ ['1',0,1.8,true], ['2',3.5,-0.5,false], ['3',-3.5,-0.5,false],
+                  ['4',6.2,-3.8,false], ['5',-6.2,-3.8,false] ];
+  play.players = play.players.filter(p => p.team !== 'offense');
+  spots.forEach(([lbl,x,z,ball]) => play.players.push({ id:'O'+lbl, team:'offense', label:lbl, x, z, ball }));
+  play.role = 'O1';
+}
+function nextId(team) {
+  const pre = team === 'offense' ? 'O' : 'X';
+  for (let i=1;i<=5;i++) if (!play.players.find(p=>p.id===pre+i)) return { id:pre+i, label:(team==='offense'?'':'x')+i };
+  return null;
+}
+
+// ---------- drawing ----------
+function drawCourt() {
+  ctx.clearRect(0,0,CW,CH);
+  ctx.fillStyle = '#10182a'; ctx.fillRect(0,0,CW,CH);
+  ctx.strokeStyle = 'rgba(150,170,210,.45)'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  const X = m2x, Z = m2y;
+  // boundary + half line
+  ctx.strokeRect(X(-7.5), Z(-5), X(7.5)-X(-7.5), Z(9)-Z(-5));
+  line(X(-7.5),Z(9),X(7.5),Z(9));
+  // key + ft circle
+  ctx.strokeStyle = 'rgba(170,190,230,.7)';
+  ctx.strokeRect(X(-2.45), Z(-5), X(2.45)-X(-2.45), Z(0.8)-Z(-5));
+  circle(X(0),Z(0.8),1.8*PPM);
+  // rim + backboard
+  line(X(-0.5),Z(-4.95),X(0.5),Z(-4.95));
+  circle(X(HOOP.x),Z(HOOP.z),0.22*PPM);
+  // three-point line
+  const tpX=6.6, dz=Math.sqrt(6.75*6.75 - tpX*tpX), cz=HOOP.z+dz;
+  line(X(-tpX),Z(-5),X(-tpX),Z(cz)); line(X(tpX),Z(-5),X(tpX),Z(cz));
+  ctx.beginPath();
+  ctx.arc(X(HOOP.x), Z(HOOP.z), 6.75*PPM,
+          Math.atan2(Z(cz)-Z(HOOP.z), X(tpX)-X(HOOP.x)),
+          Math.atan2(Z(cz)-Z(HOOP.z), X(-tpX)-X(HOOP.x)));
+  ctx.stroke();
+  // center logo
+  ctx.strokeStyle='rgba(231,184,75,.4)'; circle(X(0),Z(5),1.9*PPM);
+}
+function line(a,b,c,d){ ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); }
+function circle(cx,cy,r){ ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke(); }
+
+function drawArrowhead(x,y,ang,col,size){ ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-size,-size*0.6); ctx.lineTo(-size,size*0.6);
+  ctx.closePath(); ctx.fill(); ctx.restore(); }
+
+function drawRoutes() {
+  for (const pid in play.routes) {
+    const wps = play.routes[pid]; if (!wps || wps.length<1) continue;
+    const p = play.players.find(pp=>pp.id===pid); if(!p) continue;
+    const pts = [{x:p.x,z:p.z}, ...wps];
+    ctx.strokeStyle = '#5fe39a'; ctx.lineWidth = 3; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(m2x(pts[0].x), m2y(pts[0].z));
+    for (let i=1;i<pts.length;i++) ctx.lineTo(m2x(pts[i].x), m2y(pts[i].z));
+    ctx.stroke();
+    // arrowhead on last seg
+    if (pts.length>=2){ const a=pts[pts.length-2], b=pts[pts.length-1];
+      drawArrowhead(m2x(b.x),m2y(b.z), Math.atan2(m2y(b.z)-m2y(a.z), m2x(b.x)-m2x(a.x)), '#5fe39a', 11); }
+    // waypoint markers
+    wps.forEach((w,idx)=>{
+      const wx=m2x(w.x), wy=m2y(w.z);
+      if (w.tag==='screen'){ ctx.fillStyle='#e7b84b'; ctx.fillRect(wx-6,wy-6,12,12); }
+      else if (w.tag==='catch'){ ctx.fillStyle='#35c46a'; ctx.save(); ctx.translate(wx,wy); ctx.rotate(Math.PI/4);
+        ctx.fillRect(-6,-6,12,12); ctx.restore(); }
+      else { ctx.fillStyle='#9fb0d6'; ctx.beginPath(); ctx.arc(wx,wy,4,0,Math.PI*2); ctx.fill(); }
+      if (selected && selected.type==='waypoint' && selected.pid===pid && selected.idx===idx){
+        ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(wx-9,wy-9,18,18); }
+    });
+  }
+}
+function drawPicks() {
+  play.picks.forEach(pk=>{
+    const cx=m2x(pk.x), cy=m2y(pk.z);
+    const ax=-Math.sin(pk.angle), ay=Math.cos(pk.angle);     // bar long axis = perpendicular to facing
+    const half=0.45*PPM;
+    ctx.strokeStyle='#e7b84b'; ctx.lineWidth=8; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx-ax*half, cy-ay*half); ctx.lineTo(cx+ax*half, cy+ay*half); ctx.stroke();
+    ctx.lineCap='butt';
+    // facing handle
+    const hx=cx+Math.cos(pk.angle)*0.7*PPM, hy=cy+Math.sin(pk.angle)*0.7*PPM;
+    ctx.strokeStyle='rgba(231,184,75,.6)'; ctx.lineWidth=2; line(cx,cy,hx,hy);
+    ctx.fillStyle='#ffd56b'; ctx.beginPath(); ctx.arc(hx,hy,6,0,Math.PI*2); ctx.fill();
+    if (selected && selected.type==='pick' && selected.ref===pk){
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2; circle(cx,cy,18); }
+  });
+}
+function drawPasses() {
+  ctx.setLineDash([9,7]); ctx.lineWidth=3; ctx.strokeStyle='#f0a93c';
+  play.passes.forEach(ps=>{
+    const a=play.players.find(p=>p.id===ps.from), b=play.players.find(p=>p.id===ps.to); if(!a||!b)return;
+    line(m2x(a.x),m2y(a.z),m2x(b.x),m2y(b.z));
+    drawArrowhead(m2x(b.x),m2y(b.z), Math.atan2(m2y(b.z)-m2y(a.z),m2x(b.x)-m2x(a.x)), '#f0a93c', 10);
+  });
+  ctx.setLineDash([]);
+}
+function drawPlayers() {
+  play.players.forEach(p=>{
+    const cx=m2x(p.x), cy=m2y(p.z);
+    if (p.id===play.role){ ctx.strokeStyle='#ffd56b'; ctx.lineWidth=3; circle(cx,cy,21); }
+    ctx.fillStyle = p.team==='offense' ? '#2f6df6' : '#e2473a';
+    ctx.beginPath(); ctx.arc(cx,cy,16,0,Math.PI*2); ctx.fill();
+    if (selected && selected.type==='player' && selected.ref===p){ ctx.strokeStyle='#fff'; ctx.lineWidth=2; circle(cx,cy,20); }
+    ctx.fillStyle='#fff'; ctx.font='700 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(p.label, cx, cy+1);
+    if (p.ball){ ctx.fillStyle='#e88a2b'; ctx.beginPath(); ctx.arc(cx+15,cy-12,7,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#1c1208'; ctx.lineWidth=1; circle(cx+15,cy-12,7); }
+  });
+}
+function redraw(){ drawCourt(); drawRoutes(); drawPicks(); drawPasses(); drawPlayers(); }
+
+// ---------- hit testing ----------
+function hitPlayer(mx,my){ return play.players.find(p=>Math.hypot(m2x(p.x)-mx,m2y(p.z)-my)<18); }
+function hitPickHandle(mx,my){ return play.picks.find(pk=>{
+  const hx=m2x(pk.x)+Math.cos(pk.angle)*0.7*PPM, hy=m2y(pk.z)+Math.sin(pk.angle)*0.7*PPM;
+  return Math.hypot(hx-mx,hy-my)<10; }); }
+function hitPick(mx,my){ return play.picks.find(pk=>Math.hypot(m2x(pk.x)-mx,m2y(pk.z)-my)<20); }
+function hitWaypoint(mx,my){
+  for (const pid in play.routes){ const wps=play.routes[pid];
+    for (let i=0;i<wps.length;i++){ if (Math.hypot(m2x(wps[i].x)-mx,m2y(wps[i].z)-my)<10) return {pid,idx:i}; } }
+  return null; }
+
+// ---------- mouse ----------
+function pos(e){ const r=canvas.getBoundingClientRect(); return { mx:e.clientX-r.left, my:e.clientY-r.top }; }
+canvas.addEventListener('mousedown', e=>{
+  const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
+  if (tool==='select'){
+    const h=hitPickHandle(mx,my); if(h){ drag={type:'pickrot',ref:h}; select('pick',h); return; }
+    const wp=hitWaypoint(mx,my); if(wp){ drag={type:'waypoint',pid:wp.pid,idx:wp.idx}; select('waypoint',null,wp); return; }
+    const pl=hitPlayer(mx,my); if(pl){ drag={type:'player',ref:pl}; select('player',pl); return; }
+    const pk=hitPick(mx,my); if(pk){ drag={type:'pick',ref:pk}; select('pick',pk); return; }
+    select(null);
+  } else if (tool==='route'){
+    const pl=hitPlayer(mx,my);
+    if (pl && (!activeRoute || activeRoute!==pl.id)){ activeRoute=pl.id; if(!play.routes[pl.id]) play.routes[pl.id]=[];
+      status('Routing '+pl.id+' — click to add waypoints. Switch tool to finish.'); redraw(); return; }
+    if (activeRoute){ play.routes[activeRoute].push({x:+X.toFixed(2), z:+Z.toFixed(2), tag:'move'}); redraw(); }
+    else status('Click a player first to start its route.');
+  } else if (tool==='pick'){
+    const pk={ id:'P'+Date.now().toString(36), x:+X.toFixed(2), z:+Z.toFixed(2), angle:Math.PI/2 };
+    play.picks.push(pk); tool='select'; setTool('select'); select('pick',pk);
+  } else if (tool==='pass'){
+    const pl=hitPlayer(mx,my); if(!pl)return;
+    if(!passFrom){ passFrom=pl; status('Pass from '+pl.id+' → click the receiver.'); }
+    else { if(pl.id!==passFrom.id){ play.passes.push({from:passFrom.id,to:pl.id,at:'catch'}); } passFrom=null; status('Pass added.'); redraw(); }
+  } else if (tool==='delete'){
+    const wp=hitWaypoint(mx,my); if(wp){ play.routes[wp.pid].splice(wp.idx,1); redraw(); return; }
+    const pk=hitPick(mx,my); if(pk){ play.picks=play.picks.filter(x=>x!==pk); redraw(); return; }
+    const pl=hitPlayer(mx,my); if(pl){ removePlayer(pl); redraw(); return; }
+  }
+});
+canvas.addEventListener('mousemove', e=>{
+  if(!drag)return; const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
+  if(drag.type==='player'){ drag.ref.x=+X.toFixed(2); drag.ref.z=+Z.toFixed(2); }
+  else if(drag.type==='pick'){ drag.ref.x=+X.toFixed(2); drag.ref.z=+Z.toFixed(2); }
+  else if(drag.type==='pickrot'){ drag.ref.angle=Math.atan2(Z-drag.ref.z, X-drag.ref.x); }
+  else if(drag.type==='waypoint'){ const w=play.routes[drag.pid][drag.idx]; w.x=+X.toFixed(2); w.z=+Z.toFixed(2); }
+  redraw(); if(selected) showProps();
+});
+window.addEventListener('mouseup', ()=> drag=null);
+window.addEventListener('keydown', e=>{ if(e.key==='Delete'||e.key==='Backspace'){ deleteSelected(); } });
+
+// ---------- selection + properties ----------
+function select(type, ref, wp){ selected = type ? (type==='waypoint' ? {type:'waypoint',pid:wp.pid,idx:wp.idx} : {type,ref}) : null;
+  redraw(); showProps(); }
+function deleteSelected(){ if(!selected)return;
+  if(selected.type==='player') removePlayer(selected.ref);
+  else if(selected.type==='pick') play.picks=play.picks.filter(x=>x!==selected.ref);
+  else if(selected.type==='waypoint') play.routes[selected.pid].splice(selected.idx,1);
+  selected=null; redraw(); showProps(); }
+function removePlayer(p){ play.players=play.players.filter(x=>x!==p); delete play.routes[p.id];
+  play.passes=play.passes.filter(ps=>ps.from!==p.id&&ps.to!==p.id);
+  if(play.role===p.id) play.role=(play.players.find(x=>x.team==='offense')||{}).id||''; refreshRole(); }
+
+function showProps(){
+  const el=document.getElementById('props');
+  if(!selected){ el.innerHTML='<h3>Properties</h3><div class="hint">Select a player, pick, or waypoint to edit it.<br><br>'
+    +'<b>Draw Route:</b> click a player, then click to lay waypoints.<br><b>Add Pick:</b> click to drop, drag the gold handle to aim the screen.<br><b>Add Pass:</b> click passer then receiver.</div>'; return; }
+  if(selected.type==='player'){ const p=selected.ref;
+    el.innerHTML=`<h3>Player ${p.id}</h3>
+      <div class="row"><label>Label</label><input type="text" id="pLabel" value="${p.label}"></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="pBall" ${p.ball?'checked':''}> Has the ball</label></div>
+      ${p.team==='offense'?`<div class="row"><label class="chk"><input type="checkbox" id="pRole" ${play.role===p.id?'checked':''}> Trainee (you in VR)</label></div>`:''}
+      <div class="row"><span class="pill">${p.team}</span></div>
+      <div class="row"><button class="danger" id="pDel">Delete player</button></div>`;
+    document.getElementById('pLabel').oninput=e=>{p.label=e.target.value;redraw();};
+    document.getElementById('pBall').onchange=e=>{ if(e.target.checked) play.players.forEach(x=>x.ball=false); p.ball=e.target.checked; redraw(); };
+    const r=document.getElementById('pRole'); if(r) r.onchange=e=>{ if(e.target.checked){play.role=p.id; refreshRole();} redraw(); };
+    document.getElementById('pDel').onclick=()=>{removePlayer(p);selected=null;redraw();showProps();};
+  } else if(selected.type==='pick'){ const pk=selected.ref; const deg=Math.round(pk.angle*180/Math.PI);
+    el.innerHTML=`<h3>Pick / Screen</h3>
+      <div class="row"><label>Screen faces: ${deg}°</label><input type="range" id="pkAng" min="0" max="360" value="${(deg+360)%360}"></div>
+      <div class="hint">Drag the gold handle on the court to aim it, or use the slider. The bar is the screener's body; the handle points the way the cutter comes off.</div>
+      <div class="row"><button class="danger" id="pkDel">Delete pick</button></div>`;
+    document.getElementById('pkAng').oninput=e=>{ pk.angle=e.target.value*Math.PI/180; redraw(); showProps(); };
+    document.getElementById('pkDel').onclick=()=>{play.picks=play.picks.filter(x=>x!==pk);selected=null;redraw();showProps();};
+  } else if(selected.type==='waypoint'){ const w=play.routes[selected.pid][selected.idx];
+    el.innerHTML=`<h3>Waypoint · ${selected.pid}</h3>
+      <div class="row"><label>Leg type</label><select id="wTag">
+        <option value="move"${w.tag==='move'?' selected':''}>Move</option>
+        <option value="screen"${w.tag==='screen'?' selected':''}>Set screen here</option>
+        <option value="catch"${w.tag==='catch'?' selected':''}>Catch / finish</option></select></div>
+      ${w.tag==='screen'?`<div class="row"><label>Hold on screen (sec)</label><input type="number" id="wDwell" step="0.1" min="0" value="${w.dwell??0.7}"></div>`:''}
+      <div class="row"><label>Target time for this leg (sec, optional)</label><input type="number" id="wTarget" step="0.1" min="0" value="${w.target??''}"></div>
+      <div class="row"><button class="danger" id="wDel">Delete waypoint</button></div>`;
+    document.getElementById('wTag').onchange=e=>{w.tag=e.target.value;redraw();showProps();};
+    const dw=document.getElementById('wDwell'); if(dw) dw.oninput=e=>w.dwell=+e.target.value;
+    document.getElementById('wTarget').oninput=e=>w.target=e.target.value?+e.target.value:undefined;
+    document.getElementById('wDel').onclick=()=>{play.routes[selected.pid].splice(selected.idx,1);selected=null;redraw();showProps();};
+  }
+}
+
+// ---------- toolbar ----------
+function setTool(t){ tool=t; if(t!=='route') activeRoute=null; if(t!=='pass') passFrom=null;
+  document.querySelectorAll('.tools [data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t)); }
+document.querySelectorAll('.tools [data-tool]').forEach(b=> b.onclick=()=> setTool(b.dataset.tool));
+document.getElementById('addO').onclick=()=>{ const n=nextId('offense'); if(!n){status('Max 5 offense.');return;}
+  play.players.push({id:n.id,team:'offense',label:n.label||n.id.slice(1),x:0,z:3,ball:false}); refreshRole(); redraw(); };
+document.getElementById('addD').onclick=()=>{ if(!play.hasDefense){status('Turn on "Include defense" first.');return;}
+  const n=nextId('defense'); if(!n){status('Max 5 defenders.');return;}
+  play.players.push({id:n.id,team:'defense',label:n.label,x:0,z:3.6}); redraw(); };
+document.getElementById('matchD').onclick=()=>{ if(!play.hasDefense){status('Turn on "Include defense" first.');return;}
+  play.players.filter(p=>p.team==='offense').forEach(o=>{ const id='X'+o.id.slice(1);
+    if(!play.players.find(p=>p.id===id)){ const dz=(HOOP.z-o.z), dx=(HOOP.x-o.x), L=Math.hypot(dx,dz)||1;
+      play.players.push({id,team:'defense',label:'x'+o.id.slice(1), x:+(o.x+dx/L*1.0).toFixed(2), z:+(o.z+dz/L*1.0).toFixed(2)}); } });
+  redraw(); };
+document.getElementById('clearRoutes').onclick=()=>{ play.routes={}; redraw(); status('Routes cleared.'); };
+document.getElementById('seedBtn').onclick=()=>{ seedOffense(); refreshRole(); redraw(); status('Seeded 5-out set.'); };
+
+// ---------- header controls ----------
+const nameInput=document.getElementById('playName');
+nameInput.oninput=e=>play.name=e.target.value;
+document.getElementById('hasDefense').onchange=e=>{ play.hasDefense=e.target.checked;
+  if(!e.target.checked){ play.players=play.players.filter(p=>p.team!=='defense');
+    play.passes=play.passes.filter(ps=>!ps.from.startsWith('X')&&!ps.to.startsWith('X')); redraw(); } };
+function refreshRole(){ const sel=document.getElementById('roleSel'); sel.innerHTML='';
+  play.players.filter(p=>p.team==='offense').forEach(p=>{ const o=document.createElement('option');
+    o.value=p.id; o.textContent=p.id; if(p.id===play.role)o.selected=true; sel.appendChild(o); }); }
+document.getElementById('roleSel').onchange=e=>{ play.role=e.target.value; redraw(); };
+
+// ---------- save / load (localStorage for now; Supabase next stage) ----------
+const KEY='hoopvr_plays';
+function listPlays(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return [];} }
+function serialize(){ return { id:play.id, name:play.name, hasDefense:play.hasDefense, role:play.role,
+  players:JSON.parse(JSON.stringify(play.players)), picks:JSON.parse(JSON.stringify(play.picks)),
+  routes:Object.entries(play.routes).map(([playerId,waypoints])=>({playerId,waypoints})),
+  passes:JSON.parse(JSON.stringify(play.passes)), savedAt:new Date().toISOString().slice(0,16).replace('T',' ') }; }
+function deserialize(d){ const p=newPlay(); p.id=d.id; p.name=d.name||''; p.hasDefense=d.hasDefense!==false; p.role=d.role||'O1';
+  p.players=d.players||[]; p.picks=d.picks||[]; p.passes=d.passes||[];
+  p.routes={}; (d.routes||[]).forEach(r=>p.routes[r.playerId]=r.waypoints); return p; }
+function refreshList(){ const sel=document.getElementById('savedList'); sel.innerHTML='<option value="">— saved plays —</option>';
+  listPlays().forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name||'(unnamed)'; sel.appendChild(o); }); }
+document.getElementById('saveBtn').onclick=()=>{ if(!play.name.trim()){ nameInput.focus(); status('Give the play a name first.'); return; }
+  if(!play.id) play.id='play_'+Date.now().toString(36);
+  const arr=listPlays(); const d=serialize(); const i=arr.findIndex(x=>x.id===play.id);
+  if(i>=0)arr[i]=d; else arr.push(d); localStorage.setItem(KEY,JSON.stringify(arr)); refreshList();
+  status('Saved “'+play.name+'”.'); };
+document.getElementById('loadBtn').onclick=()=>{ const id=document.getElementById('savedList').value; if(!id)return;
+  const d=listPlays().find(p=>p.id===id); if(!d)return; play=deserialize(d); loadIntoUI(); status('Loaded “'+play.name+'”.'); };
+document.getElementById('newBtn').onclick=()=>{ play=newPlay(); seedOffense(); loadIntoUI(); status('New play.'); };
+document.getElementById('exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(play.name||'play')+'.json'; a.click(); };
+document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ try{ play=deserialize(JSON.parse(r.result)); loadIntoUI(); status('Imported “'+play.name+'”.'); }catch(err){ status('Bad JSON file.'); } }; r.readAsText(f); };
+
+function loadIntoUI(){ nameInput.value=play.name; document.getElementById('hasDefense').checked=play.hasDefense;
+  refreshRole(); selected=null; setTool('select'); redraw(); showProps(); }
+function status(m){ document.getElementById('status').textContent=m; }
+
+// ---------- boot ----------
+play=newPlay(); seedOffense(); refreshList(); loadIntoUI();
+</script>
+</body>
+</html>
