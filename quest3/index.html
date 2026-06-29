@@ -54,15 +54,26 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
   }
 }
+</script>
+<script>
+  // watchdog: if the 3D engine never loads, show a message instead of hanging
+  window.addEventListener('load', () => setTimeout(() => {
+    if (!window.__hoopvrLoaded) {
+      const s = document.getElementById('status');
+      if (s) s.innerHTML = "Couldn't load the 3D engine. Check your connection and <b>reload</b> the page.";
+    }
+  }, 7000));
 </script>
 
 <script type="module">
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+window.__hoopvrLoaded = true;   // watchdog flag: module evaluated successfully
 
 // ---------- tunables ----------
 const BALL_R      = 0.12;          // basketball radius (m)
@@ -441,7 +452,7 @@ function updateHands() {
     }
     const mid = jointWorld(hand, 'middle-finger-metacarpal', _mp);
     palmAnchor[i].position.copy(mid ? _mp.add(_wp).multiplyScalar(0.5) : _wp);
-    wristOrb[i].visible = true; wristOrb[i].position.copy(jointWorld(hand, 'wrist', _wp));
+    wristOrb[i].visible = true; wristOrb[i].position.copy(_wp);   // _wp still holds the wrist
   }
   // tap one wrist with the other index finger to toggle the menu
   for (let i=0; i<2; i++) {
@@ -645,13 +656,17 @@ function pollMenuButton() {
 }
 
 // ---------- loop ----------
+const _logged = {};
+function logOnce(tag, e) { if (!_logged[tag]) { _logged[tag] = 1; console.error('[hoopvr]', tag, e); } }
+
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
-  updateHands();
-  pollMenuButton();
-  step(dt);
-  if (menuOpen) updateHover();
+  // each step is isolated so one bad frame can never wedge the render loop
+  try { updateHands(); }          catch (e) { logOnce('hands', e); }
+  try { pollMenuButton(); }       catch (e) { logOnce('menubtn', e); }
+  try { step(dt); }               catch (e) { logOnce('step', e); }
+  try { if (menuOpen) updateHover(); } catch (e) { logOnce('hover', e); }
   if (flash > 0) { flash -= dt; if (flash <= 0) drawScore(); }
   renderer.render(scene, camera);
 });
