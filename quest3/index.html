@@ -46,10 +46,14 @@
       <div class="step"><div class="n">5</div><p>Press the <b>B</b> or <b>Y</b> button to open the <b>menu</b> — resume, recenter, reset, or exit back here.</p></div>
       <div class="step"><div class="n">✋</div><p><b>No controllers?</b> Use your hands — <b>pinch</b> (thumb + index) to grab &amp; shoot, and <b>tap your wrist</b> with the other index finger to open the menu.</p></div>
     </div>
+    <label style="display:flex;gap:9px;align-items:center;justify-content:center;margin-top:18px;color:#aab8da;font-size:13.5px;cursor:pointer;">
+      <input type="checkbox" id="arenaCheck" style="width:16px;height:16px;accent-color:#2f6df6;" />
+      Immersive arena (hides your real room — clear your space first)
+    </label>
     <div id="enterWrap"></div>
     <div id="status">Checking your headset…</div>
   </div>
-  <div class="hint">Stand a few steps back, face the hoop, and give yourself room to swing.</div>
+  <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
 
 <script type="importmap">
 {
@@ -71,7 +75,6 @@
 
 <script type="module">
 import * as THREE from 'three';
-import { VRButton } from 'three/addons/webxr/VRButton.js';
 
 window.__hoopvrLoaded = true;   // watchdog flag: module evaluated successfully
 
@@ -135,8 +138,7 @@ function makeCourtTexture() {
   const X = x => (x + 8) * M;
   const Z = z => (z + 5) * M;
 
-  // dark out-of-bounds backdrop
-  g.fillStyle = '#0b0f1a'; g.fillRect(0,0,S,S);
+  // out-of-bounds left transparent, so in passthrough the real floor shows around the court
 
   // ---- hardwood ----
   const woodX0 = X(-7.6), woodZ0 = Z(-5.1), woodX1 = X(7.6), woodZ1 = Z(9.1);
@@ -217,7 +219,7 @@ function makeCourtTexture() {
 // court plane (centered so the rim end sits at the painted baseline)
 const court = new THREE.Mesh(
   new THREE.PlaneGeometry(16, 16),
-  new THREE.MeshStandardMaterial({ map: makeCourtTexture(), roughness: 0.72, metalness: 0.04 })
+  new THREE.MeshStandardMaterial({ map: makeCourtTexture(), roughness: 0.72, metalness: 0.04, transparent: true })
 );
 court.rotation.x = -Math.PI/2;
 court.position.set(0, 0, 3);
@@ -233,10 +235,21 @@ ground.rotation.x = -Math.PI/2; ground.position.y = -0.02;
 scene.add(ground);
 
 // a couple of glowing "arena light" bars overhead for atmosphere
+const arenaBars = [];
 const barMat = new THREE.MeshStandardMaterial({ color:0x223, emissive:0x6f8cff, emissiveIntensity:1.4 });
 for (const zx of [[-3.2,1],[3.2,1]]) {
   const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.12,5), barMat);
-  bar.position.set(zx[0], 7.6, HOOP_Z+2.5); arena.add(bar);
+  bar.position.set(zx[0], 7.6, HOOP_Z+2.5); arena.add(bar); arenaBars.push(bar);
+}
+
+// passthrough (see your real room) vs immersive arena (opaque dark surround)
+let passthroughOn = false;
+function setPassthrough(on) {
+  passthroughOn = on;
+  scene.background = on ? null : new THREE.Color(0x070a12);
+  scene.fog = on ? null : new THREE.Fog(0x070a12, 12, 34);
+  ground.visible = !on;                       // hide the big dark floor so the real floor shows
+  arenaBars.forEach(b => b.visible = !on);
 }
 
 // ---------- hoop ----------
@@ -342,7 +355,7 @@ scene.add(ball);
 const vel = new THREE.Vector3();
 let held = null;            // grip object currently holding the ball
 let prevY = ball.position.y;
-let menuOpen = false, paused = false;
+let menuOpen = false, paused = false, xrMode = 'immersive-vr';
 
 // ---------- controllers ----------
 const grips = [];
@@ -558,10 +571,10 @@ reticle.visible = false; scene.add(reticle);
 const menuGroup = new THREE.Group(); menuGroup.visible = false; scene.add(menuGroup);
 
 const backdrop = new THREE.Mesh(
-  new THREE.PlaneGeometry(1.0, 1.22),
+  new THREE.PlaneGeometry(1.04, 1.62),
   new THREE.MeshBasicMaterial({ color:0x0a1224, transparent:true, opacity:0.92 })
 );
-backdrop.position.set(0, 0.0, -0.012); menuGroup.add(backdrop);
+backdrop.position.set(0, -0.04, -0.012); menuGroup.add(backdrop);
 
 function textPlane(text, w, h, font, color, py) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512*h/w);
@@ -573,7 +586,7 @@ function textPlane(text, w, h, font, color, py) {
     new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   m.position.set(0, py, 0); menuGroup.add(m);
 }
-textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.46);
+textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.60);
 
 function makeButton(label, action, y) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
@@ -588,10 +601,11 @@ function makeButton(label, action, y) {
   m.position.set(0, y, 0); m.userData.action = action;
   menuGroup.add(m); buttonMeshes.push(m);
 }
-makeButton('Resume',         'resume',    0.21);
-makeButton('Recenter Court', 'recenter', -0.01);
-makeButton('Reset Score',    'reset',    -0.23);
-makeButton('Exit to Start',  'exit',     -0.45);
+makeButton('Resume',             'resume',      0.34);
+makeButton('Toggle Passthrough', 'passthrough', 0.13);
+makeButton('Recenter Court',     'recenter',   -0.08);
+makeButton('Reset Score',        'reset',      -0.29);
+makeButton('Exit to Start',      'exit',       -0.50);
 
 function ctrlRay(ctrl) {
   _rot.identity().extractRotation(ctrl.matrixWorld);
@@ -622,6 +636,7 @@ function recenterCourt() {
 }
 function doAction(a) {
   if (a === 'resume') closeMenu();
+  else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
   else if (a === 'recenter') { recenterCourt(); closeMenu(); }
   else if (a === 'reset') { makes = 0; streak = 0; best = 0; flash = 0; drawScore(); closeMenu(); }
   else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
@@ -679,26 +694,53 @@ addEventListener('resize', () => {
 // ---------- enter-VR button + availability ----------
 const status = document.getElementById('status');
 const intro = document.getElementById('intro');
+const arenaCheck = document.getElementById('arenaCheck');
+
+function showEnter(label) {
+  const btn = document.createElement('button');
+  btn.className = 'xrbtn'; btn.textContent = label;
+  btn.style.cssText = 'font-family:inherit;background:#2f6df6;border:0;border-radius:12px;color:#fff;' +
+    'padding:15px 34px;font-size:17px;letter-spacing:.05em;cursor:pointer;margin:0 auto;display:block;';
+  btn.onclick = enterXR;
+  document.getElementById('enterWrap').appendChild(btn);
+}
+async function enterXR() {
+  try {
+    const session = await navigator.xr.requestSession(xrMode,
+      { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] });
+    renderer.xr.setReferenceSpaceType('local-floor');
+    await renderer.xr.setSession(session);
+  } catch (e) {
+    status.innerHTML = 'Could not start: ' + (e && e.message ? e.message : e);
+  }
+}
 if ('xr' in navigator) {
-  navigator.xr.isSessionSupported('immersive-vr').then(ok => {
-    if (ok) {
-      const btn = VRButton.createButton(renderer, { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] });
-      btn.classList.add('xrbtn');
-      btn.style.position='static'; btn.style.transform='none'; btn.style.margin='0 auto';
-      btn.style.background='#2f6df6'; btn.style.border='0'; btn.style.borderRadius='12px';
-      btn.style.padding='15px 34px'; btn.style.fontSize='17px'; btn.style.letterSpacing='.05em';
-      document.getElementById('enterWrap').appendChild(btn);
-      status.textContent = 'Headset ready. Put it on and press Enter VR.';
+  Promise.all([
+    navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
+    navigator.xr.isSessionSupported('immersive-vr').catch(() => false)
+  ]).then(([ar, vr]) => {
+    if (ar) {
+      xrMode = 'immersive-ar';
+      status.textContent = 'Headset ready — passthrough on, so you can see your room.';
+      showEnter('Enter');
+    } else if (vr) {
+      xrMode = 'immersive-vr';
+      if (arenaCheck) { arenaCheck.checked = true; arenaCheck.disabled = true; }
+      status.innerHTML = "Headset ready. Passthrough isn't available here — immersive arena only, so <b>clear your space</b>.";
+      showEnter('Enter');
     } else {
-      status.innerHTML = 'Immersive VR not available in this browser.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
+      status.innerHTML = 'Immersive sessions not available.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
     }
   });
 } else {
   status.innerHTML = 'WebXR not found.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
 }
-renderer.xr.addEventListener('sessionstart', () => { intro.style.display='none'; ensureAudio(); });
-renderer.xr.addEventListener('sessionend',   () => {
-  intro.style.display='flex';
+renderer.xr.addEventListener('sessionstart', () => {
+  intro.style.display = 'none'; ensureAudio();
+  setPassthrough(xrMode === 'immersive-ar' && !(arenaCheck && arenaCheck.checked));
+});
+renderer.xr.addEventListener('sessionend', () => {
+  intro.style.display = 'flex';
   menuOpen = false; paused = false; menuGroup.visible = false; reticle.visible = false;
   lasers.forEach(l => l.visible = false);
 });
