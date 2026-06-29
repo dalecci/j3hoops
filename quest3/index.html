@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>J3 HOOPS — Quest 3 Trainer · Phase 0</title>
+<style>
+  :root { --gold:#e7b84b; --blue:#2f6df6; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#070a12; color:#eef2ff;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden; -webkit-tap-highlight-color:transparent; }
+  #intro { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:28px; z-index:5;
+    background:radial-gradient(120% 120% at 50% 18%, #15203d 0%, #0a0f1d 55%, #060810 100%); }
+  #intro h1 { font-size:clamp(28px,7vw,52px); margin:0 0 4px; letter-spacing:.04em;
+    background:linear-gradient(90deg,var(--gold),#fff,var(--gold)); -webkit-background-clip:text;
+    background-clip:text; color:transparent; font-weight:800; }
+  #intro .tag { color:#8ea0c8; font-size:clamp(13px,3.5vw,17px); margin-bottom:26px; letter-spacing:.06em;
+    text-transform:uppercase; }
+  .card { max-width:520px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
+    border-radius:18px; padding:22px 24px; backdrop-filter:blur(6px); }
+  .card h2 { margin:0 0 14px; font-size:16px; color:var(--gold); letter-spacing:.05em; text-transform:uppercase; }
+  .step { display:flex; gap:13px; align-items:flex-start; text-align:left; margin:11px 0; }
+  .step .n { flex:0 0 26px; height:26px; border-radius:50%; background:var(--blue); color:#fff;
+    font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .step p { margin:2px 0; font-size:14.5px; line-height:1.45; color:#cdd7f0; }
+  #enterWrap { margin-top:26px; }
+  #status { margin-top:16px; font-size:13px; color:#7b8bb0; min-height:18px; }
+  /* override three's default button to match the theme */
+  button.xrbtn { font-family:inherit !important; }
+  .hint { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:5;
+    color:#5d6c92; font-size:12px; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+  <div id="intro">
+    <h1>J3 HOOPS</h1>
+    <div class="tag">Quest 3 Trainer · Phase 0</div>
+    <div class="card">
+      <h2>How to play</h2>
+      <div class="step"><div class="n">1</div><p><b>Squeeze the grip button</b> to summon the ball to that hand.</p></div>
+      <div class="step"><div class="n">2</div><p><b>Wind up and swing your arm</b> — then <b>let go of the grip</b> to release the shot. The ball flies with your real hand speed.</p></div>
+      <div class="step"><div class="n">3</div><p>Drain it through the hoop for a <b>make</b>. Build a streak.</p></div>
+      <div class="step"><div class="n">4</div><p>Squeeze again any time to get a fresh ball.</p></div>
+    </div>
+    <div id="enterWrap"></div>
+    <div id="status">Checking your headset…</div>
+  </div>
+  <div class="hint">Stand a few steps back, face the hoop, and give yourself room to swing.</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+// ---------- tunables ----------
+const BALL_R      = 0.12;          // basketball radius (m)
+const GRAVITY     = 9.8;           // m/s^2
+const RESTITUTION = 0.62;          // floor/board bounciness
+const THROW_SCALE = 1.18;          // multiplier on tracked hand speed
+const RIM_Y       = 3.05;          // regulation rim height (m)
+const RIM_R       = 0.225;         // rim ring radius (m)
+const HOOP_Z      = -4.7;          // rim center distance in front of origin
+const COURT_S     = 2048;          // court texture resolution
+
+// ---------- scene ----------
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a12);
+scene.fog = new THREE.Fog(0x070a12, 12, 34);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 120);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+document.body.appendChild(renderer.domElement);
+
+// ---------- lighting ----------
+scene.add(new THREE.HemisphereLight(0xbcd0ff, 0x14181f, 1.15));
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+const key = new THREE.DirectionalLight(0xffffff, 2.4);
+key.position.set(4, 9, 3);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1; key.shadow.camera.far = 26;
+key.shadow.camera.left = -9; key.shadow.camera.right = 9;
+key.shadow.camera.top = 9; key.shadow.camera.bottom = -9;
+key.shadow.bias = -0.0004;
+scene.add(key);
+
+const spot = new THREE.SpotLight(0xfff0d6, 60, 18, 0.62, 0.45, 1.2);
+spot.position.set(0, 8.5, HOOP_Z + 1.2);
+spot.target.position.set(0, 0, HOOP_Z);
+scene.add(spot); scene.add(spot.target);
+
+// ---------- court texture ----------
+function makeCourtTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = COURT_S;
+  const g = c.getContext('2d');
+  const S = COURT_S, M = S/16; // pixels per meter (plane is 16m, centered z=3)
+  // world(x,z) -> canvas px
+  const X = x => (x + 8) * M;
+  const Z = z => (z + 5) * M;
+
+  // dark out-of-bounds backdrop
+  g.fillStyle = '#0b0f1a'; g.fillRect(0,0,S,S);
+
+  // ---- hardwood ----
+  const woodX0 = X(-7.6), woodZ0 = Z(-5.1), woodX1 = X(7.6), woodZ1 = Z(9.1);
+  const grad = g.createLinearGradient(woodX0, woodZ0, woodX1, woodZ1);
+  grad.addColorStop(0,'#caa06a'); grad.addColorStop(.5,'#bd8e54'); grad.addColorStop(1,'#b08349');
+  g.fillStyle = grad; g.fillRect(woodX0, woodZ0, woodX1-woodX0, woodZ1-woodZ0);
+  // planks running the length of the court
+  g.lineWidth = 2;
+  for (let x = -7.5; x <= 7.5; x += 0.34) {
+    g.strokeStyle = (Math.round((x+7.5)/0.34) % 2) ? 'rgba(80,50,20,.10)' : 'rgba(255,235,200,.06)';
+    g.beginPath(); g.moveTo(X(x), woodZ0); g.lineTo(X(x), woodZ1); g.stroke();
+  }
+  // soft spotlight glow on the floor under the rim
+  const glow = g.createRadialGradient(X(0), Z(HOOP_Z), 10, X(0), Z(HOOP_Z), 5.4*M);
+  glow.addColorStop(0,'rgba(255,244,214,.22)'); glow.addColorStop(1,'rgba(255,244,214,0)');
+  g.fillStyle = glow; g.fillRect(woodX0, woodZ0, woodX1-woodX0, woodZ1-woodZ0);
+
+  const line = (w,col)=>{ g.lineWidth=w; g.strokeStyle=col; g.lineJoin='round'; };
+  const LW = 0.05*M; const WHITE = '#f3f4f8';
+
+  // ---- painted key / lane ----
+  const keyX0 = X(-2.45), keyX1 = X(2.45), keyZ0 = Z(-5), keyZ1 = Z(0.8);
+  g.fillStyle = '#1f4ea8';
+  g.fillRect(keyX0, keyZ0, keyX1-keyX0, keyZ1-keyZ0);
+  g.fillStyle = 'rgba(231,184,75,.16)';
+  g.fillRect(keyX0, keyZ0, keyX1-keyX0, keyZ1-keyZ0);
+
+  // free-throw circle
+  line(LW, WHITE);
+  g.beginPath(); g.arc(X(0), Z(0.8), 1.8*M, 0, Math.PI*2); g.stroke();
+  // lane + baseline rectangle
+  g.strokeRect(keyX0, keyZ0, keyX1-keyX0, keyZ1-keyZ0);
+
+  // ---- three-point line ----
+  // corners 0.9m off the sideline (x = ±6.6), arc radius 6.75 about the basket
+  const tpX = 6.6, basketZ = HOOP_Z;
+  const dz = Math.sqrt(6.75*6.75 - tpX*tpX); // where arc meets the corner line
+  const cornerZ = basketZ + dz;
+  line(LW, WHITE);
+  g.beginPath();
+  g.moveTo(X(-tpX), Z(-5)); g.lineTo(X(-tpX), Z(cornerZ));
+  g.stroke();
+  g.beginPath();
+  g.moveTo(X(tpX), Z(-5)); g.lineTo(X(tpX), Z(cornerZ));
+  g.stroke();
+  g.beginPath();
+  // canvas y grows downward; our Z() also grows with +z, so angles map directly
+  g.arc(X(0), Z(basketZ), 6.75*M, Math.atan2(Z(cornerZ)-Z(basketZ), X(tpX)-X(0)),
+        Math.atan2(Z(cornerZ)-Z(basketZ), X(-tpX)-X(0)));
+  g.stroke();
+
+  // ---- court boundary ----
+  line(LW, WHITE);
+  g.strokeRect(X(-7.5), Z(-5), X(7.5)-X(-7.5), Z(9)-Z(-5));
+  // half-court line + center logo ring
+  g.beginPath(); g.moveTo(X(-7.5), Z(9)); g.lineTo(X(7.5), Z(9)); g.stroke();
+  g.beginPath(); g.arc(X(0), Z(5), 2.3*M, 0, Math.PI*2); g.stroke();
+  line(0.09*M, 'rgba(231,184,75,.55)');
+  g.beginPath(); g.arc(X(0), Z(5), 1.95*M, 0, Math.PI*2); g.stroke();
+
+  // center logo text
+  g.save();
+  g.translate(X(0), Z(5)); g.rotate(Math.PI); // face the shooter
+  g.fillStyle = '#f3f4f8'; g.textAlign='center'; g.textBaseline='middle';
+  g.font = `800 ${0.55*M}px -apple-system,Segoe UI,Roboto,sans-serif`;
+  g.fillText('J3 HOOPS', 0, -0.28*M);
+  g.fillStyle = 'var(--gold)'; g.fillStyle = '#e7b84b';
+  g.font = `700 ${0.26*M}px -apple-system,Segoe UI,Roboto,sans-serif`;
+  g.fillText('TRAINER', 0, 0.42*M);
+  g.restore();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// court plane (centered so the rim end sits at the painted baseline)
+const court = new THREE.Mesh(
+  new THREE.PlaneGeometry(16, 16),
+  new THREE.MeshStandardMaterial({ map: makeCourtTexture(), roughness: 0.72, metalness: 0.04 })
+);
+court.rotation.x = -Math.PI/2;
+court.position.set(0, 0, 3);
+court.receiveShadow = true;
+scene.add(court);
+
+// catch-all dark ground beneath, so looking past the court isn't a void
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(80, 80),
+  new THREE.MeshStandardMaterial({ color: 0x05070d, roughness: 1 })
+);
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.02;
+scene.add(ground);
+
+// a couple of glowing "arena light" bars overhead for atmosphere
+const barMat = new THREE.MeshStandardMaterial({ color:0x223, emissive:0x6f8cff, emissiveIntensity:1.4 });
+for (const zx of [[-3.2,1],[3.2,1]]) {
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.12,5), barMat);
+  bar.position.set(zx[0], 7.6, HOOP_Z+2.5); scene.add(bar);
+}
+
+// ---------- hoop ----------
+const hoop = new THREE.Group(); scene.add(hoop);
+
+// backboard
+const boardCanvas = document.createElement('canvas'); boardCanvas.width=512; boardCanvas.height=320;
+(() => {
+  const b = boardCanvas.getContext('2d');
+  b.fillStyle='#f7f8fb'; b.fillRect(0,0,512,320);
+  b.strokeStyle='#16233f'; b.lineWidth=10; b.strokeRect(6,6,500,308);
+  b.strokeStyle='#e2562e'; b.lineWidth=12;
+  b.strokeRect(176,150,160,120); // shooter's square
+})();
+const boardTex = new THREE.CanvasTexture(boardCanvas); boardTex.colorSpace = THREE.SRGBColorSpace;
+const board = new THREE.Mesh(
+  new THREE.BoxGeometry(1.8, 1.05, 0.05),
+  [ new THREE.MeshStandardMaterial({color:0xdfe4ee}), new THREE.MeshStandardMaterial({color:0xdfe4ee}),
+    new THREE.MeshStandardMaterial({color:0xdfe4ee}), new THREE.MeshStandardMaterial({color:0xdfe4ee}),
+    new THREE.MeshStandardMaterial({map:boardTex}), new THREE.MeshStandardMaterial({color:0xdfe4ee}) ]
+);
+board.position.set(0, 3.55, HOOP_Z - 0.30);
+board.castShadow = true; hoop.add(board);
+
+// rim
+const rim = new THREE.Mesh(
+  new THREE.TorusGeometry(RIM_R, 0.018, 10, 32),
+  new THREE.MeshStandardMaterial({ color:0xff6a2b, metalness:0.5, roughness:0.4 })
+);
+rim.rotation.x = Math.PI/2; rim.position.set(0, RIM_Y, HOOP_Z);
+rim.castShadow = true; hoop.add(rim);
+
+// net
+const net = new THREE.Mesh(
+  new THREE.CylinderGeometry(RIM_R*0.96, RIM_R*0.55, 0.42, 16, 5, true),
+  new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true, transparent:true, opacity:0.45 })
+);
+net.position.set(0, RIM_Y - 0.21, HOOP_Z); hoop.add(net);
+
+// stanchion
+const poleMat = new THREE.MeshStandardMaterial({ color:0x2a3142, metalness:0.6, roughness:0.5 });
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,3.9,16), poleMat);
+pole.position.set(0, 1.95, HOOP_Z - 1.0); pole.castShadow = true; hoop.add(pole);
+const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.85), poleMat);
+arm.position.set(0, 3.55, HOOP_Z - 0.6); hoop.add(arm);
+
+// ---------- scoreboard panel ----------
+const sbCanvas = document.createElement('canvas'); sbCanvas.width=512; sbCanvas.height=256;
+const sbTex = new THREE.CanvasTexture(sbCanvas); sbTex.colorSpace = THREE.SRGBColorSpace;
+let makes = 0, streak = 0, best = 0, flash = 0;
+function drawScore() {
+  const s = sbCanvas.getContext('2d');
+  s.clearRect(0,0,512,256);
+  s.fillStyle = flash>0 ? 'rgba(35,120,60,.92)' : 'rgba(10,16,30,.86)';
+  roundRect(s,0,0,512,256,26); s.fill();
+  s.strokeStyle = flash>0 ? '#7CFFA8' : 'rgba(231,184,75,.55)'; s.lineWidth=6;
+  roundRect(s,3,3,506,250,24); s.stroke();
+  s.textAlign='center';
+  s.fillStyle='#e7b84b'; s.font='700 34px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText('MAKES', 140, 70);
+  s.fillStyle='#fff'; s.font='800 96px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText(String(makes), 140, 178);
+  s.fillStyle='#9fb0d6'; s.font='700 28px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText('STREAK', 380, 64);
+  s.fillStyle='#fff'; s.font='800 70px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText(String(streak), 380, 140);
+  s.fillStyle='#7b8bb0'; s.font='600 24px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText('BEST '+best, 380, 190);
+  sbTex.needsUpdate = true;
+}
+function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r);
+  c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+drawScore();
+const scoreboard = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.4, 0.7),
+  new THREE.MeshBasicMaterial({ map:sbTex, transparent:true })
+);
+scoreboard.position.set(2.0, 2.5, HOOP_Z + 0.4);
+scoreboard.rotation.y = -0.5;
+scene.add(scoreboard);
+
+// ---------- the ball ----------
+function makeBallTexture() {
+  const c = document.createElement('canvas'); c.width=c.height=512; const g=c.getContext('2d');
+  g.fillStyle='#d9712b'; g.fillRect(0,0,512,512);
+  const grd=g.createRadialGradient(180,160,40,256,256,360);
+  grd.addColorStop(0,'#f0894a'); grd.addColorStop(1,'#c25d20'); g.fillStyle=grd; g.fillRect(0,0,512,512);
+  g.strokeStyle='#1c1208'; g.lineWidth=7;
+  g.beginPath(); g.moveTo(256,0); g.lineTo(256,512); g.stroke();              // vertical seam
+  g.beginPath(); g.moveTo(0,256); g.lineTo(512,256); g.stroke();              // horizontal seam
+  g.beginPath(); g.arc(256,-40,300,0.35,Math.PI-0.35); g.stroke();            // curved seams
+  g.beginPath(); g.arc(256,552,300,Math.PI+0.35,2*Math.PI-0.35); g.stroke();
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+const ball = new THREE.Mesh(
+  new THREE.SphereGeometry(BALL_R, 32, 24),
+  new THREE.MeshStandardMaterial({ map:makeBallTexture(), roughness:0.85, metalness:0.0 })
+);
+ball.castShadow = true;
+ball.position.set(0.25, 1.1, 0.1);
+scene.add(ball);
+
+const vel = new THREE.Vector3();
+let held = null;            // grip object currently holding the ball
+let prevY = ball.position.y;
+
+// ---------- controllers ----------
+const grips = [];
+const history = [[], []];   // recent {p, t} per controller for throw velocity
+for (let i=0; i<2; i++) {
+  const ctrl = renderer.xr.getController(i);
+  const grip = renderer.xr.getControllerGrip(i);
+  grip.userData.index = i;
+  scene.add(ctrl); scene.add(grip);
+  grips[i] = grip;
+
+  // small glove marker so the hand reads even before grabbing
+  const glove = new THREE.Mesh(
+    new THREE.SphereGeometry(0.035, 16, 12),
+    new THREE.MeshStandardMaterial({ color:0x3a6df6, emissive:0x16306e, roughness:0.5 })
+  );
+  grip.add(glove);
+
+  const grab = () => {
+    if (held) return;
+    held = grip; history[i].length = 0;
+    ensureAudio();
+  };
+  const release = () => {
+    if (held !== grip) return;
+    held = null;
+    // velocity = displacement over the last ~70ms of tracked motion
+    const h = history[i];
+    if (h.length >= 2) {
+      const now = h[h.length-1];
+      let then = h[0];
+      for (let k=h.length-1; k>=0; k--) { if (now.t - h[k].t >= 0.06) { then = h[k]; break; } }
+      const dt = Math.max(now.t - then.t, 0.016);
+      vel.copy(now.p).sub(then.p).multiplyScalar(THROW_SCALE / dt);
+      // gentle clamp so a wild flick doesn't launch it into orbit
+      if (vel.length() > 14) vel.setLength(14);
+    } else vel.set(0,0,0);
+    prevY = ball.position.y;
+  };
+  ctrl.addEventListener('squeezestart', grab);
+  ctrl.addEventListener('squeezeend', release);
+  ctrl.addEventListener('selectstart', grab);
+  ctrl.addEventListener('selectend', release);
+}
+
+// ---------- audio (simple synth blips) ----------
+let audio = null;
+function ensureAudio(){ if(!audio){ try{ audio = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if (audio && audio.state==='suspended') audio.resume(); }
+function blip(freq, dur, type='sine', gain=0.18){
+  if(!audio) return;
+  const o=audio.createOscillator(), g=audio.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(audio.destination);
+  const t=audio.currentTime; g.gain.setValueAtTime(gain,t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.start(t); o.stop(t+dur);
+}
+function swish(){ blip(880,0.08,'triangle',0.2); setTimeout(()=>blip(1320,0.12,'triangle',0.18),60); }
+
+// ---------- physics helpers ----------
+const tmp = new THREE.Vector3();
+const rimCenter = new THREE.Vector3(0, RIM_Y, HOOP_Z);
+const boardZ = HOOP_Z - 0.275, boardHalfX = 0.9, boardYmin = 3.02, boardYmax = 4.08;
+
+function step(dt) {
+  if (held) {
+    held.getWorldPosition(tmp);
+    ball.position.copy(tmp);
+    const h = history[held.userData.index];
+    h.push({ p: tmp.clone(), t: clock.elapsedTime });
+    if (h.length > 12) h.shift();
+    prevY = ball.position.y;
+    return;
+  }
+
+  // integrate
+  vel.y -= GRAVITY * dt;
+  ball.position.addScaledVector(vel, dt);
+
+  // make detection: descending through the rim plane, inside the ring
+  const horiz = Math.hypot(ball.position.x - rimCenter.x, ball.position.z - rimCenter.z);
+  if (prevY > RIM_Y && ball.position.y <= RIM_Y && vel.y < 0 && horiz < RIM_R - 0.03) {
+    makes++; streak++; best = Math.max(best, streak); flash = 0.6; swish(); drawScore();
+  }
+
+  // rim ring collision (approximate torus)
+  if (Math.abs(ball.position.y - RIM_Y) < BALL_R + 0.03 && horiz > 0.02) {
+    const near = tmp.set(rimCenter.x + (ball.position.x-rimCenter.x)/horiz*RIM_R, RIM_Y,
+                         rimCenter.z + (ball.position.z-rimCenter.z)/horiz*RIM_R);
+    const d = ball.position.distanceTo(near);
+    if (d < BALL_R + 0.02) {
+      const n = ball.position.clone().sub(near).normalize();
+      ball.position.copy(near).addScaledVector(n, BALL_R + 0.02);
+      vel.reflect(n).multiplyScalar(0.55);
+    }
+  }
+
+  // backboard collision
+  if (vel.z < 0 && ball.position.z - BALL_R < boardZ + 0.03 && ball.position.z > boardZ - 0.2 &&
+      Math.abs(ball.position.x) < boardHalfX && ball.position.y > boardYmin && ball.position.y < boardYmax) {
+    ball.position.z = boardZ + 0.03 + BALL_R;
+    vel.z = -vel.z * 0.5; vel.x *= 0.8;
+  }
+
+  // floor bounce
+  if (ball.position.y < BALL_R) {
+    ball.position.y = BALL_R;
+    if (vel.y < 0) {
+      const impact = -vel.y;
+      vel.y = impact * RESTITUTION;
+      vel.x *= 0.78; vel.z *= 0.78;
+      if (impact > 1.2) blip(150 + Math.min(impact,6)*18, 0.06, 'sine', Math.min(0.06+impact*0.02,0.16));
+      if (vel.lengthSq() < 0.05) vel.set(0,0,0);
+      // missed shot ends the streak when the ball settles low
+      if (streak > 0 && ball.position.distanceTo(rimCenter) > 1.2 && impact < 2.5) { streak = 0; drawScore(); }
+    }
+  }
+
+  prevY = ball.position.y;
+  ball.rotation.x += vel.z * dt * 2.2;
+  ball.rotation.z -= vel.x * dt * 2.2;
+}
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  step(dt);
+  if (flash > 0) { flash -= dt; if (flash <= 0) drawScore(); }
+  renderer.render(scene, camera);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- enter-VR button + availability ----------
+const status = document.getElementById('status');
+const intro = document.getElementById('intro');
+if ('xr' in navigator) {
+  navigator.xr.isSessionSupported('immersive-vr').then(ok => {
+    if (ok) {
+      const btn = VRButton.createButton(renderer);
+      btn.classList.add('xrbtn');
+      btn.style.position='static'; btn.style.transform='none'; btn.style.margin='0 auto';
+      btn.style.background='#2f6df6'; btn.style.border='0'; btn.style.borderRadius='12px';
+      btn.style.padding='15px 34px'; btn.style.fontSize='17px'; btn.style.letterSpacing='.05em';
+      document.getElementById('enterWrap').appendChild(btn);
+      status.textContent = 'Headset ready. Put it on and press Enter VR.';
+    } else {
+      status.innerHTML = 'Immersive VR not available in this browser.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
+    }
+  });
+} else {
+  status.innerHTML = 'WebXR not found.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
+}
+renderer.xr.addEventListener('sessionstart', () => { intro.style.display='none'; ensureAudio(); });
+renderer.xr.addEventListener('sessionend',   () => { intro.style.display='flex'; });
+</script>
+</body>
+</html>
