@@ -43,6 +43,7 @@
       <div class="step"><div class="n">2</div><p><b>Wind up and swing your arm</b> — then <b>let go of the grip</b> to release the shot. The ball flies with your real hand speed.</p></div>
       <div class="step"><div class="n">3</div><p>Drain it through the hoop for a <b>make</b>. Build a streak.</p></div>
       <div class="step"><div class="n">4</div><p>Squeeze again any time to get a fresh ball.</p></div>
+      <div class="step"><div class="n">5</div><p>Press the <b>B</b> or <b>Y</b> button to open the <b>menu</b> — resume, recenter, reset, or exit back here.</p></div>
     </div>
     <div id="enterWrap"></div>
     <div id="status">Checking your headset…</div>
@@ -109,6 +110,9 @@ const spot = new THREE.SpotLight(0xfff0d6, 60, 18, 0.62, 0.45, 1.2);
 spot.position.set(0, 8.5, HOOP_Z + 1.2);
 spot.target.position.set(0, 0, HOOP_Z);
 scene.add(spot); scene.add(spot.target);
+
+// everything that should "recenter" in front of the player lives in this group
+const arena = new THREE.Group(); scene.add(arena);
 
 // ---------- court texture ----------
 function makeCourtTexture() {
@@ -206,7 +210,7 @@ const court = new THREE.Mesh(
 court.rotation.x = -Math.PI/2;
 court.position.set(0, 0, 3);
 court.receiveShadow = true;
-scene.add(court);
+arena.add(court);
 
 // catch-all dark ground beneath, so looking past the court isn't a void
 const ground = new THREE.Mesh(
@@ -220,11 +224,11 @@ scene.add(ground);
 const barMat = new THREE.MeshStandardMaterial({ color:0x223, emissive:0x6f8cff, emissiveIntensity:1.4 });
 for (const zx of [[-3.2,1],[3.2,1]]) {
   const bar = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.12,5), barMat);
-  bar.position.set(zx[0], 7.6, HOOP_Z+2.5); scene.add(bar);
+  bar.position.set(zx[0], 7.6, HOOP_Z+2.5); arena.add(bar);
 }
 
 // ---------- hoop ----------
-const hoop = new THREE.Group(); scene.add(hoop);
+const hoop = new THREE.Group(); arena.add(hoop);
 
 // backboard
 const boardCanvas = document.createElement('canvas'); boardCanvas.width=512; boardCanvas.height=320;
@@ -300,7 +304,7 @@ const scoreboard = new THREE.Mesh(
 );
 scoreboard.position.set(2.0, 2.5, HOOP_Z + 0.4);
 scoreboard.rotation.y = -0.5;
-scene.add(scoreboard);
+arena.add(scoreboard);
 
 // ---------- the ball ----------
 function makeBallTexture() {
@@ -326,16 +330,19 @@ scene.add(ball);
 const vel = new THREE.Vector3();
 let held = null;            // grip object currently holding the ball
 let prevY = ball.position.y;
+let menuOpen = false, paused = false;
 
 // ---------- controllers ----------
 const grips = [];
+const controllers = [];
+const lasers = [];
 const history = [[], []];   // recent {p, t} per controller for throw velocity
 for (let i=0; i<2; i++) {
   const ctrl = renderer.xr.getController(i);
   const grip = renderer.xr.getControllerGrip(i);
   grip.userData.index = i;
   scene.add(ctrl); scene.add(grip);
-  grips[i] = grip;
+  grips[i] = grip; controllers[i] = ctrl;
 
   // small glove marker so the hand reads even before grabbing
   const glove = new THREE.Mesh(
@@ -344,13 +351,20 @@ for (let i=0; i<2; i++) {
   );
   grip.add(glove);
 
+  // pointer laser (only shown while the menu is open)
+  const laser = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]),
+    new THREE.LineBasicMaterial({ color:0x4f86ff })
+  );
+  laser.scale.z = 2.5; laser.visible = false; ctrl.add(laser); lasers[i] = laser;
+
   const grab = () => {
-    if (held) return;
+    if (held || menuOpen) return;
     held = grip; history[i].length = 0;
     ensureAudio();
   };
   const release = () => {
-    if (held !== grip) return;
+    if (menuOpen || held !== grip) return;
     held = null;
     // velocity = displacement over the last ~70ms of tracked motion
     const h = history[i];
@@ -367,7 +381,7 @@ for (let i=0; i<2; i++) {
   };
   ctrl.addEventListener('squeezestart', grab);
   ctrl.addEventListener('squeezeend', release);
-  ctrl.addEventListener('selectstart', grab);
+  ctrl.addEventListener('selectstart', () => { if (menuOpen) clickMenu(ctrl); else grab(); });
   ctrl.addEventListener('selectend', release);
 }
 
@@ -391,6 +405,7 @@ const rimCenter = new THREE.Vector3(0, RIM_Y, HOOP_Z);
 const boardZ = HOOP_Z - 0.275, boardHalfX = 0.9, boardYmin = 3.02, boardYmax = 4.08;
 
 function step(dt) {
+  if (paused) return;
   if (held) {
     held.getWorldPosition(tmp);
     ball.position.copy(tmp);
@@ -449,11 +464,125 @@ function step(dt) {
   ball.rotation.z -= vel.x * dt * 2.2;
 }
 
+// ---------- pause / exit menu ----------
+let menuBtnPrev = false;
+const raycaster = new THREE.Raycaster();
+const _rot = new THREE.Matrix4();
+const buttonMeshes = [];
+
+const reticle = new THREE.Mesh(
+  new THREE.SphereGeometry(0.012, 12, 8),
+  new THREE.MeshBasicMaterial({ color:0xffffff })
+);
+reticle.visible = false; scene.add(reticle);
+
+const menuGroup = new THREE.Group(); menuGroup.visible = false; scene.add(menuGroup);
+
+const backdrop = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.0, 1.22),
+  new THREE.MeshBasicMaterial({ color:0x0a1224, transparent:true, opacity:0.92 })
+);
+backdrop.position.set(0, 0.0, -0.012); menuGroup.add(backdrop);
+
+function textPlane(text, w, h, font, color, py) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512*h/w);
+  const c = cv.getContext('2d');
+  c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = font; c.fillText(text, cv.width/2, cv.height/2);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
+  m.position.set(0, py, 0); menuGroup.add(m);
+}
+textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.46);
+
+function makeButton(label, action, y) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#1b2746'; roundRect(c,6,6,500,116,30); c.fill();
+  c.strokeStyle = 'rgba(231,184,75,.75)'; c.lineWidth = 5; roundRect(c,6,6,500,116,30); c.stroke();
+  c.fillStyle = '#f3f7ff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '700 56px -apple-system,Segoe UI,Roboto,sans-serif'; c.fillText(label, 256, 68);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.205),
+    new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
+  m.position.set(0, y, 0); m.userData.action = action;
+  menuGroup.add(m); buttonMeshes.push(m);
+}
+makeButton('Resume',         'resume',    0.21);
+makeButton('Recenter Court', 'recenter', -0.01);
+makeButton('Reset Score',    'reset',    -0.23);
+makeButton('Exit to Start',  'exit',     -0.45);
+
+function ctrlRay(ctrl) {
+  _rot.identity().extractRotation(ctrl.matrixWorld);
+  raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+  raycaster.ray.direction.set(0,0,-1).applyMatrix4(_rot).normalize();
+}
+function openMenu() {
+  const p = new THREE.Vector3(); camera.getWorldPosition(p);
+  const d = new THREE.Vector3(); camera.getWorldDirection(d); d.y = 0;
+  if (d.lengthSq() < 1e-4) d.set(0,0,-1); d.normalize();
+  menuGroup.position.copy(p).addScaledVector(d, 1.35); menuGroup.position.y = p.y - 0.10;
+  menuGroup.rotation.set(0, Math.atan2(-d.x, -d.z), 0);
+  menuGroup.visible = true; menuOpen = true; paused = true;
+  lasers.forEach(l => l.visible = true);
+  ensureAudio();
+}
+function closeMenu() {
+  menuOpen = false; paused = false; menuGroup.visible = false; reticle.visible = false;
+  lasers.forEach(l => l.visible = false);
+  buttonMeshes.forEach(b => b.material.color.setHex(0xffffff));
+}
+function recenterCourt() {
+  const p = new THREE.Vector3(); camera.getWorldPosition(p);
+  const d = new THREE.Vector3(); camera.getWorldDirection(d); d.y = 0;
+  if (d.lengthSq() < 1e-4) d.set(0,0,-1); d.normalize();
+  arena.position.set(p.x, 0, p.z);
+  arena.rotation.y = Math.atan2(-d.x, -d.z);
+}
+function doAction(a) {
+  if (a === 'resume') closeMenu();
+  else if (a === 'recenter') { recenterCourt(); closeMenu(); }
+  else if (a === 'reset') { makes = 0; streak = 0; best = 0; flash = 0; drawScore(); closeMenu(); }
+  else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
+}
+function clickMenu(ctrl) {
+  if (!menuOpen) return;
+  ctrlRay(ctrl);
+  const hit = raycaster.intersectObjects(buttonMeshes, false)[0];
+  if (hit) { blip(660, 0.05, 'square', 0.12); doAction(hit.object.userData.action); }
+}
+function updateHover() {
+  let best = null, bestDist = Infinity, bestPoint = null;
+  for (let i = 0; i < controllers.length; i++) {
+    ctrlRay(controllers[i]);
+    const hit = raycaster.intersectObjects(buttonMeshes, false)[0];
+    lasers[i].scale.z = hit ? hit.distance : 2.5;
+    if (hit && hit.distance < bestDist) { bestDist = hit.distance; best = hit.object; bestPoint = hit.point; }
+  }
+  buttonMeshes.forEach(b => b.material.color.setHex(b === best ? 0xbcd2ff : 0xffffff));
+  if (best) { reticle.visible = true; reticle.position.copy(bestPoint); }
+  else reticle.visible = false;
+}
+function pollMenuButton() {
+  const s = renderer.xr.getSession(); if (!s) return;
+  let pressed = false;
+  for (const src of s.inputSources) {
+    const gp = src.gamepad; if (!gp) continue;
+    if ((gp.buttons[5] && gp.buttons[5].pressed) || (gp.buttons[4] && gp.buttons[4].pressed)) pressed = true;
+  }
+  if (pressed && !menuBtnPrev) { menuOpen ? closeMenu() : openMenu(); }
+  menuBtnPrev = pressed;
+}
+
 // ---------- loop ----------
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
+  pollMenuButton();
   step(dt);
+  if (menuOpen) updateHover();
   if (flash > 0) { flash -= dt; if (flash <= 0) drawScore(); }
   renderer.render(scene, camera);
 });
@@ -484,7 +613,11 @@ if ('xr' in navigator) {
   status.innerHTML = 'WebXR not found.<br>Open this page in the <b>Meta Quest browser</b> on your Quest 3.';
 }
 renderer.xr.addEventListener('sessionstart', () => { intro.style.display='none'; ensureAudio(); });
-renderer.xr.addEventListener('sessionend',   () => { intro.style.display='flex'; });
+renderer.xr.addEventListener('sessionend',   () => {
+  intro.style.display='flex';
+  menuOpen = false; paused = false; menuGroup.visible = false; reticle.visible = false;
+  lasers.forEach(l => l.visible = false);
+});
 </script>
 </body>
 </html>
