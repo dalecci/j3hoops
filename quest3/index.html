@@ -385,26 +385,31 @@ for (let i=0; i<2; i++) {
   laser.scale.z = 2.5; laser.visible = false; ctrl.add(laser); lasers[i] = laser;
 
   const grab = () => {
-    if (held || menuOpen) return;
-    held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
-    history[i].length = 0;
-    ensureAudio();
+    try {
+      if (held || menuOpen) return;
+      held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
+      history[i].length = 0;
+      ensureAudio();
+    } catch (e) { logOnce('grab', e); }
   };
   const release = () => {
-    if (menuOpen || held !== grip) return;
-    held = null;
-    // velocity = displacement over the last ~70ms of tracked motion
-    const h = history[i];
-    if (h.length >= 2) {
-      const now = h[h.length-1];
-      let then = h[0];
-      for (let k=h.length-1; k>=0; k--) { if (now.t - h[k].t >= 0.06) { then = h[k]; break; } }
-      const dt = Math.max(now.t - then.t, 0.016);
-      vel.copy(now.p).sub(then.p).multiplyScalar(THROW_SCALE / dt);
-      // gentle clamp so a wild flick doesn't launch it into orbit
-      if (vel.length() > 14) vel.setLength(14);
-    } else vel.set(0,0,0);
-    prevY = ball.position.y;
+    try {
+      // accept release whether this index is held via controller grip OR hand palm anchor
+      if (menuOpen || (held !== grip && held !== palmAnchor[i])) return;
+      held = null;
+      // velocity = displacement over the last ~70ms of tracked motion
+      const h = history[i];
+      if (h.length >= 2) {
+        const now = h[h.length-1];
+        let then = h[0];
+        for (let k=h.length-1; k>=0; k--) { if (now.t - h[k].t >= 0.06) { then = h[k]; break; } }
+        const dt = Math.max(now.t - then.t, 0.016);
+        vel.copy(now.p).sub(then.p).multiplyScalar(THROW_SCALE / dt);
+        // gentle clamp so a wild flick doesn't launch it into orbit
+        if (vel.length() > 14) vel.setLength(14);
+      } else vel.set(0,0,0);
+      prevY = ball.position.y;
+    } catch (e) { logOnce('release', e); }
   };
   ctrl.addEventListener('squeezestart', grab);
   ctrl.addEventListener('squeezeend', release);
@@ -424,7 +429,7 @@ const handTracked = [false, false];
 const palmAnchor = [new THREE.Object3D(), new THREE.Object3D()];
 const wristOrb = [];
 const pokePrev = [false, false];
-palmAnchor.forEach(a => scene.add(a));
+palmAnchor.forEach((a, i) => { a.userData.index = i; scene.add(a); });   // index so history[] resolves for hands
 
 for (let i=0; i<2; i++) {
   const hand = renderer.xr.getHand(i); scene.add(hand); hands[i] = hand;
@@ -642,10 +647,12 @@ function doAction(a) {
   else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
 }
 function clickMenu(ctrl) {
-  if (!menuOpen) return;
-  ctrlRay(ctrl);
-  const hit = raycaster.intersectObjects(buttonMeshes, false)[0];
-  if (hit) { blip(660, 0.05, 'square', 0.12); doAction(hit.object.userData.action); }
+  try {
+    if (!menuOpen) return;
+    ctrlRay(ctrl);
+    const hit = raycaster.intersectObjects(buttonMeshes, false)[0];
+    if (hit) { blip(660, 0.05, 'square', 0.12); doAction(hit.object.userData.action); }
+  } catch (e) { logOnce('clickmenu', e); }
 }
 function updateHover() {
   let best = null, bestDist = Infinity, bestPoint = null;
