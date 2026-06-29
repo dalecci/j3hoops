@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v0.7 · 2026-06-29</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v0.8 · 2026-06-29</div>
 
 <script type="importmap">
 {
@@ -83,7 +83,7 @@ window.__hoopvrLoaded = true;   // watchdog flag: module evaluated successfully
 const BALL_R      = 0.12;          // basketball radius (m)
 const GRAVITY     = 9.8;           // m/s^2
 const RESTITUTION = 0.62;          // floor/board bounciness
-const THROW_SCALE = 1.18;          // multiplier on tracked hand speed
+const THROW_SCALE = 1.35;          // multiplier on tracked hand speed
 const RIM_Y       = 3.05;          // regulation rim height (m)
 const RIM_R       = 0.225;         // rim ring radius (m)
 const HOOP_Z      = -4.7;          // rim center distance in front of origin
@@ -253,6 +253,10 @@ function setPassthrough(on) {
   arenaBars.forEach(b => b.visible = !on);
 }
 
+// hardwood court visibility — independent of passthrough/arena
+let hardwoodOn = true;
+function setHardwood(on) { hardwoodOn = on; court.visible = on; }
+
 // ---------- hoop ----------
 const hoop = new THREE.Group(); arena.add(hoop);
 
@@ -300,7 +304,7 @@ arm.position.set(0, 3.55, HOOP_Z - 0.6); hoop.add(arm);
 // ---------- scoreboard panel ----------
 const sbCanvas = document.createElement('canvas'); sbCanvas.width=512; sbCanvas.height=256;
 const sbTex = new THREE.CanvasTexture(sbCanvas); sbTex.colorSpace = THREE.SRGBColorSpace;
-let makes = 0, streak = 0, best = 0, flash = 0;
+let makes = 0, streak = 0, best = 0, flash = 0, lastShot = 0, dbgHeld = false;
 function drawScore() {
   const s = sbCanvas.getContext('2d');
   s.clearRect(0,0,512,256);
@@ -319,6 +323,11 @@ function drawScore() {
   s.fillText(String(streak), 380, 140);
   s.fillStyle='#7b8bb0'; s.font='600 24px -apple-system,Segoe UI,Roboto,sans-serif';
   s.fillText('BEST '+best, 380, 190);
+  // live diagnostic strip so we can see what the throw is doing
+  s.textAlign='center';
+  s.fillStyle = dbgHeld ? '#7CFFA8' : '#8aa0c8';
+  s.font='600 22px -apple-system,Segoe UI,Roboto,sans-serif';
+  s.fillText(dbgHeld ? '● holding ball' : ('last shot  ' + lastShot.toFixed(1) + ' m/s'), 256, 236);
   sbTex.needsUpdate = true;
 }
 function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r);
@@ -390,6 +399,7 @@ for (let i=0; i<2; i++) {
       if (held || menuOpen) return;
       held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
       history[i].length = 0;
+      dbgHeld = true; drawScore();
       ensureAudio();
     } catch (e) { logOnce('grab', e); }
   };
@@ -398,17 +408,19 @@ for (let i=0; i<2; i++) {
       // accept release whether this index is held via controller grip OR hand palm anchor
       if (menuOpen || (held !== grip && held !== palmAnchor[i])) return;
       held = null;
-      // velocity = displacement over the last ~70ms of tracked motion
+      // throw speed = the PEAK instantaneous velocity across recent samples
+      // (a single time-window under-reads a quick release)
       const h = history[i];
-      if (h.length >= 2) {
-        const now = h[h.length-1];
-        let then = h[0];
-        for (let k=h.length-1; k>=0; k--) { if (now.t - h[k].t >= 0.06) { then = h[k]; break; } }
-        const dt = Math.max(now.t - then.t, 0.016);
-        vel.copy(now.p).sub(then.p).multiplyScalar(THROW_SCALE / dt);
-        // gentle clamp so a wild flick doesn't launch it into orbit
-        if (vel.length() > 14) vel.setLength(14);
-      } else vel.set(0,0,0);
+      let bestSpeed = 0; vel.set(0,0,0);
+      for (let k=1; k<h.length; k++) {
+        const a = h[k-1], b = h[k];
+        const ddt = Math.max(b.t - a.t, 0.008);
+        const sp = b.p.distanceTo(a.p) / ddt;
+        if (sp > bestSpeed) { bestSpeed = sp; vel.copy(b.p).sub(a.p).multiplyScalar(THROW_SCALE / ddt); }
+      }
+      if (vel.length() > 16) vel.setLength(16);   // clamp a wild flick
+      lastShot = vel.length();
+      dbgHeld = false; drawScore();
       prevY = ball.position.y;
     } catch (e) { logOnce('release', e); }
   };
@@ -577,10 +589,10 @@ reticle.visible = false; scene.add(reticle);
 const menuGroup = new THREE.Group(); menuGroup.visible = false; scene.add(menuGroup);
 
 const backdrop = new THREE.Mesh(
-  new THREE.PlaneGeometry(1.04, 1.62),
+  new THREE.PlaneGeometry(1.06, 1.80),
   new THREE.MeshBasicMaterial({ color:0x0a1224, transparent:true, opacity:0.92 })
 );
-backdrop.position.set(0, -0.04, -0.012); menuGroup.add(backdrop);
+backdrop.position.set(0, -0.05, -0.012); menuGroup.add(backdrop);
 
 function textPlane(text, w, h, font, color, py) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512*h/w);
@@ -592,7 +604,7 @@ function textPlane(text, w, h, font, color, py) {
     new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   m.position.set(0, py, 0); menuGroup.add(m);
 }
-textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.60);
+textPlane('PAUSED', 0.6, 0.16, '800 96px -apple-system,Segoe UI,Roboto,sans-serif', '#e7b84b', 0.66);
 
 function makeButton(label, action, y) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
@@ -602,16 +614,17 @@ function makeButton(label, action, y) {
   c.fillStyle = '#f3f7ff'; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.font = '700 56px -apple-system,Segoe UI,Roboto,sans-serif'; c.fillText(label, 256, 68);
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.205),
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.17),
     new THREE.MeshBasicMaterial({ map:tex, transparent:true }));
   m.position.set(0, y, 0); m.userData.action = action;
   menuGroup.add(m); buttonMeshes.push(m);
 }
-makeButton('Resume',             'resume',      0.34);
-makeButton('Toggle Passthrough', 'passthrough', 0.13);
-makeButton('Recenter Court',     'recenter',   -0.08);
-makeButton('Reset Score',        'reset',      -0.29);
-makeButton('Exit to Start',      'exit',       -0.50);
+makeButton('Resume',             'resume',      0.40);
+makeButton('Toggle Passthrough', 'passthrough', 0.21);
+makeButton('Toggle Hardwood',    'hardwood',    0.02);
+makeButton('Recenter Court',     'recenter',   -0.17);
+makeButton('Reset Score',        'reset',      -0.36);
+makeButton('Exit to Start',      'exit',       -0.55);
 
 function ctrlRay(ctrl) {
   _rot.identity().extractRotation(ctrl.matrixWorld);
@@ -643,6 +656,7 @@ function recenterCourt() {
 function doAction(a) {
   if (a === 'resume') closeMenu();
   else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
+  else if (a === 'hardwood') { setHardwood(!hardwoodOn); closeMenu(); }
   else if (a === 'recenter') { recenterCourt(); closeMenu(); }
   else if (a === 'reset') { makes = 0; streak = 0; best = 0; flash = 0; drawScore(); closeMenu(); }
   else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
