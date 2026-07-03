@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.2 · 2026-07-02 · lines-only court</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.3 · 2026-07-02 · court scale</div>
 
 <script type="importmap">
 {
@@ -277,6 +277,12 @@ const courtLines = new THREE.Group(); courtLines.visible = false; arena.add(cour
 let courtMode = 'wood';
 function setCourtMode(m){ courtMode = m; court.visible = (m==='wood'); courtLines.visible = (m==='lines'); }
 function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='lines' ? 'off' : 'wood'); }
+
+// court scale so a play fits a smaller room (100% / 60% / 30%)
+const SCALES = [1, 0.6, 0.3];
+let courtScale = 1;
+function setScale(s){ courtScale = s; arena.scale.setScalar(s); }
+function cycleScale(){ setScale(SCALES[(SCALES.indexOf(courtScale)+1) % SCALES.length]); }
 
 // ---------- hoop ----------
 const hoop = new THREE.Group(); arena.add(hoop);
@@ -949,6 +955,7 @@ function buildMainButtons(){
   clearButtons();
   const items = [ ['Resume','resume'], ['Choose Play ▸','plays'], ['Stop Play','stopplay'],
     ['Start / Stop Drill','drill'], ['Passthrough on/off','passthrough'], ['Court: wood/lines/off','court'],
+    ['Court size: 100/60/30%','scale'],
     ['Recenter Court','recenter'], ['Exit to Start','exit'] ];
   let y = 0.52; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.15; });
 }
@@ -1000,6 +1007,7 @@ function doAction(a) {
   else if (a === 'drill') { drillActive ? stopDrill() : startDrill(); closeMenu(); }
   else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
   else if (a === 'court') { cycleCourt(); closeMenu(); }
+  else if (a === 'scale') { cycleScale(); closeMenu(); }
   else if (a === 'recenter') { recenterCourt(); closeMenu(); }
   else if (a === 'reset') { makes = 0; streak = 0; best = 0; flash = 0; drawScore(); closeMenu(); }
   else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
