@@ -444,8 +444,23 @@ function refreshRole(){ const sel=document.getElementById('roleSel'); sel.innerH
     o.value=p.id; o.textContent=p.id; if(p.id===play.role)o.selected=true; sel.appendChild(o); }); }
 document.getElementById('roleSel').onchange=e=>{ play.role=e.target.value; redraw(); };
 
-// ---------- save / load ----------
+// ---------- save / load (Supabase = source of truth, localStorage = cache) ----------
 const KEY='hoopvr_plays';
+const SB_URL='https://vlcpgwxeybpzwidjackz.supabase.co';
+const SB_KEY='sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const SB_H={ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json' };
+let cloudPlays=[];
+async function sbFetchPlays(){
+  const r=await fetch(SB_URL+'/rest/v1/quest3_plays?select=id,name,data&order=updated_at.desc',{headers:SB_H});
+  if(!r.ok) throw new Error('fetch '+r.status);
+  return r.json();
+}
+async function sbPublish(d){
+  const r=await fetch(SB_URL+'/rest/v1/quest3_plays',{ method:'POST',
+    headers:{...SB_H,'Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({ id:d.id, name:d.name, data:d, updated_at:new Date().toISOString() }) });
+  if(!r.ok) throw new Error('publish '+r.status+' '+(await r.text()).slice(0,120));
+}
 function listPlays(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return [];} }
 function serialize(){ return JSON.parse(JSON.stringify({ format:2, id:play.id, name:play.name,
   hasDefense:play.hasDefense, role:play.role, players:play.players, steps:play.steps,
@@ -460,18 +475,38 @@ function deserialize(d){
     d.players.forEach(pl=>{ p.steps[0].positions[pl.id]={x:pl.x,z:pl.z}; if(pl.ball)p.steps[0].ball=pl.id; }); }
   return p;
 }
-function refreshList(){ const sel=document.getElementById('savedList'); sel.innerHTML='<option value="">— saved plays —</option>';
-  listPlays().forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name||'(unnamed)'; sel.appendChild(o); }); }
-document.getElementById('saveBtn').onclick=()=>{
+function cacheLocal(d){ const arr=listPlays(); const i=arr.findIndex(x=>x.id===d.id); if(i>=0)arr[i]=d; else arr.push(d); localStorage.setItem(KEY,JSON.stringify(arr)); }
+let migrated=false;
+async function refreshCloud(){
+  const sel=document.getElementById('savedList');
+  try{
+    cloudPlays=await sbFetchPlays();
+    // one-time: push any local-only plays up so nothing is stranded on this machine
+    if(!migrated){ migrated=true;
+      const ids=new Set(cloudPlays.map(p=>p.id));
+      const locals=listPlays().filter(p=>p.id && !ids.has(p.id));
+      if(locals.length){ let n=0; for(const lp of locals){ try{ await sbPublish(lp); n++; }catch(e){} }
+        cloudPlays=await sbFetchPlays(); if(n) status('Synced '+n+' play(s) from this computer up to the cloud.'); }
+    }
+    sel.innerHTML='<option value="">— cloud plays ('+cloudPlays.length+') —</option>';
+    cloudPlays.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name||'(unnamed)'; sel.appendChild(o); });
+  }catch(e){
+    sel.innerHTML='<option value="">— saved plays (offline) —</option>';
+    listPlays().forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name||'(unnamed)'; sel.appendChild(o); });
+    status('Cloud unavailable — showing this computer\'s cache.');
+  }
+}
+document.getElementById('saveBtn').onclick=async ()=>{
   if(!play.name.trim()){ nameInput.focus(); status('Give the play a name first.'); return; }
   if(!play.id) play.id='play_'+Date.now().toString(36);
-  const arr=listPlays(); const d=serialize(); const i=arr.findIndex(x=>x.id===play.id);
-  if(i>=0)arr[i]=d; else arr.push(d);
-  localStorage.setItem(KEY,JSON.stringify(arr)); refreshList();
-  status('Saved “'+play.name+'” — '+(play.steps.length-1)+' step(s).');
+  const d=serialize(); cacheLocal(d);
+  status('Publishing “'+play.name+'” to the cloud…');
+  try{ await sbPublish(d); status('Saved “'+play.name+'” to the cloud — the headset can load it now.'); await refreshCloud(); }
+  catch(e){ status('Saved on this computer, but cloud publish failed: '+e.message); }
 };
 document.getElementById('loadBtn').onclick=()=>{ const id=document.getElementById('savedList').value; if(!id)return;
-  const d=listPlays().find(p=>p.id===id); if(!d)return; play=deserialize(d); cur=0; loadIntoUI(); status('Loaded “'+play.name+'”.'); };
+  const rec=cloudPlays.find(p=>p.id===id); const d=rec?rec.data:listPlays().find(p=>p.id===id);
+  if(!d)return; play=deserialize(d); cur=0; loadIntoUI(); status('Loaded “'+play.name+'”.'); };
 document.getElementById('newBtn').onclick=()=>{ play=newPlay(); cur=0; loadIntoUI(); status('New play.'); };
 document.getElementById('exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(play.name||'play')+'.json'; a.click(); };
@@ -485,7 +520,7 @@ function loadIntoUI(){ nameInput.value=play.name; document.getElementById('hasDe
 function status(m){ document.getElementById('status').textContent=m; }
 
 // ---------- boot ----------
-play=newPlay(); refreshList(); loadIntoUI();
+play=newPlay(); loadIntoUI(); refreshCloud();
 window.__designer = { get play(){return play;}, get cur(){return cur;}, addStepAfter, startPlayback, stopPlayback };
 </script>
 </body>
