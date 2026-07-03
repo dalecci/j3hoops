@@ -111,7 +111,7 @@ const HOOP = { x:0, z:-4.7 };
 let play, cur = 0, tool='select', selected=null, drag=null, passFrom=null;
 let anim = null;   // {t0, total, segs} while playing back
 
-function blankStep(){ return { duration:2, ball:'O1', positions:{}, events:[] }; }
+function blankStep(){ return { duration:2, ball:'O1', positions:{}, events:[], text:'' }; }
 function newPlay(){
   const p = { id:null, name:'', hasDefense:true, role:'O1', players:[], steps:[blankStep()] };
   const spots = [ ['O1','offense','1',0,1.8], ['O2','offense','2',3.5,-0.5], ['O3','offense','3',-3.5,-0.5],
@@ -375,7 +375,7 @@ function refreshTimeline(){
     c.className='stepchip'+(i===cur?' cur':'');
     c.dataset.i=i;
     c.innerHTML='<div class="t">'+(i===0?'Start':'Step '+i)+'</div><div class="d">'+
-      (i===0?'set':(s.duration+'s'+(s.events.length?' · '+s.events.length+'ev':'')))+'</div>';
+      (i===0?'set':(s.duration+'s'+(s.events.length?' · '+s.events.length+'ev':'')+(s.text?' · 💬':'')))+'</div>';
     c.onclick=()=>{ if(anim)return; cur=i; selected=null; refreshTimeline(); redraw(); showProps(); };
     tl.appendChild(c);
   });
@@ -419,10 +419,12 @@ function showProps(){
   }).join('') || '<div class="hint">No events in this step.</div>';
   el.innerHTML=`<h3>${cur===0?'Start (Step 1)':'Step '+cur}</h3>
     ${cur>0?`<div class="row"><label>Duration / target time (sec)</label><input type="number" id="sDur" step="0.1" min="0.2" value="${s.duration}"></div>`:'<div class="hint">This is the starting set — place everyone where the play begins.</div>'}
+    <div class="row"><label>Words on screen this step (headset)</label><input type="text" id="sText" maxlength="22" placeholder="e.g. SET IT" value="${(s.text||'').replace(/"/g,'&quot;')}"></div>
     <div class="row"><label>Events this step</label>${evHtml}</div>
     ${s.events.find(e=>e.type==='screen')?`<div class="row"><label>Screen angle</label><input type="range" id="sAng" min="0" max="360" value="${Math.round(((s.events.find(e=>e.type==='screen').angle*180/Math.PI)+360)%360)}"></div>`:''}
-    <div class="hint" style="margin-top:14px">Move players for this step, add events with the left tools, then <b>+ Step</b> for the next move.</div>`;
+    <div class="hint" style="margin-top:14px">Move players for this step, add events with the left tools, add words, then <b>+ Step</b> for the next move.</div>`;
   const d=document.getElementById('sDur'); if(d) d.oninput=e=>{ s.duration=+e.target.value; refreshTimeline(); };
+  const tx=document.getElementById('sText'); if(tx) tx.oninput=e=>{ s.text=e.target.value; refreshTimeline(); };
   const a=document.getElementById('sAng'); if(a) a.oninput=e=>{ s.events.find(x=>x.type==='screen').angle=e.target.value*Math.PI/180; redraw(); };
   el.querySelectorAll('.evdel').forEach(b=> b.onclick=()=>{ s.events.splice(+b.dataset.i,1); redraw(); showProps(); });
 }

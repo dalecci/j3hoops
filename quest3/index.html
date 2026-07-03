@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.3 · 2026-07-02 · court scale</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.4 · 2026-07-02 · words + timer</div>
 
 <script type="importmap">
 {
@@ -791,7 +791,14 @@ function sayPlay(t, big){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512
 function coordP(id, si){ const s = loaded.steps[si]; return s && s.positions[id]; }
 
 // the trainee is YOU (play.role) — start circle + countdown + directions, not a figure
-let lpState = 'toStart', cdT = 0, doneT = 0;
+let lpState = 'toStart', cdT = 0, doneT = 0, goT = 0, lastPanelKey = '';
+function sayRun(tstr, words){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512,120);
+  c.fillStyle='rgba(10,16,30,.82)'; roundRect(c,0,0,512,120,20); c.fill();
+  c.strokeStyle='rgba(231,184,75,.5)'; c.lineWidth=4; roundRect(c,3,3,506,114,18); c.stroke();
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillStyle='#e7b84b'; c.font='700 30px sans-serif'; c.fillText(tstr, 256, words?30:60);
+  if(words){ c.fillStyle='#fff'; c.font='800 44px sans-serif'; c.fillText(words, 256, 80); }
+  nameTex.needsUpdate=true; }
 const startRing = new THREE.Mesh(new THREE.TorusGeometry(0.4,0.045,10,32), new THREE.MeshBasicMaterial({ color:0xffd56b }));
 startRing.rotation.x = -Math.PI/2; startRing.visible = false; playGroup.add(startRing);
 const startPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,1.4,8),
@@ -841,7 +848,7 @@ function buildLoadedPlay(d){
 function placeStep(si){ (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return; const c=coordP(p.id,si);
   if(c&&loadedFigs[p.id]) loadedFigs[p.id].position.set(c.x,0,c.z); }); }
 function toStart(){
-  lpState='toStart'; playT=0; placeStep(0);
+  lpState='toStart'; playT=0; lastPanelKey=''; placeStep(0);
   startRing.visible=true; startPillar.visible=true; traineePath.visible=false;
   loadedWalls.forEach(w=>w.visible=false);
   if(playGroup.userData.ball) playGroup.userData.ball.visible=false;
@@ -873,21 +880,24 @@ function updateLoadedPlay(dt){
   if(lpState==='countdown'){
     const prev=Math.ceil(cdT); cdT-=dt; const now=Math.ceil(cdT);
     if(now!==prev && now>0) blip(520,0.08,'sine',0.18);
-    sayPlay(cdT>0 ? String(Math.ceil(cdT)) : 'GO', true);
-    if(cdT<=0){ lpState='running'; playT=0; blip(900,0.12,'triangle',0.2); }
+    sayPlay(String(Math.max(Math.ceil(cdT),1)), true);
+    if(cdT<=0){ lpState='go'; goT=0.7; sayPlay('GO!', true); blip(900,0.14,'triangle',0.22); }
     return;
   }
+  if(lpState==='go'){ goT-=dt; if(goT<=0){ lpState='running'; playT=0; lastPanelKey=''; } return; }
   if(lpState==='done'){ doneT-=dt; if(doneT<=0) toStart(); return; }
 
   // running
   playT += dt;
-  if(playT>=playTotal){ lpState='done'; doneT=1.8; sayPlay('Back to your circle', false);
+  if(playT>=playTotal){ lpState='done'; doneT=2.2; sayPlay('RESET', true);
     loadedWalls.forEach(w=>w.visible=false); if(playGroup.userData.ball) playGroup.userData.ball.visible=false; return; }
   const seg = playSegs.find(s=>playT>=s.start && playT<s.start+s.dur) || playSegs[0];
   if(!seg){ placeStep(0); return; }
   const k=Math.min(Math.max((playT-seg.start)/seg.dur,0),1);
   const ease=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
   const a=seg.i-1, b=seg.i;
+  const tstr=playT.toFixed(1)+'s', words=(loaded.steps[b].text||'');
+  const pk=tstr+'|'+words; if(pk!==lastPanelKey){ lastPanelKey=pk; sayRun(tstr, words); }
   (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return;
     const ca=coordP(p.id,a), cb=coordP(p.id,b), f=loadedFigs[p.id]; if(!f)return;
     if(!ca||!cb){ const c=cb||ca; if(c) f.position.set(c.x,0,c.z); return; }
