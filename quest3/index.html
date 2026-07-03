@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.4 · 2026-07-02 · words + timer</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.5 · 2026-07-02 · scale-fixed detect + HUD</div>
 
 <script type="importmap">
 {
@@ -255,14 +255,17 @@ function setPassthrough(on) {
 
 // court markings drawn as glowing AR lines (for passthrough: lines only, no wood)
 const courtLines = new THREE.Group(); courtLines.visible = false; arena.add(courtLines);
+const straightLines = [];
+function applyLineScale(s){ straightLines.forEach(m => m.scale.set(1, 1/s, 1/s)); } // keep line WIDTH constant, length scales
 (() => {
   const mat = new THREE.MeshBasicMaterial({ color:0xe8f0ff });
   const seg = (x1,z1,x2,z2) => { const dx=x2-x1, dz=z2-z1, len=Math.hypot(dx,dz);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(len,0.02,0.06), mat);
-    m.position.set((x1+x2)/2, 0.02, (z1+z2)/2); m.rotation.y = Math.atan2(-dz, dx); courtLines.add(m); };
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len,0.03,0.09), mat);
+    m.position.set((x1+x2)/2, 0.02, (z1+z2)/2); m.rotation.y = Math.atan2(-dz, dx);
+    courtLines.add(m); straightLines.push(m); };
   const arc = (cx,cz,r,a0,a1) => { const pts=[], N=44;
     for(let i=0;i<=N;i++){ const a=a0+(a1-a0)*i/N; pts.push(new THREE.Vector3(cx+Math.cos(a)*r,0.02,cz+Math.sin(a)*r)); }
-    courtLines.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),N,0.03,6,false), mat)); };
+    courtLines.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),N,0.045,6,false), mat)); };
   const cz = HOOP_Z + Math.sqrt(6.75*6.75 - 6.6*6.6);   // where 3pt arc meets the corner
   seg(-7.5,-5, 7.5,-5);                    // baseline
   seg(-7.5,-5, -7.5,8); seg(7.5,-5, 7.5,8); // sidelines
@@ -281,7 +284,7 @@ function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='
 // court scale so a play fits a smaller room (100% / 60% / 30%)
 const SCALES = [1, 0.6, 0.3];
 let courtScale = 1;
-function setScale(s){ courtScale = s; arena.scale.setScalar(s); }
+function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); }
 function cycleScale(){ setScale(SCALES[(SCALES.indexOf(courtScale)+1) % SCALES.length]); }
 
 // ---------- hoop ----------
@@ -780,8 +783,11 @@ let playT = 0, playTotal = 0, playSegs = [];
 
 const nameCv = document.createElement('canvas'); nameCv.width = 512; nameCv.height = 120;
 const nameTex = new THREE.CanvasTexture(nameCv); nameTex.colorSpace = THREE.SRGBColorSpace;
-const namePanel = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.33), new THREE.MeshBasicMaterial({ map:nameTex, transparent:true }));
-namePanel.position.set(0, 2.6, HOOP_Z + 0.5); playGroup.add(namePanel);
+const namePanel = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.33),
+  new THREE.MeshBasicMaterial({ map:nameTex, transparent:true, depthTest:false }));
+namePanel.renderOrder = 999;                        // draw on top so the net/players can't hide it
+scene.add(camera); camera.add(namePanel);           // head-locked: always in your field of view
+namePanel.position.set(0, -0.16, -1.6); namePanel.scale.setScalar(0.55); namePanel.visible = false;
 function sayPlay(t, big){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512,120);
   c.fillStyle='rgba(10,16,30,.82)'; roundRect(c,0,0,512,120,20); c.fill();
   c.strokeStyle='rgba(231,184,75,.5)'; c.lineWidth=4; roundRect(c,3,3,506,114,18); c.stroke();
@@ -857,11 +863,11 @@ function toStart(){
 function startLoadedPlay(d){
   if(drillActive) stopDrill();
   buildLoadedPlay(d);
-  playGroup.visible=true; loadedActive=true;
+  playGroup.visible=true; loadedActive=true; namePanel.visible=true;
   ball.visible=false; scoreboard.visible=false;
   toStart();
 }
-function stopLoadedPlay(){ loadedActive=false; playGroup.visible=false; ball.visible=true; scoreboard.visible=true; }
+function stopLoadedPlay(){ loadedActive=false; playGroup.visible=false; namePanel.visible=false; ball.visible=true; scoreboard.visible=true; }
 function playerBallPos(id, ease){ if(id===loaded.role) return _pcam; const f=loadedFigs[id]; return f&&f.position; }
 function updateLoadedPlay(dt){
   if(!loadedActive || paused || !loaded) return;
@@ -870,8 +876,9 @@ function updateLoadedPlay(dt){
   const s0 = coordP(loaded.role,0)||{x:0,z:2};
 
   if(lpState==='toStart'){
-    startRing.scale.setScalar(pulse);
-    if(Math.hypot(_pcam.x-s0.x,_pcam.z-s0.z)<0.6){
+    startRing.scale.setScalar(pulse/courtScale);      // circle stays a constant real size
+    startPillar.scale.setScalar(1/courtScale);
+    if(Math.hypot(_pcam.x-s0.x,_pcam.z-s0.z) < 0.55/courtScale){   // ~0.55m in the real room at any scale
       lpState='countdown'; cdT=2.0; traineePath.visible=true;
       startRing.visible=false; startPillar.visible=false; blip(600,0.06,'square',0.16);
     }
