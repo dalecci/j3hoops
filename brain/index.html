@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Brain • Warriors</title>
+<meta name="apple-mobile-web-app-title" content="Brain" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171b22; --panel2:#1e232c; --line:#2a2f3a;
+    --txt:#e8ebf0; --mut:#9aa3b2; --dim:#6b7382;
+    --accent:#22d3a6; --accent-dim:#0f6e56;
+    --good:#22d3a6; --bad:#e0603a; --warn:#eaa640; --info:#4f8fe0; --purple:#8b82f0;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px 16px 64px}
+  header{display:flex;align-items:center;gap:12px;padding:6px 2px 18px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#06231b;
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px}
+  .brand{font-weight:600;font-size:19px;letter-spacing:-.2px}
+  .brand small{display:block;font-weight:400;font-size:12px;color:var(--mut);letter-spacing:0}
+  .sync-dot{margin-left:auto;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+  .sync-dot i{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+
+  .layout{display:grid;grid-template-columns:270px 1fr;gap:16px}
+  @media(max-width:760px){.layout{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+  .matches{padding:8px;max-height:78vh;overflow:auto}
+  @media(max-width:760px){.matches{max-height:none}}
+  .mtitle{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);padding:8px 10px 4px}
+  .match{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+  .match:hover{background:var(--panel2)}
+  .match.on{background:var(--panel2);border-color:var(--accent-dim)}
+  .match .op{font-weight:600;font-size:14.5px}
+  .match .dt{font-size:12px;color:var(--mut)}
+  .match .sc{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+  .pill{font-size:11px;padding:1px 7px;border-radius:8px;font-weight:600}
+  .pill.win{background:rgba(34,211,166,.14);color:var(--good)}
+  .pill.loss{background:rgba(224,96,58,.16);color:var(--bad)}
+
+  .content{min-height:60vh}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:56px 24px;color:var(--mut);gap:10px}
+  .empty h2{color:var(--txt);font-weight:600;margin:6px 0 0}
+  .empty code{background:var(--panel2);padding:2px 7px;border-radius:6px;font-size:13px;color:var(--accent)}
+
+  .head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:2px 2px 14px}
+  .head h1{font-size:21px;font-weight:600;margin:0;letter-spacing:-.3px}
+  .head .dt{font-size:13px;color:var(--mut)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .stat .k{font-size:12px;color:var(--mut)}
+  .stat .v{font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+  .stat .v.good{color:var(--good)} .stat .v.bad{color:var(--bad)} .stat .v.warn{color:var(--warn)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .box h3{font-size:14px;font-weight:600;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .box h3 .sub{font-weight:400;color:var(--dim);font-size:12px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--dim);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line)}
+  tbody tr{border-bottom:1px solid rgba(42,47,58,.5)}
+  tbody tr:hover{background:var(--panel2)}
+  .num{color:var(--dim);width:26px}
+
+  .court-wrap{display:flex;flex-direction:column;align-items:center}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-top:8px}
+  .legend b{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+  .insight{background:linear-gradient(180deg,rgba(34,211,166,.07),rgba(34,211,166,.02));
+    border:1px solid var(--accent-dim);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+  .insight h3{margin:0 0 8px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--accent)}
+  .insight ul{margin:0;padding-left:18px}
+  .insight li{margin:5px 0;font-size:14px}
+  .insight .tag{font-size:11px;color:var(--dim);font-weight:400;margin-left:auto}
+
+  .ask{display:flex;gap:8px;margin-top:6px}
+  .ask input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;color:var(--txt);font-size:14px}
+  .ask input:focus{outline:none;border-color:var(--accent-dim)}
+  .ask button{background:var(--accent);color:#06231b;border:none;border-radius:10px;
+    padding:0 16px;font-weight:600;font-size:14px;cursor:pointer}
+  .note{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+  .phase{display:inline-block;font-size:11px;color:var(--warn);border:1px solid rgba(234,166,64,.3);
+    background:rgba(234,166,64,.08);border-radius:7px;padding:1px 7px;margin-left:6px}
+  .loading{padding:40px;text-align:center;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">B</div>
+    <div class="brand">Brain<small>Warriors film + analytics</small></div>
+    <div class="sync-dot" id="syncDot"><i></i><span>connecting…</span></div>
+  </header>
+
+  <div class="layout">
+    <aside class="card matches" id="matchList">
+      <div class="mtitle">Games</div>
+      <div class="loading">Loading…</div>
+    </aside>
+    <main class="content" id="content">
+      <div class="empty"><div class="loading">Loading…</div></div>
+    </main>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+
+const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const BRAIN_FN = `${SUPABASE_URL}/functions/v1/brain-coach`;
+let CURRENT = null; // currently selected match id
+
+const $ = (s, r=document) => r.querySelector(s);
+const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ── Event normalisation ──────────────────────────────────────────────
+// SuperStat event names vary; classify by substring so we're robust.
+function classify(ev){
+  const e = (ev||'').toLowerCase();
+  if(/3|three|3pt/.test(e)) return {kind:'shot', pts:3};
+  if(/free|^ft$|foul.?shot/.test(e)) return {kind:'shot', pts:1};
+  if(/2|two|2pt|layup|jumper|dunk|field/.test(e)) return {kind:'shot', pts:2};
+  if(/assist/.test(e)) return {kind:'assist'};
+  if(/o.?reb|off.*reb/.test(e)) return {kind:'oreb'};
+  if(/d.?reb|def.*reb|rebound/.test(e)) return {kind:'dreb'};
+  if(/steal/.test(e)) return {kind:'steal'};
+  if(/block/.test(e)) return {kind:'block'};
+  if(/turnover|^to$|travel|violation/.test(e)) return {kind:'turnover'};
+  if(/foul/.test(e)) return {kind:'foul'};
+  return {kind:'other', raw:e};
+}
+
+function setSync(ok, msg){
+  const d = $('#syncDot');
+  d.querySelector('i').style.background = ok ? 'var(--accent)' : 'var(--bad)';
+  d.querySelector('span').textContent = msg;
+}
+
+let MATCHES = [];
+
+async function boot(){
+  const { data, error } = await sb.from('ss_matches').select('*').order('match_date',{ascending:false});
+  if(error){
+    setSync(false, 'db error');
+    $('#matchList').innerHTML = '<div class="mtitle">Games</div>';
+    $('#content').innerHTML = emptyState(
+      'Tables not found yet',
+      `Run <code>schema.sql</code> in the Hoops Supabase, then <code>npm start</code> in <code>_sync/</code>.`,
+      error.message);
+    return;
+  }
+  MATCHES = data || [];
+  setSync(true, `${MATCHES.length} game${MATCHES.length===1?'':'s'} synced`);
+  renderList();
+  if(MATCHES.length) selectMatch('season');
+  else $('#content').innerHTML = emptyState(
+    'No games synced yet',
+    `Fill in <code>_sync/.env</code> and run <code>npm start</code>. Your SuperStat games will appear here.`);
+}
+
+function emptyState(title, html, detail){
+  return `<div class="card"><div class="empty">
+    <h2>${esc(title)}</h2><div>${html}</div>
+    ${detail?`<div class="note" style="max-width:520px">${esc(detail)}</div>`:''}
+  </div></div>`;
+}
+
+function renderList(){
+  const el = $('#matchList');
+  const wins = MATCHES.filter(m=>(m.result||'').toLowerCase()==='win').length;
+  const losses = MATCHES.filter(m=>(m.result||'').toLowerCase()==='loss').length;
+  const season = `<div class="match" data-id="season" onclick="__sel('season')" style="margin-bottom:6px">
+      <div><div class="op">Season</div><div class="dt">all ${MATCHES.length} games</div></div>
+      <div class="sc">${wins}-${losses}</div></div>`;
+  el.innerHTML = '<div class="mtitle">Overview</div>' + season + '<div class="mtitle">Games</div>' + MATCHES.map(m=>{
+    const res = (m.result||'').toLowerCase();
+    const pill = res==='win'?'<span class="pill win">W</span>':res==='loss'?'<span class="pill loss">L</span>':'';
+    const sc = (m.score_for!=null&&m.score_against!=null)?`${m.score_for}–${m.score_against}`:'';
+    const dt = m.match_date ? new Date(m.match_date+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}) : '';
+    return `<div class="match" data-id="${esc(m.ss_match_id)}" onclick="__sel('${esc(m.ss_match_id)}')">
+      <div><div class="op">${esc(m.opponent||m.name||'Game')}</div><div class="dt">${esc(dt)}</div></div>
+      <div class="sc">${pill} ${sc}</div></div>`;
+  }).join('');
+}
+
+window.__sel = selectMatch;
+async function selectMatch(id){
+  CURRENT = id;
+  document.querySelectorAll('.match').forEach(m=>m.classList.toggle('on', m.dataset.id===id));
+  if(id==='season'){ return renderSeason(); }
+  $('#content').innerHTML = '<div class="card"><div class="loading">Crunching the game…</div></div>';
+  const m = MATCHES.find(x=>x.ss_match_id===id);
+  const [{data:events},{data:roster}] = await Promise.all([
+    sb.from('ss_events').select('*').eq('ss_match_id', id),
+    sb.from('ss_roster').select('*').eq('ss_match_id', id),
+  ]);
+  renderGame(m, events||[], roster||[]);
+}
+
+// Aggregate every synced game into a season view.
+async function renderSeason(){
+  $('#content').innerHTML = '<div class="card"><div class="loading">Crunching the season…</div></div>';
+  const [{data:events},{data:roster}] = await Promise.all([
+    sb.from('ss_events').select('ss_match_id,roster_id,player_name,event,success,is_opposition'),
+    sb.from('ss_roster').select('roster_id,first_name,last_name,player_number,is_opposition'),
+  ]);
+  const nameFor={}; (roster||[]).forEach(r=> nameFor[r.roster_id]=((r.first_name||'')+' '+(r.last_name||'')).trim()||('#'+(r.player_number??'')));
+  const oppRoster = new Set((roster||[]).filter(r=>r.is_opposition).map(r=>r.roster_id));
+  const team={pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,ast:0,reb:0,stl:0,tov:0};
+  const per={}; const perGame={}; // ss_match_id -> pts
+  for(const e of (events||[])){
+    if(e.is_opposition || oppRoster.has(e.roster_id)) continue;
+    const c=classify(e.event); const rid=e.roster_id||'?';
+    const nm=nameFor[rid]||e.player_name||'Unknown';
+    per[nm]=per[nm]||{name:nm,pts:0,fgm:0,fga:0,tpm:0,tpa:0,ast:0,reb:0,tov:0,g:new Set()};
+    const p=per[nm]; p.g.add(e.ss_match_id);
+    if(c.kind==='shot'){ const made=e.success===true;
+      if(c.pts===1){p.fta=(p.fta||0)+1;team.fta++;if(made){team.ftm++;p.pts++;team.pts++;}}
+      else{p.fga++;team.fga++; if(c.pts===3){p.tpa++;team.tpa++;if(made)team.tpm++,p.tpm++;} if(made){p.fgm++;team.fgm++;p.pts+=c.pts;team.pts+=c.pts;}}
+    } else if(c.kind==='assist'){p.ast++;team.ast++;}
+    else if(c.kind==='reb'||c.kind==='oreb'||c.kind==='dreb'){p.reb++;team.reb++;}
+    else if(c.kind==='steal'){team.stl++;}
+    else if(c.kind==='turnover'){p.tov++;team.tov++;}
+  }
+  const G = MATCHES.length || 1;
+  const pct=(m,a)=>a?Math.round(100*m/a):0;
+  const players = Object.values(per).filter(p=>p.pts||p.fga||p.reb||p.ast).sort((a,b)=>b.pts-a.pts);
+  const wins=MATCHES.filter(m=>(m.result||'').toLowerCase()==='win').length;
+  const losses=MATCHES.filter(m=>(m.result||'').toLowerCase()==='loss').length;
+  const ppg=(team.pts/G).toFixed(1), topg=(team.tov/G).toFixed(1);
+  // per-game scoring for a sparkline (chronological)
+  const chron=[...MATCHES].filter(m=>m.score_for!=null).sort((a,b)=>(a.match_date||'').localeCompare(b.match_date||''));
+  const maxS=Math.max(...chron.map(m=>Math.max(m.score_for,m.score_against)),1);
+  const spark = chron.map((m,i)=>{
+    const x=chron.length>1?(i/(chron.length-1))*260+10:135;
+    return {x, yf:70-(m.score_for/maxS)*56, ya:70-(m.score_against/maxS)*56, win:(m.result||'').toLowerCase()==='win', m};
+  });
+  const path = k => spark.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(0)} ${p[k].toFixed(0)}`).join(' ');
+
+  $('#content').innerHTML = `
+    <div class="head"><h1>Season</h1><span class="dt">${MATCHES.length} games · ${wins}-${losses}</span></div>
+    <div class="stats">
+      ${stat('Record', wins+'-'+losses, wins>losses?'good':wins<losses?'bad':'')}
+      ${stat('Points / game', ppg)}
+      ${stat('Field goal %', pct(team.fgm,team.fga)+'%')}
+      ${stat('Free throw %', team.fta?pct(team.ftm,team.fta)+'%':'—', team.fta&&pct(team.ftm,team.fta)<55?'bad':'')}
+      ${stat('Turnovers / game', topg, team.tov/G>=15?'bad':team.tov/G<=9?'good':'warn')}
+      ${stat('Assists / game', (team.ast/G).toFixed(1))}
+    </div>
+    <div class="grid2">
+      <div class="box">
+        <h3>Scoring trend <span class="sub">us vs them, oldest → newest</span></h3>
+        <svg viewBox="0 0 280 84" width="100%" role="img" aria-label="Scoring trend">
+          <path d="${path('yf')}" fill="none" stroke="#22d3a6" stroke-width="2"/>
+          <path d="${path('ya')}" fill="none" stroke="#e0603a" stroke-width="1.5" stroke-dasharray="3 3"/>
+          ${spark.map(p=>`<circle cx="${p.x.toFixed(0)}" cy="${p.yf.toFixed(0)}" r="3" fill="${p.win?'#22d3a6':'#e0603a'}"/>`).join('')}
+        </svg>
+        <div class="legend"><span><b style="background:#22d3a6"></b>Us</span><span><b style="background:#e0603a"></b>Opponent</span></div>
+      </div>
+      <div class="box">
+        <h3>Team totals <span class="sub">all games</span></h3>
+        <table><tbody>
+          <tr><td>Points</td><td>${team.pts}</td></tr>
+          <tr><td>Field goals</td><td>${team.fgm}/${team.fga} (${pct(team.fgm,team.fga)}%)</td></tr>
+          <tr><td>Three-pointers</td><td>${team.tpm}/${team.tpa} (${pct(team.tpm,team.tpa)}%)</td></tr>
+          <tr><td>Free throws</td><td>${team.ftm}/${team.fta} (${pct(team.ftm,team.fta)}%)</td></tr>
+          <tr><td>Assists / Rebounds</td><td>${team.ast} / ${team.reb}</td></tr>
+          <tr><td>Steals / Turnovers</td><td>${team.stl} / ${team.tov}</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="box">
+      <h3>Player season averages <span class="sub">per game</span></h3>
+      <table><thead><tr><th>Player</th><th>G</th><th>PPG</th><th>FG%</th><th>3PT</th><th>RPG</th><th>APG</th><th>TOPG</th></tr></thead><tbody>
+      ${players.map(p=>{const g=p.g.size||1;return `<tr><td>${esc(p.name)}</td><td>${g}</td><td>${(p.pts/g).toFixed(1)}</td><td>${pct(p.fgm,p.fga)}%</td><td>${p.tpm}/${p.tpa}</td><td>${(p.reb/g).toFixed(1)}</td><td>${(p.ast/g).toFixed(1)}</td><td>${(p.tov/g).toFixed(1)}</td></tr>`}).join('')}
+      </tbody></table>
+    </div>
+    <div class="box">
+      <h3>Ask the Brain <span class="sub">across the whole season</span></h3>
+      <div class="ask">
+        <input id="askq" placeholder="e.g. Which player improved most? What's our biggest recurring weakness?" onkeydown="if(event.key==='Enter')__ask()" />
+        <button onclick="__ask()">Ask</button>
+      </div>
+      <div id="brainOut"></div>
+    </div>`;
+}
+
+function renderGame(m, events, roster){
+  const mine = events.filter(e=>!e.is_opposition);
+  const nameFor = {};
+  roster.forEach(r=> nameFor[r.roster_id] = ((r.first_name||'')+' '+(r.last_name||'')).trim() || ('#'+(r.player_number??'')) );
+
+  // Aggregate
+  const per = {}; // roster_id -> stats
+  let team = {pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,ast:0,reb:0,stl:0,blk:0,tov:0};
+  const shots = [];
+  for(const e of mine){
+    const c = classify(e.event);
+    const rid = e.roster_id||'?';
+    per[rid] = per[rid]||{name:nameFor[rid]||(e.player_name||'Unknown'),num:null,pts:0,fgm:0,fga:0,tpm:0,tpa:0,ftm:0,fta:0,ast:0,reb:0,stl:0,blk:0,tov:0};
+    const p = per[rid];
+    if(c.kind==='shot'){
+      const made = e.success===true;
+      if(c.pts===1){ p.fta++; team.fta++; if(made){p.ftm++;team.ftm++;p.pts++;team.pts++;} }
+      else {
+        p.fga++; team.fga++;
+        if(c.pts===3){ p.tpa++; team.tpa++; if(made){p.tpm++;team.tpm++;} }
+        if(made){ p.fgm++; team.fgm++; p.pts+=c.pts; team.pts+=c.pts; }
+        if(e.x!=null && e.y!=null) shots.push({x:e.x,y:e.y,made,pts:c.pts});
+      }
+    }
+    else if(c.kind==='assist'){p.ast++;team.ast++;}
+    else if(c.kind==='oreb'||c.kind==='dreb'){p.reb++;team.reb++;}
+    else if(c.kind==='steal'){p.stl++;team.stl++;}
+    else if(c.kind==='block'){p.blk++;team.blk++;}
+    else if(c.kind==='turnover'){p.tov++;team.tov++;}
+  }
+  const pct=(mk,at)=> at? Math.round(100*mk/at) : 0;
+  const players = Object.values(per).filter(p=>p.pts||p.fga||p.reb||p.ast||p.tov).sort((a,b)=>b.pts-a.pts);
+
+  const res=(m.result||'').toLowerCase();
+  const pill = res==='win'?'<span class="pill win">Win</span>':res==='loss'?'<span class="pill loss">Loss</span>':'';
+  const sc = (m.score_for!=null&&m.score_against!=null)?`${m.score_for}–${m.score_against}`:'';
+  const dt = m.match_date ? new Date(m.match_date+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'}):'';
+
+  const insights = buildInsights(team, players, shots, pct);
+
+  $('#content').innerHTML = `
+    <div class="head">
+      <h1>vs ${esc(m.opponent||'Opponent')}</h1>
+      <span class="dt">${esc(dt)}</span> ${pill}
+      <span class="sc" style="font-weight:600">${sc}</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin:0 2px 14px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--dim)">Defense they ran:</span>
+      <select id="defSel" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:13px">
+        ${['','man to man','2-3 zone','3-2 zone','1-3-1 zone','2-1-2 zone','full-court press','mixed / switched'].map(d=>`<option value="${d}" ${(m.defense_faced||'')===d?'selected':''}>${d||'— not tagged —'}</option>`).join('')}
+      </select>
+      <button onclick="__saveDefense('${esc(m.ss_match_id)}')" style="background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">Save</button>
+      <span id="defMsg" style="font-size:12px;color:var(--dim)"></span>
+      <span style="font-size:11px;color:var(--dim);margin-left:auto">SuperStat can't see defense — tag it and the Brain uses it</span>
+    </div>
+
+    <div class="stats">
+      ${stat('Points', team.pts)}
+      ${stat('Field goal %', pct(team.fgm,team.fga)+'%', team.fga? (pct(team.fgm,team.fga)>=45?'good':pct(team.fgm,team.fga)<33?'bad':''):'')}
+      ${stat('3PT', team.tpm+'/'+team.tpa)}
+      ${stat('Free throw %', team.fta?pct(team.ftm,team.fta)+'%':'—')}
+      ${stat('Turnovers', team.tov, team.tov>=15?'bad':team.tov<=8?'good':'warn')}
+      ${stat('Assists', team.ast)}
+    </div>
+
+    ${insights}
+
+    <div class="grid2">
+      <div class="box">
+        <h3>Shot chart <span class="sub">${shots.length} field-goal attempts</span></h3>
+        ${shotChart(shots)}
+      </div>
+      <div class="box">
+        <h3>Box score <span class="sub">your players</span></h3>
+        ${boxTable(players, pct)}
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>Ask the Brain</h3>
+      <div class="ask">
+        <input id="askq" placeholder="e.g. Why did we score less than last time vs the Hornets?" onkeydown="if(event.key==='Enter')__ask()" />
+        <button onclick="__ask()">Ask</button>
+      </div>
+      <div style="margin-top:8px">
+        <button onclick="__ask(true)" style="background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer">Post-game analysis of this game</button>
+      </div>
+      <div id="brainOut"></div>
+    </div>
+
+    <div class="box" id="conceptsBox">
+      <h3>Teach the Brain <span class="sub">your concepts shape every analysis</span></h3>
+      <div id="conceptList" class="note">Loading concepts…</div>
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;margin-top:12px">
+        <input id="cCat" placeholder="category" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--txt);font-size:13px" />
+        <input id="cTitle" placeholder="short title (e.g. Attack a zone from the high post)" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--txt);font-size:13px" />
+      </div>
+      <textarea id="cDetail" placeholder="The concept in your own words — how you want the team to play." style="width:100%;margin-top:8px;min-height:64px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--txt);font-size:13px;font-family:inherit"></textarea>
+      <button onclick="__addConcept()" style="margin-top:8px;background:var(--accent);color:#06231b;border:none;border-radius:10px;padding:9px 16px;font-weight:600;font-size:13px;cursor:pointer">Add concept</button>
+    </div>`;
+  loadConcepts();
+}
+
+function stat(k,v,cls=''){return `<div class="stat"><div class="k">${esc(k)}</div><div class="v ${cls}">${esc(v)}</div></div>`;}
+
+function boxTable(players, pct){
+  if(!players.length) return '<div class="note">No player events in this game yet.</div>';
+  return `<table><thead><tr><th>Player</th><th>PTS</th><th>FG</th><th>3PT</th><th>REB</th><th>AST</th><th>TO</th></tr></thead><tbody>${
+    players.map((p,i)=>`<tr>
+      <td>${esc(p.name)}</td><td>${p.pts}</td><td>${p.fgm}/${p.fga}</td>
+      <td>${p.tpm}/${p.tpa}</td><td>${p.reb}</td><td>${p.ast}</td><td>${p.tov}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+// SuperStat x/y are normalized 0-1 across the FULL court (basket at each end).
+// Fold the far end onto the near half (180° rotation) so every shot attacks the
+// same rim, then plot at true court position on a fixed half-court.
+function shotChart(shots){
+  if(!shots.length) return '<div class="note">No shot coordinates recorded for this game.</div>';
+  const W=300,H=284, pad=14;
+  // rim at top-center; fx (0=baseline .. 0.5=midcourt) -> vertical, fy(0..1) -> horizontal
+  const cy = fx => pad + (fx/0.5)*(H-2*pad);
+  const cx = fy => pad + fy*(W-2*pad);
+  let made=0;
+  const dots = shots.map(s=>{
+    const near = s.x < 0.5;
+    const fx = near ? s.x : 1 - s.x;
+    const fy = near ? s.y : 1 - s.y;
+    const X = cx(fy).toFixed(1), Y = cy(fx).toFixed(1);
+    if(s.made) made++;
+    return s.made
+      ? `<circle cx="${X}" cy="${Y}" r="5.5" fill="#22d3a6" fill-opacity=".92"/>`
+      : `<circle cx="${X}" cy="${Y}" r="5" fill="none" stroke="#e0603a" stroke-width="2"/>`;
+  }).join('');
+  const pct = shots.length ? Math.round(100*made/shots.length) : 0;
+  // half court, basket at top. key + FT circle + 3pt arc.
+  return `<div class="court-wrap">
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:340px" role="img" aria-label="Half-court shot chart">
+      <rect x="1" y="1" width="${W-2}" height="${H-2}" rx="6" fill="#12161d" stroke="#2a2f3a"/>
+      <line x1="8" y1="14" x2="${W-8}" y2="14" stroke="#2a2f3a" stroke-width="1.5"/>
+      <rect x="${W/2-26}" y="14" width="52" height="72" fill="none" stroke="#2a2f3a"/>
+      <circle cx="${W/2}" cy="86" r="22" fill="none" stroke="#2a2f3a"/>
+      <circle cx="${W/2}" cy="24" r="7" fill="none" stroke="#3a4150" stroke-width="1.5"/>
+      <path d="M22 14 L22 40 A${W/2-22} ${W/2-22} 0 0 0 ${W-22} 40 L${W-22} 14" fill="none" stroke="#2a2f3a"/>
+      ${dots}
+    </svg>
+    <div class="legend">
+      <span><b style="background:#22d3a6"></b>Made</span>
+      <span><b style="border:2px solid #e0603a;background:transparent"></b>Missed</span>
+      <span style="color:var(--txt)">${made}/${shots.length} · ${pct}%</span>
+    </div>
+    <div class="note" style="text-align:center">Real court positions — both baskets folded to one half. Rim at top.</div>
+  </div>`;
+}
+
+// Real, data-derived observations — no invented defensive schemes.
+function buildInsights(team, players, shots, pct){
+  const out=[];
+  const fg=pct(team.fgm,team.fga), tp=pct(team.tpm,team.tpa), ft=pct(team.ftm,team.fta);
+  if(team.fga){
+    if(fg>=45) out.push(`Efficient night: ${fg}% from the field on ${team.fga} attempts.`);
+    else if(fg<33) out.push(`Cold shooting: ${fg}% from the field — shot selection or contest quality worth a film look.`);
+  }
+  if(team.tpa>=5) out.push(`From three: ${team.tpm}/${team.tpa} (${tp}%).`);
+  if(team.fta>=6 && ft<60) out.push(`Free throws left points on the floor: ${team.ftm}/${team.fta} (${ft}%).`);
+  if(team.tov>=15) out.push(`Ball security cost you — ${team.tov} turnovers. Prime target for this week's practice.`);
+  if(team.ast && team.fgm) out.push(`${Math.round(100*team.ast/team.fgm)}% of made baskets were assisted (${team.ast} assists on ${team.fgm} makes).`);
+  const top=players[0];
+  if(top&&top.pts) out.push(`Top scorer: ${esc(top.name)} with ${top.pts} (${top.fgm}/${top.fga} FG).`);
+  const cold=players.filter(p=>p.fga>=4).sort((a,b)=>(a.fgm/a.fga)-(b.fgm/b.fga))[0];
+  if(cold && cold!==top && (cold.fgm/cold.fga)<0.3) out.push(`${esc(cold.name)} struggled from the field (${cold.fgm}/${cold.fga}) — get them easier looks.`);
+  if(!out.length) out.push('Not enough events synced yet to draw observations. Re-run the sync once this game finishes processing.');
+  return `<div class="insight"><h3>What the data says <span class="tag">computed from real events</span></h3>
+    <ul>${out.map(o=>`<li>${o}</li>`).join('')}</ul></div>`;
+}
+
+window.__ask = async (postgame)=>{
+  const q = postgame ? '' : $('#askq').value.trim();
+  if(!postgame && !q){ $('#askq').focus(); return; }
+  const out = $('#brainOut');
+  out.innerHTML = `<div class="insight" style="margin-top:12px"><h3>Brain</h3><div class="note">Thinking about ${CURRENT?'this game':'your season'}…</div></div>`;
+  try{
+    const res = await fetch(BRAIN_FN, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ matchId: (CURRENT && CURRENT!=='season') ? CURRENT : undefined, question: q || undefined })
+    });
+    if(!res.ok){
+      const t = await res.text();
+      out.innerHTML = `<div class="insight" style="margin-top:12px;border-color:var(--bad)"><h3 style="color:var(--bad)">Brain not reachable</h3>
+        <div class="note">The <code style="color:var(--accent)">brain-coach</code> edge function isn't deployed yet (or its ANTHROPIC_API_KEY secret isn't set).
+        Deploy it from <code style="color:var(--accent)">_brain/</code>, then this lights up.<br><br>${esc(t).slice(0,300)}</div></div>`;
+      return;
+    }
+    const { answer, error } = await res.json();
+    if(error){ out.innerHTML = `<div class="insight" style="margin-top:12px;border-color:var(--bad)"><h3 style="color:var(--bad)">Error</h3><div class="note">${esc(error)}</div></div>`; return; }
+    out.innerHTML = `<div class="insight" style="margin-top:12px"><h3>Brain <span class="tag">${CURRENT&&CURRENT!=='season'?'this game':'season'} + your concepts</span></h3>
+      <div style="font-size:14px;line-height:1.7">${mdLite(answer)}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+        <span style="font-size:12px;color:var(--dim)">Was this useful?</span>
+        <button onclick="__rate(1,this)" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px">👍</button>
+        <button onclick="__rate(-1,this)" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px">👎</button>
+        <span id="rateMsg" style="font-size:12px;color:var(--dim)"></span>
+      </div></div>`;
+    if(!postgame) $('#askq').value='';
+  }catch(e){
+    out.innerHTML = `<div class="insight" style="margin-top:12px;border-color:var(--bad)"><h3 style="color:var(--bad)">Couldn't reach the Brain</h3><div class="note">${esc(e.message)}</div></div>`;
+  }
+};
+
+// Light markdown: ## headings, **bold**, - bullets. (Brain replies in markdown.)
+function mdLite(s){
+  const lines = esc(s).split('\n'); let html=''; let inList=false;
+  const close=()=>{ if(inList){html+='</ul>';inList=false;} };
+  for(let ln of lines){
+    ln = ln.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    if(/^##+\s/.test(ln)){ close(); html+=`<div style="font-weight:600;margin:12px 0 4px">${ln.replace(/^##+\s/,'')}</div>`; }
+    else if(/^[-*]\s/.test(ln)){ if(!inList){html+='<ul style="margin:4px 0;padding-left:18px">';inList=true;} html+=`<li style="margin:3px 0">${ln.replace(/^[-*]\s/,'')}</li>`; }
+    else if(/^\d+\.\s/.test(ln)){ close(); html+=`<div style="margin:4px 0">${ln}</div>`; }
+    else if(ln.trim()===''){ close(); html+='<div style="height:8px"></div>'; }
+    else { close(); html+=`<div>${ln}</div>`; }
+  }
+  close(); return html;
+}
+
+window.__rate = async (val, btn)=>{
+  const msg = $('#rateMsg');
+  const { data } = await sb.from('ss_insights').select('id')
+    .eq('ss_match_id', CURRENT==='season'?null:CURRENT).order('created_at',{ascending:false}).limit(1);
+  if(!data || !data.length){ if(msg) msg.textContent='(nothing to rate yet)'; return; }
+  const { error } = await sb.from('ss_insights').update({ rating: val }).eq('id', data[0].id);
+  if(msg) msg.textContent = error ? 'save failed' : (val>0?'Thanks — noted 👍':'Got it — the Brain will learn from this');
+  if(btn && btn.parentElement){ btn.parentElement.querySelectorAll('button').forEach(b=>b.style.opacity='.4'); btn.style.opacity='1'; }
+};
+
+window.__saveDefense = async (id)=>{
+  const val = $('#defSel').value;
+  const msg = $('#defMsg');
+  if(msg) msg.textContent = 'saving…';
+  try{
+    const res = await fetch(BRAIN_FN, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ setDefense: { matchId: id, defense: val } })
+    });
+    const j = await res.json();
+    if(msg) msg.textContent = j.ok ? (val?'saved — Brain now knows':'cleared') : ('save failed: '+(j.error||res.status));
+  }catch(e){ if(msg) msg.textContent = 'save failed: '+e.message; }
+  const mm = MATCHES.find(x=>x.ss_match_id===id); if(mm) mm.defense_faced = val || null;
+};
+
+async function loadConcepts(){
+  const el = $('#conceptList');
+  if(!el) return;
+  const { data, error } = await sb.from('ss_concepts').select('*').eq('active',true).order('priority',{ascending:false});
+  if(error){ el.innerHTML = `<span style="color:var(--bad)">Concepts table not found — run <code>_brain/concepts.sql</code>.</span>`; return; }
+  if(!data.length){ el.innerHTML = 'No concepts yet. Add your first below — it will shape every analysis.'; return; }
+  el.innerHTML = data.map(c=>`<div style="padding:8px 0;border-bottom:1px solid rgba(42,47,58,.5)">
+    <span style="font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em">${esc(c.category||'')}</span>
+    <div style="font-size:13.5px;font-weight:600">${esc(c.title)}</div>
+    <div style="font-size:13px;color:var(--mut)">${esc(c.detail)}</div></div>`).join('');
+}
+
+window.__addConcept = async ()=>{
+  const category=$('#cCat').value.trim(), title=$('#cTitle').value.trim(), detail=$('#cDetail').value.trim();
+  if(!title||!detail){ alert('A title and the concept detail are both needed.'); return; }
+  const { error } = await sb.from('ss_concepts').insert({ category:category||'general', title, detail, priority:1 });
+  if(error){ alert('Save failed: '+error.message); return; }
+  $('#cCat').value=''; $('#cTitle').value=''; $('#cDetail').value='';
+  loadConcepts();
+};
+
+boot().catch(e=>{ setSync(false,'error'); $('#content').innerHTML = emptyState('Something went wrong', esc(e.message)); });
+</script>
+</body>
+</html>
