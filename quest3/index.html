@@ -788,11 +788,13 @@ const namePanel = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.33),
 namePanel.renderOrder = 999;                        // draw on top so the net/players can't hide it
 scene.add(camera); camera.add(namePanel);           // head-locked: always in your field of view
 namePanel.position.set(0, -0.16, -1.6); namePanel.scale.setScalar(0.55); namePanel.visible = false;
+let panelHideT = 0;                                 // panel shows only while it has something to say
+function showPanel(){ namePanel.visible = true; panelHideT = 1.4; }
 function sayPlay(t, big){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512,120);
   c.fillStyle='rgba(10,16,30,.82)'; roundRect(c,0,0,512,120,20); c.fill();
   c.strokeStyle='rgba(231,184,75,.5)'; c.lineWidth=4; roundRect(c,3,3,506,114,18); c.stroke();
   c.fillStyle='#fff'; c.textAlign='center'; c.textBaseline='middle'; c.font=(big?'800 84px':'700 40px')+' sans-serif'; c.fillText(t,256,60);
-  nameTex.needsUpdate=true; }
+  nameTex.needsUpdate=true; showPanel(); }
 
 function coordP(id, si){ const s = loaded.steps[si]; return s && s.positions[id]; }
 
@@ -804,7 +806,7 @@ function sayRun(tstr, words){ const c = nameCv.getContext('2d'); c.clearRect(0,0
   c.textAlign='center'; c.textBaseline='middle';
   c.fillStyle='#e7b84b'; c.font='700 30px sans-serif'; c.fillText(tstr, 256, words?30:60);
   if(words){ c.fillStyle='#fff'; c.font='800 44px sans-serif'; c.fillText(words, 256, 80); }
-  nameTex.needsUpdate=true; }
+  nameTex.needsUpdate=true; showPanel(); }
 const startRing = new THREE.Mesh(new THREE.TorusGeometry(0.4,0.045,10,32), new THREE.MeshBasicMaterial({ color:0xffd56b }));
 startRing.rotation.x = -Math.PI/2; startRing.visible = false; playGroup.add(startRing);
 const startPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,1.4,8),
@@ -863,7 +865,7 @@ function toStart(){
 function startLoadedPlay(d){
   if(drillActive) stopDrill();
   buildLoadedPlay(d);
-  playGroup.visible=true; loadedActive=true; namePanel.visible=true;
+  playGroup.visible=true; loadedActive=true;
   ball.visible=false; scoreboard.visible=false;
   toStart();
 }
@@ -871,6 +873,7 @@ function stopLoadedPlay(){ loadedActive=false; playGroup.visible=false; namePane
 function playerBallPos(id, ease){ if(id===loaded.role) return _pcam; const f=loadedFigs[id]; return f&&f.position; }
 function updateLoadedPlay(dt){
   if(!loadedActive || paused || !loaded) return;
+  if(namePanel.visible){ panelHideT-=dt; if(panelHideT<=0) namePanel.visible=false; }
   camera.getWorldPosition(_pcam); arena.worldToLocal(_pcam);
   const pulse = 1 + Math.sin(clock.elapsedTime*4)*0.12;
   const s0 = coordP(loaded.role,0)||{x:0,z:2};
