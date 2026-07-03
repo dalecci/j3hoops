@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.1 · 2026-07-02 · you + countdown</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.2 · 2026-07-02 · lines-only court</div>
 
 <script type="importmap">
 {
@@ -253,9 +253,30 @@ function setPassthrough(on) {
   arenaBars.forEach(b => b.visible = !on);
 }
 
-// hardwood court visibility — independent of passthrough/arena
-let hardwoodOn = true;
-function setHardwood(on) { hardwoodOn = on; court.visible = on; }
+// court markings drawn as glowing AR lines (for passthrough: lines only, no wood)
+const courtLines = new THREE.Group(); courtLines.visible = false; arena.add(courtLines);
+(() => {
+  const mat = new THREE.MeshBasicMaterial({ color:0xe8f0ff });
+  const seg = (x1,z1,x2,z2) => { const dx=x2-x1, dz=z2-z1, len=Math.hypot(dx,dz);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len,0.02,0.06), mat);
+    m.position.set((x1+x2)/2, 0.02, (z1+z2)/2); m.rotation.y = Math.atan2(-dz, dx); courtLines.add(m); };
+  const arc = (cx,cz,r,a0,a1) => { const pts=[], N=44;
+    for(let i=0;i<=N;i++){ const a=a0+(a1-a0)*i/N; pts.push(new THREE.Vector3(cx+Math.cos(a)*r,0.02,cz+Math.sin(a)*r)); }
+    courtLines.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),N,0.03,6,false), mat)); };
+  const cz = HOOP_Z + Math.sqrt(6.75*6.75 - 6.6*6.6);   // where 3pt arc meets the corner
+  seg(-7.5,-5, 7.5,-5);                    // baseline
+  seg(-7.5,-5, -7.5,8); seg(7.5,-5, 7.5,8); // sidelines
+  seg(-7.5,8, 7.5,8);                       // half-court line
+  seg(-2.45,-5, -2.45,0.8); seg(2.45,-5, 2.45,0.8); seg(-2.45,0.8, 2.45,0.8); // lane + FT line
+  seg(-6.6,-5, -6.6,cz); seg(6.6,-5, 6.6,cz);         // 3pt corners
+  arc(0,0.8,1.8, 0, Math.PI*2);                        // FT circle
+  arc(0,HOOP_Z,6.75, Math.atan2(cz-HOOP_Z,6.6), Math.atan2(cz-HOOP_Z,-6.6)); // 3pt arc
+})();
+
+// court display: 'wood' (hardwood) -> 'lines' (AR markings only) -> 'off'
+let courtMode = 'wood';
+function setCourtMode(m){ courtMode = m; court.visible = (m==='wood'); courtLines.visible = (m==='lines'); }
+function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='lines' ? 'off' : 'wood'); }
 
 // ---------- hoop ----------
 const hoop = new THREE.Group(); arena.add(hoop);
@@ -927,7 +948,7 @@ function clearButtons(){ buttonMeshes.forEach(m=>menuGroup.remove(m)); buttonMes
 function buildMainButtons(){
   clearButtons();
   const items = [ ['Resume','resume'], ['Choose Play ▸','plays'], ['Stop Play','stopplay'],
-    ['Start / Stop Drill','drill'], ['Passthrough on/off','passthrough'], ['Hardwood on/off','hardwood'],
+    ['Start / Stop Drill','drill'], ['Passthrough on/off','passthrough'], ['Court: wood/lines/off','court'],
     ['Recenter Court','recenter'], ['Exit to Start','exit'] ];
   let y = 0.52; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.15; });
 }
@@ -978,7 +999,7 @@ function doAction(a) {
   else if (a === 'stopplay') { stopLoadedPlay(); closeMenu(); }
   else if (a === 'drill') { drillActive ? stopDrill() : startDrill(); closeMenu(); }
   else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
-  else if (a === 'hardwood') { setHardwood(!hardwoodOn); closeMenu(); }
+  else if (a === 'court') { cycleCourt(); closeMenu(); }
   else if (a === 'recenter') { recenterCourt(); closeMenu(); }
   else if (a === 'reset') { makes = 0; streak = 0; best = 0; flash = 0; drawScore(); closeMenu(); }
   else if (a === 'exit') { const s = renderer.xr.getSession(); if (s) s.end(); }
