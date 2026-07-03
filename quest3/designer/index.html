@@ -10,46 +10,56 @@
   * { box-sizing:border-box; }
   html,body { margin:0; height:100%; background:var(--bg); color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  header { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--line);
+  body { display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line);
     background:#0e1424; flex-wrap:wrap; }
   header h1 { font-size:17px; margin:0; letter-spacing:.04em; font-weight:800;
     background:linear-gradient(90deg,var(--gold),#fff); -webkit-background-clip:text; background-clip:text; color:transparent; }
   header .sp { flex:1; }
   input, select, button { font-family:inherit; font-size:13.5px; }
-  input[type=text], select { background:#0c1322; border:1px solid var(--line); color:var(--txt);
+  input[type=text], input[type=number], select { background:#0c1322; border:1px solid var(--line); color:var(--txt);
     border-radius:8px; padding:7px 10px; }
   .chk { display:flex; align-items:center; gap:6px; color:var(--dim); font-size:13px; }
   .chk input { width:15px; height:15px; accent-color:var(--blue); }
   button { background:#1b2543; border:1px solid var(--line); color:var(--txt); border-radius:8px;
     padding:7px 12px; cursor:pointer; }
   button:hover { background:#243259; }
-  button.primary { background:var(--blue); border-color:var(--blue); }
   button.gold { background:var(--gold); border-color:var(--gold); color:#241c05; font-weight:700; }
-  main { display:flex; height:calc(100% - 53px); }
-  .tools { width:152px; border-right:1px solid var(--line); padding:10px; background:#0e1424;
+  main { display:flex; flex:1; min-height:0; }
+  .tools { width:150px; border-right:1px solid var(--line); padding:10px; background:#0e1424;
     display:flex; flex-direction:column; gap:7px; overflow:auto; }
   .tools .lbl { color:var(--dim); font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin:8px 2px 2px; }
   .tools button { text-align:left; }
   .tools button.active { background:var(--blue); border-color:var(--blue); }
-  .stage { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:14px; }
+  .stage { flex:1; display:flex; align-items:center; justify-content:center; overflow:auto; padding:12px; }
   canvas { background:#10182a; border-radius:12px; border:1px solid var(--line); box-shadow:0 8px 30px rgba(0,0,0,.4); }
-  .props { width:264px; border-left:1px solid var(--line); padding:14px; background:var(--panel); overflow:auto; }
+  .props { width:262px; border-left:1px solid var(--line); padding:14px; background:var(--panel); overflow:auto; }
   .props h3 { font-size:12px; color:var(--gold); text-transform:uppercase; letter-spacing:.06em; margin:2px 0 10px; }
   .row { margin:9px 0; }
   .row label { display:block; color:var(--dim); font-size:12px; margin-bottom:4px; }
   .row input[type=text], .row input[type=number], .row select { width:100%; }
   .row input[type=range] { width:100%; accent-color:var(--gold); }
-  .hint { color:var(--dim); font-size:12px; line-height:1.5; }
+  .hint { color:var(--dim); font-size:12px; line-height:1.55; }
   .pill { display:inline-block; background:#0c1322; border:1px solid var(--line); border-radius:20px;
-    padding:3px 10px; font-size:12px; color:var(--dim); }
+    padding:3px 10px; font-size:12px; color:var(--dim); margin-right:5px; }
   .danger { color:#ff8585; }
+  .evt { display:flex; align-items:center; justify-content:space-between; background:#0c1322;
+    border:1px solid var(--line); border-radius:8px; padding:6px 9px; margin:6px 0; font-size:12.5px; }
+  .evt button { padding:2px 8px; font-size:12px; }
+  #timeline { display:flex; align-items:center; gap:8px; padding:10px 16px; border-top:1px solid var(--line);
+    background:#0e1424; overflow-x:auto; }
+  .stepchip { min-width:74px; padding:8px 10px; border-radius:10px; border:2px solid var(--line);
+    background:#141d33; cursor:pointer; text-align:center; flex:0 0 auto; }
+  .stepchip.cur { border-color:var(--gold); background:#22294a; }
+  .stepchip .t { font-size:13px; font-weight:700; }
+  .stepchip .d { font-size:11px; color:var(--dim); }
   #status { padding:6px 16px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px; background:#0e1424; }
 </style>
 </head>
 <body>
 <header>
   <h1>J3 HOOPS · PLAY DESIGNER</h1>
-  <input type="text" id="playName" placeholder="Play name…" style="width:200px;" />
+  <input type="text" id="playName" placeholder="Play name…" style="width:190px;" />
   <label class="chk"><input type="checkbox" id="hasDefense" checked /> Include defense</label>
   <label class="chk">Trainee: <select id="roleSel"></select></label>
   <div class="sp"></div>
@@ -64,316 +74,419 @@
 <main>
   <div class="tools">
     <div class="lbl">Tools</div>
-    <button data-tool="select" class="active">▣ Select / Move</button>
-    <button data-tool="route">➜ Draw Route</button>
-    <button data-tool="pick">⊥ Add Pick</button>
-    <button data-tool="pass">⇢ Add Pass</button>
-    <button data-tool="delete" class="danger">✕ Delete</button>
+    <button data-tool="select" class="active">▣ Move players</button>
+    <button data-tool="screen">⊥ Screen (click player)</button>
+    <button data-tool="pass">⇢ Pass (A then B)</button>
+    <button data-tool="catch">◎ Catch (click player)</button>
+    <button data-tool="delete" class="danger">✕ Remove player</button>
     <div class="lbl">Add players</div>
     <button id="addO">+ Offense</button>
     <button id="addD">+ Defender</button>
     <button id="matchD">Auto-match D</button>
-    <div class="lbl">Reset</div>
-    <button id="clearRoutes">Clear routes</button>
-    <button id="seedBtn">Seed 5-out</button>
   </div>
-  <div class="stage"><canvas id="court" width="720" height="672"></canvas></div>
+  <div class="stage"><canvas id="court" width="700" height="600"></canvas></div>
   <div class="props" id="props"></div>
 </main>
-<div id="status">Ready. Add players, draw routes, drop picks — then name it and Save.</div>
+<div id="timeline"></div>
+<div id="status">Step 1 is your starting set. Move players, then + Step, move them again — that's the play.</div>
 
 <script>
-// ---------- court coordinate system (matches the simulator's arena-local meters) ----------
-const CW = 720, CH = 672;
+// ---------- court coords (arena-local meters, matches the simulator) ----------
+const CW = 700, CH = 600;
 const canvas = document.getElementById('court');
 const dpr = window.devicePixelRatio || 1;
-canvas.width = CW * dpr; canvas.height = CH * dpr;
-canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
-const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
-// meters: x ∈ [-7.5,7.5]  z ∈ [-5 (baseline/hoop), 9 (backcourt)]
-const m2x = x => (x + 7.5) / 15 * CW;
-const m2y = z => (z + 5) / 14 * CH;
-const x2m = px => px / CW * 15 - 7.5;
-const y2m = py => py / CH * 14 - 5;
-const PPM = CW / 15; // pixels per meter (x)
+canvas.width = CW*dpr; canvas.height = CH*dpr;
+canvas.style.width = CW+'px'; canvas.style.height = CH+'px';
+const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+// x ∈ [-7.5,7.5], z ∈ [-5 (hoop end) .. 7.5]
+const ZMIN=-5, ZMAX=7.5;
+const m2x = x => (x+7.5)/15*CW;
+const m2y = z => (z-ZMIN)/(ZMAX-ZMIN)*CH;
+const x2m = px => px/CW*15-7.5;
+const y2m = py => py/CH*(ZMAX-ZMIN)+ZMIN;
+const PPM = CW/15;
+const HOOP = { x:0, z:-4.7 };
 
 // ---------- state ----------
-const HOOP = { x:0, z:-4.7 };
-let play, tool = 'select', selected = null, drag = null, activeRoute = null, passFrom = null;
+let play, cur = 0, tool='select', selected=null, drag=null, passFrom=null;
+let anim = null;   // {t0, total, segs} while playing back
 
-function newPlay() { return { id:null, name:'', hasDefense:true, role:'O1', players:[], picks:[], routes:{}, passes:[] }; }
-function seedOffense() {
-  const spots = [ ['1',0,1.8,true], ['2',3.5,-0.5,false], ['3',-3.5,-0.5,false],
-                  ['4',6.2,-3.8,false], ['5',-6.2,-3.8,false] ];
-  play.players = play.players.filter(p => p.team !== 'offense');
-  spots.forEach(([lbl,x,z,ball]) => play.players.push({ id:'O'+lbl, team:'offense', label:lbl, x, z, ball }));
-  play.role = 'O1';
+function blankStep(){ return { duration:2, ball:'O1', positions:{}, events:[] }; }
+function newPlay(){
+  const p = { id:null, name:'', hasDefense:true, role:'O1', players:[], steps:[blankStep()] };
+  const spots = [ ['O1','offense','1',0,1.8], ['O2','offense','2',3.5,-0.5], ['O3','offense','3',-3.5,-0.5],
+                  ['O4','offense','4',6.2,-3.8], ['O5','offense','5',-6.2,-3.8] ];
+  spots.forEach(([id,team,label,x,z])=>{ p.players.push({id,team,label}); p.steps[0].positions[id]={x,z}; });
+  p.steps[0].ball='O1'; p.steps[0].duration=0;
+  return p;
 }
-function nextId(team) {
-  const pre = team === 'offense' ? 'O' : 'X';
-  for (let i=1;i<=5;i++) if (!play.players.find(p=>p.id===pre+i)) return { id:pre+i, label:(team==='offense'?'':'x')+i };
-  return null;
-}
+function step(){ return play.steps[cur]; }
+function posOf(id, s){ return (s??step()).positions[id]; }
+function playerById(id){ return play.players.find(p=>p.id===id); }
+function nextId(team){ const pre = team==='offense'?'O':'X';
+  for(let i=1;i<=5;i++) if(!playerById(pre+i)) return pre+i; return null; }
 
 // ---------- drawing ----------
-function drawCourt() {
+function drawCourt(){
   ctx.clearRect(0,0,CW,CH);
-  ctx.fillStyle = '#10182a'; ctx.fillRect(0,0,CW,CH);
-  ctx.strokeStyle = 'rgba(150,170,210,.45)'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-  const X = m2x, Z = m2y;
-  // boundary + half line
-  ctx.strokeRect(X(-7.5), Z(-5), X(7.5)-X(-7.5), Z(9)-Z(-5));
-  line(X(-7.5),Z(9),X(7.5),Z(9));
-  // key + ft circle
-  ctx.strokeStyle = 'rgba(170,190,230,.7)';
-  ctx.strokeRect(X(-2.45), Z(-5), X(2.45)-X(-2.45), Z(0.8)-Z(-5));
-  circle(X(0),Z(0.8),1.8*PPM);
-  // rim + backboard
+  ctx.fillStyle='#10182a'; ctx.fillRect(0,0,CW,CH);
+  ctx.strokeStyle='rgba(150,170,210,.45)'; ctx.lineWidth=2; ctx.lineJoin='round';
+  const X=m2x, Z=m2y;
+  ctx.strokeRect(X(-7.5),Z(-5),X(7.5)-X(-7.5),Z(ZMAX)-Z(-5));
+  ctx.strokeStyle='rgba(170,190,230,.7)';
+  ctx.strokeRect(X(-2.45),Z(-5),X(2.45)-X(-2.45),Z(0.8)-Z(-5));
+  circ(X(0),Z(0.8),1.8*PPM,true);
   line(X(-0.5),Z(-4.95),X(0.5),Z(-4.95));
-  circle(X(HOOP.x),Z(HOOP.z),0.22*PPM);
-  // three-point line
-  const tpX=6.6, dz=Math.sqrt(6.75*6.75 - tpX*tpX), cz=HOOP.z+dz;
+  circ(X(HOOP.x),Z(HOOP.z),0.22*PPM,true);
+  const tpX=6.6, dz=Math.sqrt(6.75*6.75-tpX*tpX), cz=HOOP.z+dz;
   line(X(-tpX),Z(-5),X(-tpX),Z(cz)); line(X(tpX),Z(-5),X(tpX),Z(cz));
   ctx.beginPath();
-  ctx.arc(X(HOOP.x), Z(HOOP.z), 6.75*PPM,
-          Math.atan2(Z(cz)-Z(HOOP.z), X(tpX)-X(HOOP.x)),
-          Math.atan2(Z(cz)-Z(HOOP.z), X(-tpX)-X(HOOP.x)));
+  ctx.arc(X(HOOP.x),Z(HOOP.z),6.75*PPM,
+    Math.atan2(Z(cz)-Z(HOOP.z),X(tpX)-X(HOOP.x)),
+    Math.atan2(Z(cz)-Z(HOOP.z),X(-tpX)-X(HOOP.x)));
   ctx.stroke();
-  // center logo
-  ctx.strokeStyle='rgba(231,184,75,.4)'; circle(X(0),Z(5),1.9*PPM);
 }
 function line(a,b,c,d){ ctx.beginPath(); ctx.moveTo(a,b); ctx.lineTo(c,d); ctx.stroke(); }
-function circle(cx,cy,r){ ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke(); }
-
-function drawArrowhead(x,y,ang,col,size){ ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+function circ(cx,cy,r,stroke){ ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); stroke?ctx.stroke():ctx.fill(); }
+function arrowhead(x,y,ang,col,size){ ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
   ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-size,-size*0.6); ctx.lineTo(-size,size*0.6);
   ctx.closePath(); ctx.fill(); ctx.restore(); }
 
-function drawRoutes() {
-  for (const pid in play.routes) {
-    const wps = play.routes[pid]; if (!wps || wps.length<1) continue;
-    const p = play.players.find(pp=>pp.id===pid); if(!p) continue;
-    const pts = [{x:p.x,z:p.z}, ...wps];
-    ctx.strokeStyle = '#5fe39a'; ctx.lineWidth = 3; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(m2x(pts[0].x), m2y(pts[0].z));
-    for (let i=1;i<pts.length;i++) ctx.lineTo(m2x(pts[i].x), m2y(pts[i].z));
-    ctx.stroke();
-    // arrowhead on last seg
-    if (pts.length>=2){ const a=pts[pts.length-2], b=pts[pts.length-1];
-      drawArrowhead(m2x(b.x),m2y(b.z), Math.atan2(m2y(b.z)-m2y(a.z), m2x(b.x)-m2x(a.x)), '#5fe39a', 11); }
-    // waypoint markers
-    wps.forEach((w,idx)=>{
-      const wx=m2x(w.x), wy=m2y(w.z);
-      if (w.tag==='screen'){ ctx.fillStyle='#e7b84b'; ctx.fillRect(wx-6,wy-6,12,12); }
-      else if (w.tag==='catch'){ ctx.fillStyle='#35c46a'; ctx.save(); ctx.translate(wx,wy); ctx.rotate(Math.PI/4);
-        ctx.fillRect(-6,-6,12,12); ctx.restore(); }
-      else { ctx.fillStyle='#9fb0d6'; ctx.beginPath(); ctx.arc(wx,wy,4,0,Math.PI*2); ctx.fill(); }
-      if (selected && selected.type==='waypoint' && selected.pid===pid && selected.idx===idx){
-        ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.strokeRect(wx-9,wy-9,18,18); }
-    });
-  }
-}
-function drawPicks() {
-  play.picks.forEach(pk=>{
-    const cx=m2x(pk.x), cy=m2y(pk.z);
-    const ax=-Math.sin(pk.angle), ay=Math.cos(pk.angle);     // bar long axis = perpendicular to facing
-    const half=0.45*PPM;
-    ctx.strokeStyle='#e7b84b'; ctx.lineWidth=8; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(cx-ax*half, cy-ay*half); ctx.lineTo(cx+ax*half, cy+ay*half); ctx.stroke();
-    ctx.lineCap='butt';
-    // facing handle
-    const hx=cx+Math.cos(pk.angle)*0.7*PPM, hy=cy+Math.sin(pk.angle)*0.7*PPM;
-    ctx.strokeStyle='rgba(231,184,75,.6)'; ctx.lineWidth=2; line(cx,cy,hx,hy);
-    ctx.fillStyle='#ffd56b'; ctx.beginPath(); ctx.arc(hx,hy,6,0,Math.PI*2); ctx.fill();
-    if (selected && selected.type==='pick' && selected.ref===pk){
-      ctx.strokeStyle='#fff'; ctx.lineWidth=2; circle(cx,cy,18); }
-  });
-}
-function drawPasses() {
-  ctx.setLineDash([9,7]); ctx.lineWidth=3; ctx.strokeStyle='#f0a93c';
-  play.passes.forEach(ps=>{
-    const a=play.players.find(p=>p.id===ps.from), b=play.players.find(p=>p.id===ps.to); if(!a||!b)return;
-    line(m2x(a.x),m2y(a.z),m2x(b.x),m2y(b.z));
-    drawArrowhead(m2x(b.x),m2y(b.z), Math.atan2(m2y(b.z)-m2y(a.z),m2x(b.x)-m2x(a.x)), '#f0a93c', 10);
-  });
-  ctx.setLineDash([]);
-}
-function drawPlayers() {
+function drawGhostsAndArrows(){
+  if(cur===0 || anim) return;
+  const prev = play.steps[cur-1];
   play.players.forEach(p=>{
-    const cx=m2x(p.x), cy=m2y(p.z);
-    if (p.id===play.role){ ctx.strokeStyle='#ffd56b'; ctx.lineWidth=3; circle(cx,cy,21); }
-    ctx.fillStyle = p.team==='offense' ? '#2f6df6' : '#e2473a';
-    ctx.beginPath(); ctx.arc(cx,cy,16,0,Math.PI*2); ctx.fill();
-    if (selected && selected.type==='player' && selected.ref===p){ ctx.strokeStyle='#fff'; ctx.lineWidth=2; circle(cx,cy,20); }
-    ctx.fillStyle='#fff'; ctx.font='700 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(p.label, cx, cy+1);
-    if (p.ball){ ctx.fillStyle='#e88a2b'; ctx.beginPath(); ctx.arc(cx+15,cy-12,7,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#1c1208'; ctx.lineWidth=1; circle(cx+15,cy-12,7); }
+    const a=prev.positions[p.id], b=step().positions[p.id];
+    if(!a||!b) return;
+    const ax=m2x(a.x), ay=m2y(a.z), bx=m2x(b.x), by=m2y(b.z);
+    // ghost of previous spot
+    ctx.globalAlpha=0.28;
+    ctx.fillStyle = p.team==='offense'?'#2f6df6':'#e2473a';
+    ctx.beginPath(); ctx.arc(ax,ay,14,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    // movement arrow
+    if(Math.hypot(bx-ax,by-ay)>6){
+      ctx.strokeStyle = p.team==='offense'?'#5fe39a':'#ff9d94'; ctx.lineWidth=3;
+      line(ax,ay,bx,by);
+      arrowhead(bx,by,Math.atan2(by-ay,bx-ax), p.team==='offense'?'#5fe39a':'#ff9d94', 11);
+    }
   });
 }
-function redraw(){ drawCourt(); drawRoutes(); drawPicks(); drawPasses(); drawPlayers(); }
+function drawEvents(s, posGet){
+  s = s ?? step(); posGet = posGet ?? (id => s.positions[id]);
+  s.events.forEach(ev=>{
+    if(ev.type==='screen'){
+      const p=posGet(ev.player); if(!p)return;
+      const cx=m2x(p.x), cy=m2y(p.z);
+      const ax=-Math.sin(ev.angle), ay=Math.cos(ev.angle), half=0.45*PPM;
+      ctx.strokeStyle='#e7b84b'; ctx.lineWidth=8; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(cx-ax*half,cy-ay*half); ctx.lineTo(cx+ax*half,cy+ay*half); ctx.stroke();
+      ctx.lineCap='butt';
+      const hx=cx+Math.cos(ev.angle)*0.7*PPM, hy=cy+Math.sin(ev.angle)*0.7*PPM;
+      ctx.strokeStyle='rgba(231,184,75,.6)'; ctx.lineWidth=2; line(cx,cy,hx,hy);
+      ctx.fillStyle='#ffd56b'; ctx.beginPath(); ctx.arc(hx,hy,6,0,Math.PI*2); ctx.fill();
+    } else if(ev.type==='pass'){
+      const a=posGet(ev.from), b=posGet(ev.to); if(!a||!b)return;
+      ctx.setLineDash([9,7]); ctx.strokeStyle='#f0a93c'; ctx.lineWidth=3;
+      line(m2x(a.x),m2y(a.z),m2x(b.x),m2y(b.z));
+      ctx.setLineDash([]);
+      arrowhead(m2x(b.x),m2y(b.z),Math.atan2(m2y(b.z)-m2y(a.z),m2x(b.x)-m2x(a.x)),'#f0a93c',10);
+    } else if(ev.type==='catch'){
+      const p=posGet(ev.player); if(!p)return;
+      ctx.strokeStyle='#35c46a'; ctx.lineWidth=3; circ(m2x(p.x),m2y(p.z),24,true);
+    }
+  });
+}
+function drawPlayers(posGet, ballId){
+  posGet = posGet ?? (id => step().positions[id]);
+  ballId = ballId ?? step().ball;
+  play.players.forEach(p=>{
+    const pos=posGet(p.id); if(!pos)return;
+    const cx=m2x(pos.x), cy=m2y(pos.z);
+    if(p.id===play.role){ ctx.strokeStyle='#ffd56b'; ctx.lineWidth=3; circ(cx,cy,21,true); }
+    ctx.fillStyle = p.team==='offense'?'#2f6df6':'#e2473a';
+    ctx.beginPath(); ctx.arc(cx,cy,16,0,Math.PI*2); ctx.fill();
+    if(selected && selected.id===p.id && !anim){ ctx.strokeStyle='#fff'; ctx.lineWidth=2; circ(cx,cy,20,true); }
+    ctx.fillStyle='#fff'; ctx.font='700 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(p.label,cx,cy+1);
+    if(p.id===ballId){ ctx.fillStyle='#e88a2b'; ctx.beginPath(); ctx.arc(cx+15,cy-12,7,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#1c1208'; ctx.lineWidth=1; circ(cx+15,cy-12,7,true); }
+  });
+}
+function redraw(){
+  drawCourt();
+  if(anim){ drawAnimFrame(); return; }
+  drawGhostsAndArrows();
+  drawEvents();
+  drawPlayers();
+}
 
-// ---------- hit testing ----------
-function hitPlayer(mx,my){ return play.players.find(p=>Math.hypot(m2x(p.x)-mx,m2y(p.z)-my)<18); }
-function hitPickHandle(mx,my){ return play.picks.find(pk=>{
-  const hx=m2x(pk.x)+Math.cos(pk.angle)*0.7*PPM, hy=m2y(pk.z)+Math.sin(pk.angle)*0.7*PPM;
-  return Math.hypot(hx-mx,hy-my)<10; }); }
-function hitPick(mx,my){ return play.picks.find(pk=>Math.hypot(m2x(pk.x)-mx,m2y(pk.z)-my)<20); }
-function hitWaypoint(mx,my){
-  for (const pid in play.routes){ const wps=play.routes[pid];
-    for (let i=0;i<wps.length;i++){ if (Math.hypot(m2x(wps[i].x)-mx,m2y(wps[i].z)-my)<10) return {pid,idx:i}; } }
-  return null; }
+// ---------- playback ----------
+function startPlayback(){
+  if(play.steps.length<2){ status('Add at least one more step to play it.'); return; }
+  const segs=[]; let total=0;
+  for(let i=1;i<play.steps.length;i++){ const d=Math.max(play.steps[i].duration||2,0.2); segs.push({i,start:total,dur:d}); total+=d; }
+  anim={ t0:performance.now(), total, segs };
+  document.getElementById('playBtn').textContent='■ Stop';
+  requestAnimationFrame(tick);
+}
+function stopPlayback(){ anim=null; document.getElementById('playBtn').textContent='▶ Play'; refreshTimeline(); redraw(); }
+function tick(){
+  if(!anim) return;
+  const t=(performance.now()-anim.t0)/1000;
+  if(t>=anim.total){ stopPlayback(); return; }
+  redraw();
+  requestAnimationFrame(tick);
+}
+function drawAnimFrame(){
+  const t=(performance.now()-anim.t0)/1000;
+  const seg = anim.segs.find(s=>t>=s.start && t<s.start+s.dur) || anim.segs[anim.segs.length-1];
+  const a=play.steps[seg.i-1], b=play.steps[seg.i];
+  const k=Math.min(Math.max((t-seg.start)/seg.dur,0),1);
+  const ease = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+  const posGet = id => { const pa=a.positions[id], pb=b.positions[id];
+    if(!pa||!pb) return pa||pb;
+    return { x:pa.x+(pb.x-pa.x)*ease, z:pa.z+(pb.z-pa.z)*ease }; };
+  drawEvents(b, posGet);
+  // ball: pass event arcs it, otherwise it rides its holder
+  const passEv = b.events.find(e=>e.type==='pass');
+  let ballId = b.ball;
+  drawPlayers(posGet, passEv ? '—none—' : ballId);
+  if(passEv){
+    const pa=posGet(passEv.from), pb=posGet(passEv.to);
+    if(pa&&pb){ const bx=m2x(pa.x)+(m2x(pb.x)-m2x(pa.x))*ease, by=m2y(pa.z)+(m2y(pb.z)-m2y(pa.z))*ease - Math.sin(ease*Math.PI)*26;
+      ctx.fillStyle='#e88a2b'; ctx.beginPath(); ctx.arc(bx,by,8,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#1c1208'; ctx.lineWidth=1; circ(bx,by,8,true); }
+  }
+  // step badge
+  ctx.fillStyle='rgba(10,16,30,.8)'; ctx.fillRect(10,10,120,30);
+  ctx.fillStyle='#e7b84b'; ctx.font='700 15px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('Step '+seg.i+' / '+(play.steps.length-1), 20, 25);
+  highlightChip(seg.i);
+}
 
-// ---------- mouse ----------
+// ---------- hit testing / mouse ----------
 function pos(e){ const r=canvas.getBoundingClientRect(); return { mx:e.clientX-r.left, my:e.clientY-r.top }; }
+function hitPlayer(mx,my){ return play.players.find(p=>{ const q=posOf(p.id); return q && Math.hypot(m2x(q.x)-mx,m2y(q.z)-my)<18; }); }
+function hitScreenHandle(mx,my){
+  for(const ev of step().events){ if(ev.type!=='screen')continue;
+    const p=posOf(ev.player); if(!p)continue;
+    const hx=m2x(p.x)+Math.cos(ev.angle)*0.7*PPM, hy=m2y(p.z)+Math.sin(ev.angle)*0.7*PPM;
+    if(Math.hypot(hx-mx,hy-my)<11) return ev; }
+  return null;
+}
 canvas.addEventListener('mousedown', e=>{
+  if(anim) return;
   const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
-  if (tool==='select'){
-    const h=hitPickHandle(mx,my); if(h){ drag={type:'pickrot',ref:h}; select('pick',h); return; }
-    const wp=hitWaypoint(mx,my); if(wp){ drag={type:'waypoint',pid:wp.pid,idx:wp.idx}; select('waypoint',null,wp); return; }
-    const pl=hitPlayer(mx,my); if(pl){ drag={type:'player',ref:pl}; select('player',pl); return; }
-    const pk=hitPick(mx,my); if(pk){ drag={type:'pick',ref:pk}; select('pick',pk); return; }
-    select(null);
-  } else if (tool==='route'){
+  if(tool==='select'){
+    const h=hitScreenHandle(mx,my); if(h){ drag={type:'screenrot',ev:h}; return; }
     const pl=hitPlayer(mx,my);
-    if (pl && (!activeRoute || activeRoute!==pl.id)){ activeRoute=pl.id; if(!play.routes[pl.id]) play.routes[pl.id]=[];
-      status('Routing '+pl.id+' — click to add waypoints. Switch tool to finish.'); redraw(); return; }
-    if (activeRoute){ play.routes[activeRoute].push({x:+X.toFixed(2), z:+Z.toFixed(2), tag:'move'}); redraw(); }
-    else status('Click a player first to start its route.');
-  } else if (tool==='pick'){
-    const pk={ id:'P'+Date.now().toString(36), x:+X.toFixed(2), z:+Z.toFixed(2), angle:Math.PI/2 };
-    play.picks.push(pk); tool='select'; setTool('select'); select('pick',pk);
-  } else if (tool==='pass'){
+    if(pl){ drag={type:'player',id:pl.id}; selected=pl; redraw(); showProps(); return; }
+    selected=null; redraw(); showProps();
+  } else if(tool==='screen'){
+    const pl=hitPlayer(mx,my); if(!pl){ status('Click a player to put the screen on.'); return; }
+    const ex=step().events.find(ev=>ev.type==='screen'&&ev.player===pl.id);
+    if(ex){ step().events=step().events.filter(ev=>ev!==ex); status('Screen removed from '+pl.id+'.'); }
+    else { step().events.push({type:'screen',player:pl.id,angle:-Math.PI/2,dwell:0.7}); status('Screen on '+pl.id+' — drag the gold handle to aim it.'); }
+    setTool('select'); redraw(); showProps();
+  } else if(tool==='pass'){
     const pl=hitPlayer(mx,my); if(!pl)return;
     if(!passFrom){ passFrom=pl; status('Pass from '+pl.id+' → click the receiver.'); }
-    else { if(pl.id!==passFrom.id){ play.passes.push({from:passFrom.id,to:pl.id,at:'catch'}); } passFrom=null; status('Pass added.'); redraw(); }
-  } else if (tool==='delete'){
-    const wp=hitWaypoint(mx,my); if(wp){ play.routes[wp.pid].splice(wp.idx,1); redraw(); return; }
-    const pk=hitPick(mx,my); if(pk){ play.picks=play.picks.filter(x=>x!==pk); redraw(); return; }
-    const pl=hitPlayer(mx,my); if(pl){ removePlayer(pl); redraw(); return; }
+    else { if(pl.id!==passFrom.id){
+        step().events=step().events.filter(ev=>ev.type!=='pass');
+        step().events.push({type:'pass',from:passFrom.id,to:pl.id});
+        step().ball=pl.id;
+        for(let i=cur+1;i<play.steps.length;i++) play.steps[i].ball=pl.id;
+        status('Pass '+passFrom.id+' → '+pl.id+' in step '+cur+'.'); }
+      passFrom=null; setTool('select'); redraw(); showProps(); }
+  } else if(tool==='catch'){
+    const pl=hitPlayer(mx,my); if(!pl)return;
+    const ex=step().events.find(ev=>ev.type==='catch');
+    step().events=step().events.filter(ev=>ev.type!=='catch');
+    if(!ex || ex.player!==pl.id) step().events.push({type:'catch',player:pl.id});
+    setTool('select'); redraw(); showProps();
+  } else if(tool==='delete'){
+    const pl=hitPlayer(mx,my); if(pl) removePlayer(pl);
   }
 });
 canvas.addEventListener('mousemove', e=>{
-  if(!drag)return; const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
-  if(drag.type==='player'){ drag.ref.x=+X.toFixed(2); drag.ref.z=+Z.toFixed(2); }
-  else if(drag.type==='pick'){ drag.ref.x=+X.toFixed(2); drag.ref.z=+Z.toFixed(2); }
-  else if(drag.type==='pickrot'){ drag.ref.angle=Math.atan2(Z-drag.ref.z, X-drag.ref.x); }
-  else if(drag.type==='waypoint'){ const w=play.routes[drag.pid][drag.idx]; w.x=+X.toFixed(2); w.z=+Z.toFixed(2); }
-  redraw(); if(selected) showProps();
+  if(!drag||anim)return; const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
+  if(drag.type==='player'){ const q=posOf(drag.id); q.x=+X.toFixed(2); q.z=+Z.toFixed(2); }
+  else if(drag.type==='screenrot'){ const p=posOf(drag.ev.player); drag.ev.angle=Math.atan2(Z-p.z,X-p.x); }
+  redraw();
 });
 window.addEventListener('mouseup', ()=> drag=null);
-window.addEventListener('keydown', e=>{ if(e.key==='Delete'||e.key==='Backspace'){ deleteSelected(); } });
 
-// ---------- selection + properties ----------
-function select(type, ref, wp){ selected = type ? (type==='waypoint' ? {type:'waypoint',pid:wp.pid,idx:wp.idx} : {type,ref}) : null;
-  redraw(); showProps(); }
-function deleteSelected(){ if(!selected)return;
-  if(selected.type==='player') removePlayer(selected.ref);
-  else if(selected.type==='pick') play.picks=play.picks.filter(x=>x!==selected.ref);
-  else if(selected.type==='waypoint') play.routes[selected.pid].splice(selected.idx,1);
-  selected=null; redraw(); showProps(); }
-function removePlayer(p){ play.players=play.players.filter(x=>x!==p); delete play.routes[p.id];
-  play.passes=play.passes.filter(ps=>ps.from!==p.id&&ps.to!==p.id);
-  if(play.role===p.id) play.role=(play.players.find(x=>x.team==='offense')||{}).id||''; refreshRole(); }
+// ---------- players ----------
+function addPlayer(team){
+  const id=nextId(team); if(!id){ status('Max 5 per side.'); return; }
+  const label = team==='offense' ? id.slice(1) : 'x'+id.slice(1);
+  play.players.push({id,team,label});
+  play.steps.forEach(s=> s.positions[id]={x:0,z:3});
+  refreshRole(); redraw();
+}
+function removePlayer(p){
+  play.players=play.players.filter(x=>x!==p);
+  play.steps.forEach(s=>{ delete s.positions[p.id];
+    s.events=s.events.filter(ev=> ev.player!==p.id && ev.from!==p.id && ev.to!==p.id);
+    if(s.ball===p.id) s.ball=(play.players.find(x=>x.team==='offense')||{}).id||''; });
+  if(play.role===p.id) play.role=(play.players.find(x=>x.team==='offense')||{}).id||'';
+  selected=null; refreshRole(); redraw(); showProps();
+}
+document.getElementById('addO').onclick=()=>addPlayer('offense');
+document.getElementById('addD').onclick=()=>{ if(!play.hasDefense){status('Turn on "Include defense" first.');return;} addPlayer('defense'); };
+document.getElementById('matchD').onclick=()=>{
+  if(!play.hasDefense){status('Turn on "Include defense" first.');return;}
+  play.players.filter(p=>p.team==='offense').forEach(o=>{
+    const id='X'+o.id.slice(1);
+    if(!playerById(id)){
+      play.players.push({id,team:'defense',label:'x'+o.id.slice(1)});
+      play.steps.forEach(s=>{ const op=s.positions[o.id]||{x:0,z:3};
+        const dx=HOOP.x-op.x, dz=HOOP.z-op.z, L=Math.hypot(dx,dz)||1;
+        s.positions[id]={x:+(op.x+dx/L).toFixed(2), z:+(op.z+dz/L).toFixed(2)}; });
+    }
+  });
+  redraw();
+};
 
-function showProps(){
-  const el=document.getElementById('props');
-  if(!selected){ el.innerHTML='<h3>Properties</h3><div class="hint">Select a player, pick, or waypoint to edit it.<br><br>'
-    +'<b>Draw Route:</b> click a player, then click to lay waypoints.<br><b>Add Pick:</b> click to drop, drag the gold handle to aim the screen.<br><b>Add Pass:</b> click passer then receiver.</div>'; return; }
-  if(selected.type==='player'){ const p=selected.ref;
-    el.innerHTML=`<h3>Player ${p.id}</h3>
-      <div class="row"><label>Label</label><input type="text" id="pLabel" value="${p.label}"></div>
-      <div class="row"><label class="chk"><input type="checkbox" id="pBall" ${p.ball?'checked':''}> Has the ball</label></div>
-      ${p.team==='offense'?`<div class="row"><label class="chk"><input type="checkbox" id="pRole" ${play.role===p.id?'checked':''}> Trainee (you in VR)</label></div>`:''}
-      <div class="row"><span class="pill">${p.team}</span></div>
-      <div class="row"><button class="danger" id="pDel">Delete player</button></div>`;
-    document.getElementById('pLabel').oninput=e=>{p.label=e.target.value;redraw();};
-    document.getElementById('pBall').onchange=e=>{ if(e.target.checked) play.players.forEach(x=>x.ball=false); p.ball=e.target.checked; redraw(); };
-    const r=document.getElementById('pRole'); if(r) r.onchange=e=>{ if(e.target.checked){play.role=p.id; refreshRole();} redraw(); };
-    document.getElementById('pDel').onclick=()=>{removePlayer(p);selected=null;redraw();showProps();};
-  } else if(selected.type==='pick'){ const pk=selected.ref; const deg=Math.round(pk.angle*180/Math.PI);
-    el.innerHTML=`<h3>Pick / Screen</h3>
-      <div class="row"><label>Screen faces: ${deg}°</label><input type="range" id="pkAng" min="0" max="360" value="${(deg+360)%360}"></div>
-      <div class="hint">Drag the gold handle on the court to aim it, or use the slider. The bar is the screener's body; the handle points the way the cutter comes off.</div>
-      <div class="row"><button class="danger" id="pkDel">Delete pick</button></div>`;
-    document.getElementById('pkAng').oninput=e=>{ pk.angle=e.target.value*Math.PI/180; redraw(); showProps(); };
-    document.getElementById('pkDel').onclick=()=>{play.picks=play.picks.filter(x=>x!==pk);selected=null;redraw();showProps();};
-  } else if(selected.type==='waypoint'){ const w=play.routes[selected.pid][selected.idx];
-    el.innerHTML=`<h3>Waypoint · ${selected.pid}</h3>
-      <div class="row"><label>Leg type</label><select id="wTag">
-        <option value="move"${w.tag==='move'?' selected':''}>Move</option>
-        <option value="screen"${w.tag==='screen'?' selected':''}>Set screen here</option>
-        <option value="catch"${w.tag==='catch'?' selected':''}>Catch / finish</option></select></div>
-      ${w.tag==='screen'?`<div class="row"><label>Hold on screen (sec)</label><input type="number" id="wDwell" step="0.1" min="0" value="${w.dwell??0.7}"></div>`:''}
-      <div class="row"><label>Target time for this leg (sec, optional)</label><input type="number" id="wTarget" step="0.1" min="0" value="${w.target??''}"></div>
-      <div class="row"><button class="danger" id="wDel">Delete waypoint</button></div>`;
-    document.getElementById('wTag').onchange=e=>{w.tag=e.target.value;redraw();showProps();};
-    const dw=document.getElementById('wDwell'); if(dw) dw.oninput=e=>w.dwell=+e.target.value;
-    document.getElementById('wTarget').oninput=e=>w.target=e.target.value?+e.target.value:undefined;
-    document.getElementById('wDel').onclick=()=>{play.routes[selected.pid].splice(selected.idx,1);selected=null;redraw();showProps();};
-  }
+// ---------- steps / timeline ----------
+function addStepAfter(){
+  const clone=JSON.parse(JSON.stringify(step()));
+  clone.events=[]; clone.duration=2;
+  play.steps.splice(cur+1,0,clone);
+  cur=cur+1; refreshTimeline(); redraw(); showProps();
+  status('Step '+cur+' added — move the players into their next spots.');
+}
+function deleteStep(){
+  if(play.steps.length<=1){ status('A play needs at least its starting step.'); return; }
+  play.steps.splice(cur,1); cur=Math.max(0,cur-1);
+  refreshTimeline(); redraw(); showProps();
+}
+function moveStep(dir){
+  const j=cur+dir;
+  if(cur===0||j===0||j<0||j>=play.steps.length){ status(cur===0?'Step 1 (start) stays first.':'Can\'t move further.'); return; }
+  const s=play.steps.splice(cur,1)[0]; play.steps.splice(j,0,s); cur=j;
+  refreshTimeline(); redraw();
+}
+function refreshTimeline(){
+  const tl=document.getElementById('timeline'); tl.innerHTML='';
+  play.steps.forEach((s,i)=>{
+    const c=document.createElement('div');
+    c.className='stepchip'+(i===cur?' cur':'');
+    c.dataset.i=i;
+    c.innerHTML='<div class="t">'+(i===0?'Start':'Step '+i)+'</div><div class="d">'+
+      (i===0?'set':(s.duration+'s'+(s.events.length?' · '+s.events.length+'ev':'')))+'</div>';
+    c.onclick=()=>{ if(anim)return; cur=i; selected=null; refreshTimeline(); redraw(); showProps(); };
+    tl.appendChild(c);
+  });
+  const mk=(txt,fn,cls)=>{ const b=document.createElement('button'); b.textContent=txt; b.onclick=fn; if(cls)b.className=cls; tl.appendChild(b); return b; };
+  mk('+ Step', addStepAfter, 'gold');
+  mk('◀', ()=>moveStep(-1));
+  mk('▶', ()=>moveStep(1));
+  mk('✕ step', deleteStep);
+  const pb=mk(anim?'■ Stop':'▶ Play', ()=> anim?stopPlayback():startPlayback());
+  pb.id='playBtn';
+}
+function highlightChip(i){
+  document.querySelectorAll('.stepchip').forEach(c=> c.classList.toggle('cur', +c.dataset.i===i));
 }
 
-// ---------- toolbar ----------
-function setTool(t){ tool=t; if(t!=='route') activeRoute=null; if(t!=='pass') passFrom=null;
-  document.querySelectorAll('.tools [data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t)); }
-document.querySelectorAll('.tools [data-tool]').forEach(b=> b.onclick=()=> setTool(b.dataset.tool));
-document.getElementById('addO').onclick=()=>{ const n=nextId('offense'); if(!n){status('Max 5 offense.');return;}
-  play.players.push({id:n.id,team:'offense',label:n.label||n.id.slice(1),x:0,z:3,ball:false}); refreshRole(); redraw(); };
-document.getElementById('addD').onclick=()=>{ if(!play.hasDefense){status('Turn on "Include defense" first.');return;}
-  const n=nextId('defense'); if(!n){status('Max 5 defenders.');return;}
-  play.players.push({id:n.id,team:'defense',label:n.label,x:0,z:3.6}); redraw(); };
-document.getElementById('matchD').onclick=()=>{ if(!play.hasDefense){status('Turn on "Include defense" first.');return;}
-  play.players.filter(p=>p.team==='offense').forEach(o=>{ const id='X'+o.id.slice(1);
-    if(!play.players.find(p=>p.id===id)){ const dz=(HOOP.z-o.z), dx=(HOOP.x-o.x), L=Math.hypot(dx,dz)||1;
-      play.players.push({id,team:'defense',label:'x'+o.id.slice(1), x:+(o.x+dx/L*1.0).toFixed(2), z:+(o.z+dz/L*1.0).toFixed(2)}); } });
-  redraw(); };
-document.getElementById('clearRoutes').onclick=()=>{ play.routes={}; redraw(); status('Routes cleared.'); };
-document.getElementById('seedBtn').onclick=()=>{ seedOffense(); refreshRole(); redraw(); status('Seeded 5-out set.'); };
+// ---------- props panel ----------
+function showProps(){
+  const el=document.getElementById('props');
+  if(selected){
+    const p=selected, s=step();
+    el.innerHTML=`<h3>Player ${p.id}</h3>
+      <div class="row"><label>Label</label><input type="text" id="pLabel" value="${p.label}"></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="pBall" ${s.ball===p.id?'checked':''}> Has ball in this step</label></div>
+      ${p.team==='offense'?`<div class="row"><label class="chk"><input type="checkbox" id="pRole" ${play.role===p.id?'checked':''}> Trainee (you in VR)</label></div>`:''}
+      <div class="row"><span class="pill">${p.team}</span></div>
+      <div class="row"><button class="danger" id="pDel">Remove from play</button></div>`;
+    document.getElementById('pLabel').oninput=e=>{p.label=e.target.value;redraw();};
+    document.getElementById('pBall').onchange=e=>{ if(e.target.checked) s.ball=p.id; redraw(); };
+    const r=document.getElementById('pRole'); if(r) r.onchange=e=>{ if(e.target.checked){play.role=p.id; refreshRole();} redraw(); };
+    document.getElementById('pDel').onclick=()=>removePlayer(p);
+    return;
+  }
+  // step properties
+  const s=step();
+  let evHtml = s.events.map((ev,i)=>{
+    let d='';
+    if(ev.type==='screen') d='⊥ Screen · '+ev.player+' · '+Math.round(((ev.angle*180/Math.PI)+360)%360)+'°';
+    if(ev.type==='pass') d='⇢ Pass '+ev.from+' → '+ev.to;
+    if(ev.type==='catch') d='◎ Catch · '+ev.player;
+    return `<div class="evt"><span>${d}</span><button data-i="${i}" class="danger evdel">✕</button></div>`;
+  }).join('') || '<div class="hint">No events in this step.</div>';
+  el.innerHTML=`<h3>${cur===0?'Start (Step 1)':'Step '+cur}</h3>
+    ${cur>0?`<div class="row"><label>Duration / target time (sec)</label><input type="number" id="sDur" step="0.1" min="0.2" value="${s.duration}"></div>`:'<div class="hint">This is the starting set — place everyone where the play begins.</div>'}
+    <div class="row"><label>Events this step</label>${evHtml}</div>
+    ${s.events.find(e=>e.type==='screen')?`<div class="row"><label>Screen angle</label><input type="range" id="sAng" min="0" max="360" value="${Math.round(((s.events.find(e=>e.type==='screen').angle*180/Math.PI)+360)%360)}"></div>`:''}
+    <div class="hint" style="margin-top:14px">Move players for this step, add events with the left tools, then <b>+ Step</b> for the next move.</div>`;
+  const d=document.getElementById('sDur'); if(d) d.oninput=e=>{ s.duration=+e.target.value; refreshTimeline(); };
+  const a=document.getElementById('sAng'); if(a) a.oninput=e=>{ s.events.find(x=>x.type==='screen').angle=e.target.value*Math.PI/180; redraw(); };
+  el.querySelectorAll('.evdel').forEach(b=> b.onclick=()=>{ s.events.splice(+b.dataset.i,1); redraw(); showProps(); });
+}
 
-// ---------- header controls ----------
+// ---------- toolbar / header ----------
+function setTool(t){ tool=t; if(t!=='pass') passFrom=null;
+  document.querySelectorAll('.tools [data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t)); }
+document.querySelectorAll('.tools [data-tool]').forEach(b=> b.onclick=()=>setTool(b.dataset.tool));
 const nameInput=document.getElementById('playName');
 nameInput.oninput=e=>play.name=e.target.value;
-document.getElementById('hasDefense').onchange=e=>{ play.hasDefense=e.target.checked;
-  if(!e.target.checked){ play.players=play.players.filter(p=>p.team!=='defense');
-    play.passes=play.passes.filter(ps=>!ps.from.startsWith('X')&&!ps.to.startsWith('X')); redraw(); } };
+document.getElementById('hasDefense').onchange=e=>{
+  play.hasDefense=e.target.checked;
+  if(!e.target.checked){
+    play.players.filter(p=>p.team==='defense').slice().forEach(removePlayer);
+  }
+};
 function refreshRole(){ const sel=document.getElementById('roleSel'); sel.innerHTML='';
   play.players.filter(p=>p.team==='offense').forEach(p=>{ const o=document.createElement('option');
     o.value=p.id; o.textContent=p.id; if(p.id===play.role)o.selected=true; sel.appendChild(o); }); }
 document.getElementById('roleSel').onchange=e=>{ play.role=e.target.value; redraw(); };
 
-// ---------- save / load (localStorage for now; Supabase next stage) ----------
+// ---------- save / load ----------
 const KEY='hoopvr_plays';
 function listPlays(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return [];} }
-function serialize(){ return { id:play.id, name:play.name, hasDefense:play.hasDefense, role:play.role,
-  players:JSON.parse(JSON.stringify(play.players)), picks:JSON.parse(JSON.stringify(play.picks)),
-  routes:Object.entries(play.routes).map(([playerId,waypoints])=>({playerId,waypoints})),
-  passes:JSON.parse(JSON.stringify(play.passes)), savedAt:new Date().toISOString().slice(0,16).replace('T',' ') }; }
-function deserialize(d){ const p=newPlay(); p.id=d.id; p.name=d.name||''; p.hasDefense=d.hasDefense!==false; p.role=d.role||'O1';
-  p.players=d.players||[]; p.picks=d.picks||[]; p.passes=d.passes||[];
-  p.routes={}; (d.routes||[]).forEach(r=>p.routes[r.playerId]=r.waypoints); return p; }
+function serialize(){ return JSON.parse(JSON.stringify({ format:2, id:play.id, name:play.name,
+  hasDefense:play.hasDefense, role:play.role, players:play.players, steps:play.steps,
+  savedAt:new Date().toISOString().slice(0,16).replace('T',' ') })); }
+function deserialize(d){
+  if(d.format===2 && d.steps){ const p=newPlay(); p.id=d.id; p.name=d.name||''; p.hasDefense=d.hasDefense!==false;
+    p.role=d.role||'O1'; p.players=d.players; p.steps=d.steps; return p; }
+  // old route-based format → keep players & start positions as Step 1 only
+  const p=newPlay(); p.id=d.id; p.name=(d.name||'')+' (converted)'; p.hasDefense=d.hasDefense!==false; p.role=d.role||'O1';
+  if(d.players){ p.players=d.players.map(({id,team,label})=>({id,team,label}));
+    p.steps=[blankStep()]; p.steps[0].duration=0;
+    d.players.forEach(pl=>{ p.steps[0].positions[pl.id]={x:pl.x,z:pl.z}; if(pl.ball)p.steps[0].ball=pl.id; }); }
+  return p;
+}
 function refreshList(){ const sel=document.getElementById('savedList'); sel.innerHTML='<option value="">— saved plays —</option>';
   listPlays().forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name||'(unnamed)'; sel.appendChild(o); }); }
-document.getElementById('saveBtn').onclick=()=>{ if(!play.name.trim()){ nameInput.focus(); status('Give the play a name first.'); return; }
+document.getElementById('saveBtn').onclick=()=>{
+  if(!play.name.trim()){ nameInput.focus(); status('Give the play a name first.'); return; }
   if(!play.id) play.id='play_'+Date.now().toString(36);
   const arr=listPlays(); const d=serialize(); const i=arr.findIndex(x=>x.id===play.id);
-  if(i>=0)arr[i]=d; else arr.push(d); localStorage.setItem(KEY,JSON.stringify(arr)); refreshList();
-  status('Saved “'+play.name+'”.'); };
+  if(i>=0)arr[i]=d; else arr.push(d);
+  localStorage.setItem(KEY,JSON.stringify(arr)); refreshList();
+  status('Saved “'+play.name+'” — '+(play.steps.length-1)+' step(s).');
+};
 document.getElementById('loadBtn').onclick=()=>{ const id=document.getElementById('savedList').value; if(!id)return;
-  const d=listPlays().find(p=>p.id===id); if(!d)return; play=deserialize(d); loadIntoUI(); status('Loaded “'+play.name+'”.'); };
-document.getElementById('newBtn').onclick=()=>{ play=newPlay(); seedOffense(); loadIntoUI(); status('New play.'); };
+  const d=listPlays().find(p=>p.id===id); if(!d)return; play=deserialize(d); cur=0; loadIntoUI(); status('Loaded “'+play.name+'”.'); };
+document.getElementById('newBtn').onclick=()=>{ play=newPlay(); cur=0; loadIntoUI(); status('New play.'); };
 document.getElementById('exportBtn').onclick=()=>{ const blob=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(play.name||'play')+'.json'; a.click(); };
 document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
 document.getElementById('importFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
-  r.onload=()=>{ try{ play=deserialize(JSON.parse(r.result)); loadIntoUI(); status('Imported “'+play.name+'”.'); }catch(err){ status('Bad JSON file.'); } }; r.readAsText(f); };
+  r.onload=()=>{ try{ play=deserialize(JSON.parse(r.result)); cur=0; loadIntoUI(); status('Imported “'+play.name+'”.'); }
+    catch(err){ status('Bad JSON file.'); } }; r.readAsText(f); };
 
 function loadIntoUI(){ nameInput.value=play.name; document.getElementById('hasDefense').checked=play.hasDefense;
-  refreshRole(); selected=null; setTool('select'); redraw(); showProps(); }
+  selected=null; setTool('select'); refreshRole(); refreshTimeline(); redraw(); showProps(); }
 function status(m){ document.getElementById('status').textContent=m; }
 
 // ---------- boot ----------
-play=newPlay(); seedOffense(); refreshList(); loadIntoUI();
+play=newPlay(); refreshList(); loadIntoUI();
+window.__designer = { get play(){return play;}, get cur(){return cur;}, addStepAfter, startPlayback, stopPlayback };
 </script>
 </body>
 </html>
