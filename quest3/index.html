@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.6 · 2026-07-02 · interactive + full-height players</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.7 · 2026-07-02 · chest arrows + catch to shoot</div>
 
 <script type="importmap">
 {
@@ -799,7 +799,7 @@ function sayPlay(t, big){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512
 function coordP(id, si){ const s = loaded.steps[si]; return s && s.positions[id]; }
 
 // the trainee is YOU (play.role) — start circle + countdown + directions, not a figure
-let lpState = 'toStart', cdT = 0, doneT = 0, goT = 0, lastPanelKey = '', beat = 1, beatT = 0, dwellT = 0, runT = 0;
+let lpState = 'toStart', cdT = 0, doneT = 0, goT = 0, lastPanelKey = '', beat = 1, beatT = 0, dwellT = 0, runT = 0, yoursT = 0;
 function sayRun(tstr, words){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512,120);
   c.fillStyle='rgba(10,16,30,.82)'; roundRect(c,0,0,512,120,20); c.fill();
   c.strokeStyle='rgba(231,184,75,.5)'; c.lineWidth=4; roundRect(c,3,3,506,114,18); c.stroke();
@@ -815,13 +815,14 @@ startPillar.visible = false; playGroup.add(startPillar);
 const traineePath = new THREE.Group(); playGroup.add(traineePath);
 const _pcam = new THREE.Vector3();
 
+const ARROW_Y = 1.3;   // chest height so you can see the path while running upright
 function tubeArrowP(a, b, col){
   const g = new THREE.Group();
-  const curve = new THREE.LineCurve3(new THREE.Vector3(a.x,0.05,a.z), new THREE.Vector3(b.x,0.05,b.z));
+  const curve = new THREE.LineCurve3(new THREE.Vector3(a.x,ARROW_Y,a.z), new THREE.Vector3(b.x,ARROW_Y,b.z));
   const mat = new THREE.MeshBasicMaterial({ color:col });
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,1,0.035,8,false), mat));
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.09,0.2,10), mat);
-  head.position.set(b.x,0.05,b.z);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,1,0.04,8,false), mat));
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.1,0.22,10), mat);
+  head.position.set(b.x,ARROW_Y,b.z);
   head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3(b.x-a.x,0,b.z-a.z).normalize());
   g.add(head); return g;
 }
@@ -859,12 +860,21 @@ function placeStep(si){ (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)
   if(c&&loadedFigs[p.id]) loadedFigs[p.id].position.set(c.x,0,c.z); }); }
 function applyFigureScale(s){ Object.values(loadedFigs).forEach(f=>f.scale.setScalar(1/s)); // people stay full height at any court scale
   const b=playGroup.userData.ball; if(b) b.scale.setScalar(1/s);
-  loadedWalls.forEach(w=>w.scale.setScalar(1/s)); }
+  loadedWalls.forEach(w=>w.scale.setScalar(1/s));
+  traineePath.scale.set(1, 1/s, 1); }   // keep arrows at chest height (constant Y) while spacing scales
 function showLegs(bt){ traineeLegs.forEach((g,i)=>{ if(!g)return;   // show current leg (bright) + next (dim) only
   const cur=(i===bt-1), nxt=(i===bt); g.visible=cur||nxt;
   const col=cur?0x35c46a:0x2f6db0; g.traverse(o=>{ if(o.material&&o.material.color) o.material.color.setHex(col); }); }); }
+function enterYours(){                  // ball's been passed to you — grab & finish
+  lpState='yours'; yoursT=9;
+  const cp=new THREE.Vector3(); camera.getWorldPosition(cp);
+  const cd=new THREE.Vector3(); camera.getWorldDirection(cd); cd.y=0; if(cd.lengthSq()<1e-4)cd.set(0,0,-1); cd.normalize();
+  ball.position.copy(cp).addScaledVector(cd,0.5); ball.position.y=cp.y-0.15;
+  vel.set(0,0,0); held=null; ball.visible=true;
+  sayPlay("Ball's yours — grab & finish!", false);
+}
 function toStart(){
-  lpState='toStart'; beat=1; runT=0; lastPanelKey=''; placeStep(0);
+  lpState='toStart'; beat=1; runT=0; lastPanelKey=''; ball.visible=false; placeStep(0);
   startRing.visible=true; startPillar.visible=true; traineePath.visible=false;
   loadedWalls.forEach(w=>w.visible=false);
   if(playGroup.userData.ball) playGroup.userData.ball.visible=false;
@@ -904,6 +914,7 @@ function updateLoadedPlay(dt){
   }
   if(lpState==='go'){ goT-=dt; if(goT<=0){ lpState='running'; beat=1; beatT=0; dwellT=0; runT=0; lastPanelKey=''; showLegs(1); } return; }
   if(lpState==='done'){ doneT-=dt; if(doneT<=0) toStart(); return; }
+  if(lpState==='yours'){ yoursT-=dt; if(yoursT<=0){ ball.visible=false; held=null; vel.set(0,0,0); toStart(); } return; }
 
   // running — interactive: a beat advances only when YOU complete it (reach the spot / set the pick)
   runT += dt;
@@ -943,8 +954,14 @@ function updateLoadedPlay(dt){
   else { ready = reached && beatT >= beatDur*0.6; }
   if(ready){
     blip(needsPick?760:640, 0.07, 'square', 0.16);
-    if(beat>=lastStep){ lpState='done'; doneT=2.2; sayPlay('RESET', true);
-      loadedWalls.forEach(w=>w.visible=false); if(ballM) ballM.visible=false; return; }
+    if(beat>=lastStep){
+      loadedWalls.forEach(w=>w.visible=false); if(ballM) ballM.visible=false; traineePath.visible=false;
+      const last=loaded.steps[lastStep];
+      const mine = last.ball===loaded.role || (last.events||[]).some(e=>e.type==='pass'&&e.to===loaded.role);
+      if(mine){ enterYours(); }
+      else { lpState='done'; doneT=2.2; sayPlay('RESET', true); }
+      return;
+    }
     beat++; beatT=0; dwellT=0; showLegs(beat);
   }
 }
