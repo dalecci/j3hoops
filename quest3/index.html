@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.7 · 2026-07-02 · chest arrows + catch to shoot</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.8 · 2026-07-02 · Plays + Random (tags)</div>
 
 <script type="importmap">
 {
@@ -771,6 +771,7 @@ function stopDrill() {
 const SB_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SB_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 let cloudPlays = [];
+let randomTag = null;   // when set, each rep loads a random play with this tag (quiz mode)
 async function fetchCloudPlays(){
   try { const r = await fetch(SB_URL+'/rest/v1/quest3_plays?select=id,name,data&order=updated_at.desc',{headers:{apikey:SB_KEY}});
     if (r.ok) cloudPlays = await r.json(); } catch(e){ logOnce('fetchplays', e); }
@@ -881,13 +882,29 @@ function toStart(){
   sayPlay('Step onto your circle', false);
 }
 function startLoadedPlay(d){
+  randomTag=null;                       // "Plays" mode: run this one play, repeated
   if(drillActive) stopDrill();
   buildLoadedPlay(d);
   playGroup.visible=true; loadedActive=true;
   ball.visible=false; scoreboard.visible=false;
   toStart();
 }
-function stopLoadedPlay(){ loadedActive=false; playGroup.visible=false; namePanel.visible=false; ball.visible=true; scoreboard.visible=true; }
+function startRandom(tag){
+  randomTag=tag;                        // "Random" mode: a random variation each rep
+  if(drillActive) stopDrill();
+  const pool=cloudPlays.filter(p=>p.data && p.data.tag===tag);
+  if(!pool.length) return;
+  buildLoadedPlay(pool[Math.floor(Math.random()*pool.length)].data);
+  playGroup.visible=true; loadedActive=true;
+  ball.visible=false; scoreboard.visible=false;
+  toStart();
+}
+function nextRep(){                      // between reps: reroll a new random variation, or repeat the same play
+  if(randomTag){ const pool=cloudPlays.filter(p=>p.data && p.data.tag===randomTag);
+    if(pool.length) buildLoadedPlay(pool[Math.floor(Math.random()*pool.length)].data); }
+  toStart();
+}
+function stopLoadedPlay(){ loadedActive=false; randomTag=null; playGroup.visible=false; namePanel.visible=false; ball.visible=true; scoreboard.visible=true; }
 function playerBallPos(id, ease){ if(id===loaded.role) return _pcam; const f=loadedFigs[id]; return f&&f.position; }
 function updateLoadedPlay(dt){
   if(!loadedActive || paused || !loaded) return;
@@ -913,8 +930,8 @@ function updateLoadedPlay(dt){
     return;
   }
   if(lpState==='go'){ goT-=dt; if(goT<=0){ lpState='running'; beat=1; beatT=0; dwellT=0; runT=0; lastPanelKey=''; showLegs(1); } return; }
-  if(lpState==='done'){ doneT-=dt; if(doneT<=0) toStart(); return; }
-  if(lpState==='yours'){ yoursT-=dt; if(yoursT<=0){ ball.visible=false; held=null; vel.set(0,0,0); toStart(); } return; }
+  if(lpState==='done'){ doneT-=dt; if(doneT<=0) nextRep(); return; }
+  if(lpState==='yours'){ yoursT-=dt; if(yoursT<=0){ ball.visible=false; held=null; vel.set(0,0,0); nextRep(); } return; }
 
   // running — interactive: a beat advances only when YOU complete it (reach the spot / set the pick)
   runT += dt;
@@ -1014,11 +1031,11 @@ function makeButton(label, action, y) {
 function clearButtons(){ buttonMeshes.forEach(m=>menuGroup.remove(m)); buttonMeshes.length = 0; }
 function buildMainButtons(){
   clearButtons();
-  const items = [ ['Resume','resume'], ['Choose Play ▸','plays'], ['Stop Play','stopplay'],
+  const items = [ ['Resume','resume'], ['Plays ▸  (run one)','plays'], ['Random ▸  (quiz)','random'], ['Stop Play','stopplay'],
     ['Start / Stop Drill','drill'], ['Passthrough on/off','passthrough'], ['Court: wood/lines/off','court'],
     ['Court size: 100/60/30%','scale'],
     ['Recenter Court','recenter'], ['Exit to Start','exit'] ];
-  let y = 0.52; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.15; });
+  let y = 0.58; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.135; });
 }
 function buildPlayButtons(){
   clearButtons();
@@ -1027,8 +1044,17 @@ function buildPlayButtons(){
   if(!list.length){ makeButton('(no plays yet)', 'back', y); return; }
   list.forEach(p=>{ makeButton((p.name||'Play').slice(0,20), 'play:'+p.id, y); y -= 0.18; });
 }
+function buildTagButtons(){
+  clearButtons();
+  let y = 0.50; makeButton('‹ Back', 'back', y); y -= 0.18;
+  const tags = [...new Set(cloudPlays.map(p=>p.data && p.data.tag).filter(Boolean))].slice(0, 6);
+  if(!tags.length){ makeButton('(tag plays in the designer)', 'back', y); return; }
+  tags.forEach(t=>{ const n=cloudPlays.filter(p=>p.data&&p.data.tag===t).length;
+    makeButton((t.slice(0,16))+' ('+n+')', 'tag:'+t, y); y -= 0.18; });
+}
 function buildMessageButtons(msg){ clearButtons(); makeButton(msg, 'back', 0.1); }
 async function openPlayPicker(){ buildMessageButtons('Loading plays…'); await fetchCloudPlays(); buildPlayButtons(); }
+async function openTagPicker(){ buildMessageButtons('Loading…'); await fetchCloudPlays(); buildTagButtons(); }
 buildMainButtons();
 
 function ctrlRay(ctrl) {
@@ -1062,6 +1088,8 @@ function recenterCourt() {
 function doAction(a) {
   if (a === 'resume') closeMenu();
   else if (a === 'plays') { openPlayPicker(); }
+  else if (a === 'random') { openTagPicker(); }
+  else if (a.indexOf('tag:') === 0) { startRandom(a.slice(4)); closeMenu(); }
   else if (a === 'back') { buildMainButtons(); }
   else if (a.indexOf('play:') === 0) { const rec = cloudPlays.find(p=>p.id===a.slice(5)); if (rec) { startLoadedPlay(rec.data); closeMenu(); } }
   else if (a === 'stopplay') { stopLoadedPlay(); closeMenu(); }

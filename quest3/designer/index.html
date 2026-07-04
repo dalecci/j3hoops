@@ -59,7 +59,8 @@
 <body>
 <header>
   <h1>J3 HOOPS · PLAY DESIGNER</h1>
-  <input type="text" id="playName" placeholder="Play name…" style="width:190px;" />
+  <input type="text" id="playName" placeholder="Play name…" style="width:170px;" />
+  <input type="text" id="playTag" placeholder="Tag (groups variations)…" style="width:170px;" title="Plays that share a Tag can be run as a Random quiz on the headset" />
   <label class="chk"><input type="checkbox" id="hasDefense" checked /> Include defense</label>
   <label class="chk">Trainee: <select id="roleSel"></select></label>
   <div class="sp"></div>
@@ -113,7 +114,7 @@ let anim = null;   // {t0, total, segs} while playing back
 
 function blankStep(){ return { duration:2, ball:'O1', positions:{}, events:[], text:'' }; }
 function newPlay(){
-  const p = { id:null, name:'', hasDefense:true, role:'O1', players:[], steps:[blankStep()] };
+  const p = { id:null, name:'', tag:'', hasDefense:true, role:'O1', players:[], steps:[blankStep()] };
   const spots = [ ['O1','offense','1',0,1.8], ['O2','offense','2',3.5,-0.5], ['O3','offense','3',-3.5,-0.5],
                   ['O4','offense','4',6.2,-3.8], ['O5','offense','5',-6.2,-3.8] ];
   spots.forEach(([id,team,label,x,z])=>{ p.players.push({id,team,label}); p.steps[0].positions[id]={x,z}; });
@@ -435,6 +436,7 @@ function setTool(t){ tool=t; if(t!=='pass') passFrom=null;
 document.querySelectorAll('.tools [data-tool]').forEach(b=> b.onclick=()=>setTool(b.dataset.tool));
 const nameInput=document.getElementById('playName');
 nameInput.oninput=e=>play.name=e.target.value;
+document.getElementById('playTag').oninput=e=>play.tag=e.target.value;
 document.getElementById('hasDefense').onchange=e=>{
   play.hasDefense=e.target.checked;
   if(!e.target.checked){
@@ -464,11 +466,11 @@ async function sbPublish(d){
   if(!r.ok) throw new Error('publish '+r.status+' '+(await r.text()).slice(0,120));
 }
 function listPlays(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return [];} }
-function serialize(){ return JSON.parse(JSON.stringify({ format:2, id:play.id, name:play.name,
+function serialize(){ return JSON.parse(JSON.stringify({ format:2, id:play.id, name:play.name, tag:play.tag||'',
   hasDefense:play.hasDefense, role:play.role, players:play.players, steps:play.steps,
   savedAt:new Date().toISOString().slice(0,16).replace('T',' ') })); }
 function deserialize(d){
-  if(d.format===2 && d.steps){ const p=newPlay(); p.id=d.id; p.name=d.name||''; p.hasDefense=d.hasDefense!==false;
+  if(d.format===2 && d.steps){ const p=newPlay(); p.id=d.id; p.name=d.name||''; p.tag=d.tag||''; p.hasDefense=d.hasDefense!==false;
     p.role=d.role||'O1'; p.players=d.players; p.steps=d.steps; return p; }
   // old route-based format → keep players & start positions as Step 1 only
   const p=newPlay(); p.id=d.id; p.name=(d.name||'')+' (converted)'; p.hasDefense=d.hasDefense!==false; p.role=d.role||'O1';
@@ -517,7 +519,7 @@ document.getElementById('importFile').onchange=e=>{ const f=e.target.files[0]; i
   r.onload=()=>{ try{ play=deserialize(JSON.parse(r.result)); cur=0; loadIntoUI(); status('Imported “'+play.name+'”.'); }
     catch(err){ status('Bad JSON file.'); } }; r.readAsText(f); };
 
-function loadIntoUI(){ nameInput.value=play.name; document.getElementById('hasDefense').checked=play.hasDefense;
+function loadIntoUI(){ nameInput.value=play.name; document.getElementById('playTag').value=play.tag||''; document.getElementById('hasDefense').checked=play.hasDefense;
   selected=null; setTool('select'); refreshRole(); refreshTimeline(); redraw(); showProps(); }
 function status(m){ document.getElementById('status').textContent=m; }
 
