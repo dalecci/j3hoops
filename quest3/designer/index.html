@@ -165,13 +165,32 @@ function drawGhostsAndArrows(){
     ctx.fillStyle = p.team==='offense'?'#2f6df6':'#e2473a';
     ctx.beginPath(); ctx.arc(ax,ay,14,0,Math.PI*2); ctx.fill();
     ctx.globalAlpha=1;
-    // movement arrow
+    // movement arrow (curved if this leg has a bend control point)
     if(Math.hypot(bx-ax,by-ay)>6){
-      ctx.strokeStyle = p.team==='offense'?'#5fe39a':'#ff9d94'; ctx.lineWidth=3;
-      line(ax,ay,bx,by);
-      arrowhead(bx,by,Math.atan2(by-ay,bx-ax), p.team==='offense'?'#5fe39a':'#ff9d94', 11);
+      const cp = (b.cx!==undefined)?{x:b.cx,z:b.cz}:{x:(a.x+b.x)/2,z:(a.z+b.z)/2};
+      const cpx=m2x(cp.x), cpy=m2y(cp.z);
+      const col = p.team==='offense'?'#5fe39a':'#ff9d94';
+      ctx.strokeStyle=col; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(cpx,cpy,bx,by); ctx.stroke();
+      arrowhead(bx,by,Math.atan2(by-cpy,bx-cpx),col,11);
+      // draggable bend handle sits ON the curve at its midpoint
+      const hx=m2x(0.25*a.x+0.5*cp.x+0.25*b.x), hy=m2y(0.25*a.z+0.5*cp.z+0.25*b.z);
+      ctx.fillStyle = (b.cx!==undefined)?'#e7b84b':'rgba(231,184,75,.45)';
+      ctx.beginPath(); ctx.arc(hx,hy,6,0,Math.PI*2); ctx.fill();
     }
   });
+}
+// bend-handle hit test (current step's moving players)
+function hitLegHandle(mx,my){
+  if(cur===0) return null;
+  const prev=play.steps[cur-1];
+  for(const p of play.players){ const a=prev.positions[p.id], b=step().positions[p.id];
+    if(!a||!b) continue; if(Math.hypot(m2x(b.x)-m2x(a.x),m2y(b.z)-m2y(a.z))<=6) continue;
+    const cp=(b.cx!==undefined)?{x:b.cx,z:b.cz}:{x:(a.x+b.x)/2,z:(a.z+b.z)/2};
+    const hx=m2x(0.25*a.x+0.5*cp.x+0.25*b.x), hy=m2y(0.25*a.z+0.5*cp.z+0.25*b.z);
+    if(Math.hypot(hx-mx,hy-my)<10) return { pid:p.id };
+  }
+  return null;
 }
 function drawEvents(s, posGet){
   s = s ?? step(); posGet = posGet ?? (id => s.positions[id]);
@@ -247,7 +266,8 @@ function drawAnimFrame(){
   const ease = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
   const posGet = id => { const pa=a.positions[id], pb=b.positions[id];
     if(!pa||!pb) return pa||pb;
-    return { x:pa.x+(pb.x-pa.x)*ease, z:pa.z+(pb.z-pa.z)*ease }; };
+    if(pb.cx===undefined) return { x:pa.x+(pb.x-pa.x)*ease, z:pa.z+(pb.z-pa.z)*ease };
+    const u=1-ease; return { x:u*u*pa.x+2*u*ease*pb.cx+ease*ease*pb.x, z:u*u*pa.z+2*u*ease*pb.cz+ease*ease*pb.z }; };
   drawEvents(b, posGet);
   // ball: pass event arcs it, otherwise it rides its holder
   const passEv = b.events.find(e=>e.type==='pass');
@@ -281,6 +301,7 @@ canvas.addEventListener('mousedown', e=>{
   const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
   if(tool==='select'){
     const h=hitScreenHandle(mx,my); if(h){ drag={type:'screenrot',ev:h}; return; }
+    const lh=hitLegHandle(mx,my); if(lh){ drag={type:'leghandle',pid:lh.pid}; status('Drag to bend the path; drag back to straighten.'); return; }
     const pl=hitPlayer(mx,my);
     if(pl){ drag={type:'player',id:pl.id}; selected=pl; redraw(); showProps(); return; }
     selected=null; redraw(); showProps();
@@ -314,6 +335,12 @@ canvas.addEventListener('mousemove', e=>{
   if(!drag||anim)return; const {mx,my}=pos(e); const X=x2m(mx), Z=y2m(my);
   if(drag.type==='player'){ const q=posOf(drag.id); q.x=+X.toFixed(2); q.z=+Z.toFixed(2); }
   else if(drag.type==='screenrot'){ const p=posOf(drag.ev.player); drag.ev.angle=Math.atan2(Z-p.z,X-p.x); }
+  else if(drag.type==='leghandle'){
+    const a=play.steps[cur-1].positions[drag.pid], b=step().positions[drag.pid];
+    const cx=2*X-0.5*(a.x+b.x), cz=2*Z-0.5*(a.z+b.z);          // control so the curve passes through the handle
+    if(Math.hypot(cx-(a.x+b.x)/2, cz-(a.z+b.z)/2) < 0.25){ delete b.cx; delete b.cz; }   // snap straight
+    else { b.cx=+cx.toFixed(2); b.cz=+cz.toFixed(2); }
+  }
   redraw();
 });
 window.addEventListener('mouseup', ()=> drag=null);

@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.8 · 2026-07-02 · Plays + Random (tags)</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.9 · 2026-07-02 · bendable paths</div>
 
 <script type="importmap">
 {
@@ -827,6 +827,24 @@ function tubeArrowP(a, b, col){
   head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3(b.x-a.x,0,b.z-a.z).normalize());
   g.add(head); return g;
 }
+// curved arrow (quadratic bezier) when a leg has a bend control point
+function curveArrowP(a, b, ctrl, col){
+  const g = new THREE.Group();
+  const A=new THREE.Vector3(a.x,ARROW_Y,a.z), B=new THREE.Vector3(b.x,ARROW_Y,b.z);
+  const curve = ctrl ? new THREE.QuadraticBezierCurve3(A, new THREE.Vector3(ctrl.x,ARROW_Y,ctrl.z), B) : new THREE.LineCurve3(A,B);
+  const mat = new THREE.MeshBasicMaterial({ color:col });
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, ctrl?24:1, 0.04, 8, false), mat));
+  const p1=curve.getPoint(1), p0=curve.getPoint(0.9);
+  const head=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.22,10), mat);
+  head.position.copy(p1);
+  head.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), new THREE.Vector3(p1.x-p0.x,0,p1.z-p0.z).normalize());
+  g.add(head); return g;
+}
+// point along a leg — straight, or quadratic bezier through cb's control point
+function legPoint(a,b,t){
+  if(b.cx===undefined) return { x:a.x+(b.x-a.x)*t, z:a.z+(b.z-a.z)*t };
+  const u=1-t; return { x:u*u*a.x+2*u*t*b.cx+t*t*b.x, z:u*u*a.z+2*u*t*b.cz+t*t*b.z };
+}
 function buildLoadedPlay(d){
   Object.values(loadedFigs).forEach(f=>playGroup.remove(f)); loadedFigs={};
   loadedWalls.forEach(w=>playGroup.remove(w)); loadedWalls=[];
@@ -850,7 +868,8 @@ function buildLoadedPlay(d){
   const rp=[]; for(let i=0;i<d.steps.length;i++) rp.push(coordP(d.role,i));
   for(let i=0;i<rp.length-1;i++){
     if(rp[i]&&rp[i+1]&&Math.hypot(rp[i+1].x-rp[i].x,rp[i+1].z-rp[i].z)>0.1){
-      const g=tubeArrowP(rp[i],rp[i+1],0x35c46a); g.visible=false; traineePath.add(g); traineeLegs[i]=g;
+      const ctrl = rp[i+1].cx!==undefined ? {x:rp[i+1].cx, z:rp[i+1].cz} : null;
+      const g=curveArrowP(rp[i],rp[i+1],ctrl,0x35c46a); g.visible=false; traineePath.add(g); traineeLegs[i]=g;
     } else traineeLegs[i]=null;
   }
   const s0 = coordP(d.role,0)||{x:0,z:2};
@@ -946,8 +965,9 @@ function updateLoadedPlay(dt){
   (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return;
     const ca=coordP(p.id,beat-1), cb=coordP(p.id,beat), f=loadedFigs[p.id]; if(!f)return;
     if(!ca||!cb){ const c=cb||ca; if(c) f.position.set(c.x,0,c.z); return; }
-    f.position.set(ca.x+(cb.x-ca.x)*ease,0,ca.z+(cb.z-ca.z)*ease);
-    if(Math.hypot(cb.x-ca.x,cb.z-ca.z)>0.05) f.rotation.y=Math.atan2(cb.x-ca.x,cb.z-ca.z); });
+    const q=legPoint(ca,cb,ease), q2=legPoint(ca,cb,Math.max(ease-0.04,0));
+    f.position.set(q.x,0,q.z);
+    if(Math.hypot(q.x-q2.x,q.z-q2.z)>0.002) f.rotation.y=Math.atan2(q.x-q2.x,q.z-q2.z); });
   // screen wall for this beat (constant height regardless of scale)
   loadedWalls.forEach(w=>{ const on=w.userData.step===beat; w.visible=on;
     if(on){ const ev=w.userData.ev; const wp = ev.player===loaded.role ? _pcam : (loadedFigs[ev.player]&&loadedFigs[ev.player].position);
