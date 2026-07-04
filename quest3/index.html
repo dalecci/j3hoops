@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.5 · 2026-07-02 · scale-fixed detect + HUD</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.6 · 2026-07-02 · interactive + full-height players</div>
 
 <script type="importmap">
 {
@@ -284,7 +284,7 @@ function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='
 // court scale so a play fits a smaller room (100% / 60% / 30%)
 const SCALES = [1, 0.6, 0.3];
 let courtScale = 1;
-function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); }
+function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); applyFigureScale(s); }
 function cycleScale(){ setScale(SCALES[(SCALES.indexOf(courtScale)+1) % SCALES.length]); }
 
 // ---------- hoop ----------
@@ -778,7 +778,7 @@ async function fetchCloudPlays(){
 }
 
 const playGroup = new THREE.Group(); playGroup.visible = false; arena.add(playGroup);
-let loaded = null, loadedActive = false, loadedFigs = {}, loadedWalls = [];
+let loaded = null, loadedActive = false, loadedFigs = {}, loadedWalls = [], traineeLegs = [];
 let playT = 0, playTotal = 0, playSegs = [];
 
 const nameCv = document.createElement('canvas'); nameCv.width = 512; nameCv.height = 120;
@@ -799,7 +799,7 @@ function sayPlay(t, big){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512
 function coordP(id, si){ const s = loaded.steps[si]; return s && s.positions[id]; }
 
 // the trainee is YOU (play.role) — start circle + countdown + directions, not a figure
-let lpState = 'toStart', cdT = 0, doneT = 0, goT = 0, lastPanelKey = '';
+let lpState = 'toStart', cdT = 0, doneT = 0, goT = 0, lastPanelKey = '', beat = 1, beatT = 0, dwellT = 0, runT = 0;
 function sayRun(tstr, words){ const c = nameCv.getContext('2d'); c.clearRect(0,0,512,120);
   c.fillStyle='rgba(10,16,30,.82)'; roundRect(c,0,0,512,120,20); c.fill();
   c.strokeStyle='rgba(231,184,75,.5)'; c.lineWidth=4; roundRect(c,3,3,506,114,18); c.stroke();
@@ -843,20 +843,28 @@ function buildLoadedPlay(d){
     const w=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.3,0.1),
       new THREE.MeshStandardMaterial({color:0xe7b84b,emissive:0x5a4708,transparent:true,opacity:0.55}));
     w.userData.step=si; w.userData.ev=ev; w.visible=false; playGroup.add(w); loadedWalls.push(w); }));
-  // trainee's own path = his directions
-  const rp=[]; for(let i=0;i<d.steps.length;i++){ const c=coordP(d.role,i); if(c) rp.push(c); }
-  for(let i=1;i<rp.length;i++){ if(Math.hypot(rp[i].x-rp[i-1].x,rp[i].z-rp[i-1].z)>0.1)
-    traineePath.add(tubeArrowP(rp[i-1],rp[i], i===rp.length-1?0x35c46a:0x5fb0ff)); }
+  // trainee's own path — one arrow per leg, revealed progressively
+  traineeLegs = [];
+  const rp=[]; for(let i=0;i<d.steps.length;i++) rp.push(coordP(d.role,i));
+  for(let i=0;i<rp.length-1;i++){
+    if(rp[i]&&rp[i+1]&&Math.hypot(rp[i+1].x-rp[i].x,rp[i+1].z-rp[i].z)>0.1){
+      const g=tubeArrowP(rp[i],rp[i+1],0x35c46a); g.visible=false; traineePath.add(g); traineeLegs[i]=g;
+    } else traineeLegs[i]=null;
+  }
   const s0 = coordP(d.role,0)||{x:0,z:2};
   startRing.position.set(s0.x,0.03,s0.z); startPillar.position.set(s0.x,0.7,s0.z);
-  playSegs=[]; playTotal=0;
-  for(let i=1;i<(d.steps||[]).length;i++){ const dur=Math.max(d.steps[i].duration||2,0.4); playSegs.push({i,start:playTotal,dur}); playTotal+=dur; }
-  if(playTotal<=0) playTotal=1; playT=0;
+  applyFigureScale(courtScale);
 }
 function placeStep(si){ (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return; const c=coordP(p.id,si);
   if(c&&loadedFigs[p.id]) loadedFigs[p.id].position.set(c.x,0,c.z); }); }
+function applyFigureScale(s){ Object.values(loadedFigs).forEach(f=>f.scale.setScalar(1/s)); // people stay full height at any court scale
+  const b=playGroup.userData.ball; if(b) b.scale.setScalar(1/s);
+  loadedWalls.forEach(w=>w.scale.setScalar(1/s)); }
+function showLegs(bt){ traineeLegs.forEach((g,i)=>{ if(!g)return;   // show current leg (bright) + next (dim) only
+  const cur=(i===bt-1), nxt=(i===bt); g.visible=cur||nxt;
+  const col=cur?0x35c46a:0x2f6db0; g.traverse(o=>{ if(o.material&&o.material.color) o.material.color.setHex(col); }); }); }
 function toStart(){
-  lpState='toStart'; playT=0; lastPanelKey=''; placeStep(0);
+  lpState='toStart'; beat=1; runT=0; lastPanelKey=''; placeStep(0);
   startRing.visible=true; startPillar.visible=true; traineePath.visible=false;
   loadedWalls.forEach(w=>w.visible=false);
   if(playGroup.userData.ball) playGroup.userData.ball.visible=false;
@@ -880,9 +888,9 @@ function updateLoadedPlay(dt){
 
   if(lpState==='toStart'){
     startRing.scale.setScalar(pulse/courtScale);      // circle stays a constant real size
-    startPillar.scale.setScalar(1/courtScale);
+    startPillar.scale.setScalar(1/courtScale); startPillar.position.y = 0.7/courtScale;
     if(Math.hypot(_pcam.x-s0.x,_pcam.z-s0.z) < 0.55/courtScale){   // ~0.55m in the real room at any scale
-      lpState='countdown'; cdT=2.0; traineePath.visible=true;
+      lpState='countdown'; cdT=2.0; traineePath.visible=true; showLegs(1);
       startRing.visible=false; startPillar.visible=false; blip(600,0.06,'square',0.16);
     }
     return;
@@ -894,35 +902,51 @@ function updateLoadedPlay(dt){
     if(cdT<=0){ lpState='go'; goT=0.7; sayPlay('GO!', true); blip(900,0.14,'triangle',0.22); }
     return;
   }
-  if(lpState==='go'){ goT-=dt; if(goT<=0){ lpState='running'; playT=0; lastPanelKey=''; } return; }
+  if(lpState==='go'){ goT-=dt; if(goT<=0){ lpState='running'; beat=1; beatT=0; dwellT=0; runT=0; lastPanelKey=''; showLegs(1); } return; }
   if(lpState==='done'){ doneT-=dt; if(doneT<=0) toStart(); return; }
 
-  // running
-  playT += dt;
-  if(playT>=playTotal){ lpState='done'; doneT=2.2; sayPlay('RESET', true);
-    loadedWalls.forEach(w=>w.visible=false); if(playGroup.userData.ball) playGroup.userData.ball.visible=false; return; }
-  const seg = playSegs.find(s=>playT>=s.start && playT<s.start+s.dur) || playSegs[0];
-  if(!seg){ placeStep(0); return; }
-  const k=Math.min(Math.max((playT-seg.start)/seg.dur,0),1);
-  const ease=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
-  const a=seg.i-1, b=seg.i;
-  const tstr=playT.toFixed(1)+'s', words=(loaded.steps[b].text||'');
-  const pk=tstr+'|'+words; if(pk!==lastPanelKey){ lastPanelKey=pk; sayRun(tstr, words); }
+  // running — interactive: a beat advances only when YOU complete it (reach the spot / set the pick)
+  runT += dt;
+  const lastStep = loaded.steps.length - 1;
+  const stepB = loaded.steps[beat] || loaded.steps[lastStep];
+  const beatDur = Math.max((stepB && stepB.duration) || 1.2, 0.4);
+  beatT += dt;
+  const k = Math.min(beatT/beatDur, 1);
+  const ease = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+  const sInv = 1/courtScale;
+  // teammates/defenders ease from the last beat's spots to this beat's spots
   (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return;
-    const ca=coordP(p.id,a), cb=coordP(p.id,b), f=loadedFigs[p.id]; if(!f)return;
+    const ca=coordP(p.id,beat-1), cb=coordP(p.id,beat), f=loadedFigs[p.id]; if(!f)return;
     if(!ca||!cb){ const c=cb||ca; if(c) f.position.set(c.x,0,c.z); return; }
     f.position.set(ca.x+(cb.x-ca.x)*ease,0,ca.z+(cb.z-ca.z)*ease);
     if(Math.hypot(cb.x-ca.x,cb.z-ca.z)>0.05) f.rotation.y=Math.atan2(cb.x-ca.x,cb.z-ca.z); });
-  loadedWalls.forEach(w=>{ const on=w.userData.step===b; w.visible=on;
-    if(on){ const f=loadedFigs[w.userData.ev.player]; if(f){ w.position.set(f.position.x,0.65,f.position.z);
-      w.lookAt(f.position.x+Math.cos(w.userData.ev.angle),0.65,f.position.z+Math.sin(w.userData.ev.angle)); } } });
-  const stepB=loaded.steps[b], ballM=playGroup.userData.ball;
+  // screen wall for this beat (constant height regardless of scale)
+  loadedWalls.forEach(w=>{ const on=w.userData.step===beat; w.visible=on;
+    if(on){ const ev=w.userData.ev; const wp = ev.player===loaded.role ? _pcam : (loadedFigs[ev.player]&&loadedFigs[ev.player].position);
+      if(wp){ w.position.set(wp.x, 0.65*sInv, wp.z); w.lookAt(wp.x+Math.cos(ev.angle), 0.65*sInv, wp.z+Math.sin(ev.angle)); } } });
+  // ball (heights /scale so it stays chest-high next to the full-size players)
+  const ballM=playGroup.userData.ball;
   const passEv=(stepB.events||[]).find(e=>e.type==='pass');
   if(passEv){ const pa=playerBallPos(passEv.from), pb=playerBallPos(passEv.to);
-    if(pa&&pb){ ballM.visible=true; ballM.position.set(pa.x+(pb.x-pa.x)*ease,1.1+Math.sin(ease*Math.PI)*0.5,pa.z+(pb.z-pa.z)*ease); } }
-  else { const holder=stepB.ball; const pp=playerBallPos(holder);
-    if(pp){ ballM.visible=true; ballM.position.set(pp.x+ (holder===loaded.role?0.2:0.26),1.08,pp.z+(holder===loaded.role?0:0.1)); }
-    else ballM.visible=false; }
+    if(pa&&pb){ ballM.visible=true; ballM.position.set(pa.x+(pb.x-pa.x)*ease, (1.1+Math.sin(ease*Math.PI)*0.5)*sInv, pa.z+(pb.z-pa.z)*ease); } }
+  else { const pp=playerBallPos(stepB.ball); const own=stepB.ball===loaded.role;
+    if(pp){ ballM.visible=true; ballM.position.set(pp.x+(own?0.2:0.26)*sInv, 1.08*sInv, pp.z+(own?0:0.1)*sInv); } else ballM.visible=false; }
+  // panel: running timer + this beat's words
+  const tstr=runT.toFixed(1)+'s', words=(stepB.text||'');
+  const key=tstr+'|'+words; if(key!==lastPanelKey){ lastPanelKey=key; sayRun(tstr, words); }
+  // did YOU complete this beat?
+  const tgt = coordP(loaded.role, beat) || s0;
+  const reached = Math.hypot(_pcam.x-tgt.x, _pcam.z-tgt.z) < 0.55/courtScale;
+  const needsPick = (stepB.events||[]).some(e=>e.type==='screen' && e.player===loaded.role);
+  let ready;
+  if(needsPick){ if(reached) dwellT+=dt; else dwellT=0; ready = dwellT>=0.5; }   // pick must be SET (stationary ~0.5s)
+  else { ready = reached && beatT >= beatDur*0.6; }
+  if(ready){
+    blip(needsPick?760:640, 0.07, 'square', 0.16);
+    if(beat>=lastStep){ lpState='done'; doneT=2.2; sayPlay('RESET', true);
+      loadedWalls.forEach(w=>w.visible=false); if(ballM) ballM.visible=false; return; }
+    beat++; beatT=0; dwellT=0; showLegs(beat);
+  }
 }
 
 // ---------- pause / exit menu ----------
