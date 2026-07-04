@@ -93,6 +93,9 @@
   .ask button{background:var(--accent);color:#06231b;border:none;border-radius:10px;
     padding:0 16px;font-weight:600;font-size:14px;cursor:pointer}
   .note{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5}
+  .cschip{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:12px 13px;font-size:13.5px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;font-family:inherit}
+  .cschip:hover{border-color:var(--accent);background:#20323a}
+  .cschip:active{transform:scale(.99)}
   .phase{display:inline-block;font-size:11px;color:var(--warn);border:1px solid rgba(234,166,64,.3);
     background:rgba(234,166,64,.08);border-radius:7px;padding:1px 7px;margin-left:6px}
   .loading{padding:40px;text-align:center;color:var(--mut)}
@@ -125,6 +128,53 @@ const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const BRAIN_FN = `${SUPABASE_URL}/functions/v1/brain-coach`;
 let CURRENT = null; // currently selected match id
+
+// Classification of the Brain's knowledge base by title -> situational tags.
+// (Persisted to ss_concepts.tags when Supabase is available; used here to power
+// the Courtside tool.) SPACE / PROBLEM / SITUATION / GOAL vocabulary.
+const CONCEPT_TAGS = {
+  "Attack a zone from the high post": ["vs-zone","vs-2-3-zone","high-post","packed-paint","get-to-rim","ball-movement"],
+  "Shot quality over shot quantity": ["any","rim","corner","get-to-rim","free-a-shooter"],
+  "Translate advanced systems to a 12U level": ["any"],
+  "Advantage basketball — spacing, gravity, the extra pass": ["any","spacing","ball-movement","get-to-rim","free-a-shooter","no-penetration"],
+  "Shot-quality hierarchy": ["any","rim","corner","get-to-rim","free-a-shooter"],
+  "Pace, space, and reads over scripted plays": ["any","spacing","transition","ball-movement","no-penetration"],
+  "Triangle offense": ["vs-man","spacing","ball-movement","high-post","wing","corner","free-a-shooter"],
+  "Princeton offense": ["vs-man","overplayed","high-post","get-to-rim","ball-movement","stuck-perimeter"],
+  "Horns and Double Horns": ["vs-man","vs-zone","high-post","corner","get-to-rim","create-mismatch","spacing"],
+  "5-out / 4-out motion (read and react)": ["vs-man","any","spacing","get-to-rim","no-penetration","ball-movement","paint"],
+  "Pick-and-roll (and Spain / stack PnR)": ["vs-man","vs-switch","switching","create-mismatch","get-to-rim","high-post"],
+  "Flex offense": ["vs-man","free-a-shooter","get-to-rim","wing"],
+  "Dribble Drive Motion (DDM)": ["vs-man","packed-paint","no-penetration","get-to-rim","paint","spacing"],
+  "Beat a 2-3 zone": ["vs-2-3-zone","vs-zone","packed-paint","high-post","corner","short-corner","get-to-rim","ball-movement","second-chance"],
+  "Beat a 3-2 (or 1-2-2) zone": ["vs-3-2-zone","vs-zone","high-post","paint","short-corner","get-to-rim"],
+  "Beat a 1-3-1 zone": ["vs-1-3-1","vs-zone","corner","short-corner","high-post","trapped"],
+  "Beat man-to-man": ["vs-man","create-mismatch","get-to-rim","free-a-shooter","overplayed"],
+  "Beat a full-court press": ["vs-press","pressured","trapped","beat-pressure","transition","get-to-rim"],
+  "Beat box-and-one / triangle-and-two (junk defenses)": ["vs-junk","face-guarded","free-a-shooter","create-mismatch"],
+  "Beat a switching defense": ["vs-switch","switching","create-mismatch","get-to-rim","free-a-shooter"],
+  "Floppy (get your shooter open)": ["vs-man","free-a-shooter","corner","wing","stuck-perimeter"],
+  "Zipper / pin-down entry": ["vs-man","pressured","free-a-shooter","top","wing"],
+  "Zone overload / high-post set": ["vs-zone","vs-2-3-zone","packed-paint","high-post","short-corner","corner","get-to-rim","ball-movement"],
+};
+// Common in-game problems, each mapped to the tags that answer it.
+const COURTSIDE_PROBLEMS = [
+  { label:"Packed paint — can't reach the rim", tags:["packed-paint","get-to-rim","paint","rim","no-penetration"] },
+  { label:"Denying our corners", tags:["denied-corner","corner","free-a-shooter","stuck-perimeter"] },
+  { label:"Pressuring / trapping our guards", tags:["pressured","trapped","beat-pressure","vs-press"] },
+  { label:"Overplaying our passing lanes", tags:["overplayed","get-to-rim"] },
+  { label:"Switching everything", tags:["switching","vs-switch","create-mismatch"] },
+  { label:"Face-guarding our best player", tags:["face-guarded","vs-junk","free-a-shooter"] },
+  { label:"Sitting in a zone", tags:["vs-zone","high-post","packed-paint","ball-movement"] },
+  { label:"We're stuck on the perimeter", tags:["stuck-perimeter","get-to-rim","no-penetration","free-a-shooter"] },
+];
+function matchConcepts(tags){
+  if(!tags || !tags.length) return [];
+  const want = new Set(tags);
+  return Object.entries(CONCEPT_TAGS)
+    .map(([title,ts])=>[title, ts.filter(t=>want.has(t)).length])
+    .filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t])=>t);
+}
 
 const $ = (s, r=document) => r.querySelector(s);
 const esc = (s) => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -185,10 +235,12 @@ function renderList(){
   const el = $('#matchList');
   const wins = MATCHES.filter(m=>(m.result||'').toLowerCase()==='win').length;
   const losses = MATCHES.filter(m=>(m.result||'').toLowerCase()==='loss').length;
+  const courtside = `<div class="match" data-id="courtside" onclick="__sel('courtside')" style="margin-bottom:6px">
+      <div><div class="op" style="color:var(--accent)">⚡ Courtside</div><div class="dt">in-game tactics</div></div></div>`;
   const season = `<div class="match" data-id="season" onclick="__sel('season')" style="margin-bottom:6px">
       <div><div class="op">Season</div><div class="dt">all ${MATCHES.length} games</div></div>
       <div class="sc">${wins}-${losses}</div></div>`;
-  el.innerHTML = '<div class="mtitle">Overview</div>' + season + '<div class="mtitle">Games</div>' + MATCHES.map(m=>{
+  el.innerHTML = '<div class="mtitle">Overview</div>' + courtside + season + '<div class="mtitle">Games</div>' + MATCHES.map(m=>{
     const res = (m.result||'').toLowerCase();
     const pill = res==='win'?'<span class="pill win">W</span>':res==='loss'?'<span class="pill loss">L</span>':'';
     const sc = (m.score_for!=null&&m.score_against!=null)?`${m.score_for}–${m.score_against}`:'';
@@ -203,6 +255,7 @@ window.__sel = selectMatch;
 async function selectMatch(id){
   CURRENT = id;
   document.querySelectorAll('.match').forEach(m=>m.classList.toggle('on', m.dataset.id===id));
+  if(id==='courtside'){ return renderCourtside(); }
   if(id==='season'){ return renderSeason(); }
   $('#content').innerHTML = '<div class="card"><div class="loading">Crunching the game…</div></div>';
   const m = MATCHES.find(x=>x.ss_match_id===id);
@@ -212,6 +265,49 @@ async function selectMatch(id){
   ]);
   renderGame(m, events||[], roster||[]);
 }
+
+// Courtside — in-game tactical assistant. Tap the problem the defense is
+// causing; the Brain returns 2-3 callable tactics from the tag-matched playbook.
+function renderCourtside(){
+  const defOpts = ['','man to man','2-3 zone','3-2 zone','1-3-1 zone','2-1-2 zone','full-court press','box-and-one','triangle-and-two','switching everything','mixed / junk'];
+  const selSty = "background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--txt);font-size:13px";
+  $('#content').innerHTML = `
+    <div class="head"><h1>⚡ Courtside</h1><span class="dt">tap what they're taking away — get tactics you can call right now</span></div>
+    <div class="box">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-size:12px;color:var(--dim)">They're playing:</span>
+        <select id="csDef" style="${selSty}">${defOpts.map(d=>`<option value="${d}">${d||'— any / not sure —'}</option>`).join('')}</select>
+      </div>
+      <div style="font-size:13px;color:var(--mut);margin-bottom:10px">What are they taking away from us?</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">
+        ${COURTSIDE_PROBLEMS.map((p,i)=>`<button class="cschip" onclick="__courtside(${i})">${esc(p.label)}</button>`).join('')}
+      </div>
+      <div style="margin:16px 0 8px;font-size:13px;color:var(--mut)">…or describe it in your words:</div>
+      <div class="ask">
+        <input id="csText" placeholder="e.g. they trap our ball screen and we panic" onkeydown="if(event.key==='Enter')__courtside(-1)" />
+        <button onclick="__courtside(-1)">Get tactics</button>
+      </div>
+      <div id="csOut"></div>
+      <div class="note" style="margin-top:14px">Give it ~20 seconds — the Brain is thinking through your playbook and this season's personnel. Works even mid-game before a game is synced.</div>
+    </div>`;
+}
+
+window.__courtside = async (idx)=>{
+  const def = $('#csDef').value;
+  const problem = idx>=0 ? COURTSIDE_PROBLEMS[idx] : { label: $('#csText').value.trim(), tags: [] };
+  if(idx<0 && !problem.label){ $('#csText').focus(); return; }
+  const matched = matchConcepts(problem.tags);
+  const out = $('#csOut');
+  out.innerHTML = `<div class="insight" style="margin-top:14px"><h3>⚡ Courtside</h3><div class="note">Finding tactics for "${esc(problem.label)}"…</div></div>`;
+  const q = `COURTSIDE TIMEOUT — be fast and punchy, NO preamble and no stats recap. They are taking away: "${problem.label}".${def?` They are playing a ${def}.`:''} Give me 2–3 tactics I can call RIGHT NOW: for each, name the set or action, the ONE key read, and which of our players to feature (use our season stats). Whiteboard-short — this is a 30-second timeout.${matched.length?` Draw especially from my playbook: ${matched.join('; ')}.`:''}`;
+  try{
+    const res = await fetch(BRAIN_FN, { method:'POST', headers:{ 'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}` }, body: JSON.stringify({ question:q }) });
+    const j = await res.json();
+    if(!res.ok || j.error){ out.innerHTML = `<div class="insight" style="margin-top:14px;border-color:var(--bad)"><h3 style="color:var(--bad)">Couldn't reach the Brain</h3><div class="note">${esc(j.error||res.status)}</div></div>`; return; }
+    out.innerHTML = `<div class="insight" style="margin-top:14px"><h3>⚡ Call this <span class="tag">${esc(problem.label)}${def?' · '+esc(def):''}</span></h3>
+      <div style="font-size:14px;line-height:1.7">${mdLite(j.answer)}</div></div>`;
+  }catch(e){ out.innerHTML = `<div class="insight" style="margin-top:14px;border-color:var(--bad)"><h3 style="color:var(--bad)">Error</h3><div class="note">${esc(e.message)}</div></div>`; }
+};
 
 // Aggregate every synced game into a season view.
 async function renderSeason(){
