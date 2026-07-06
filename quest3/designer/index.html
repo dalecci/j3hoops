@@ -64,6 +64,7 @@
   <label class="chk"><input type="checkbox" id="hasDefense" checked /> Include defense</label>
   <label class="chk">Trainee: <select id="roleSel"></select></label>
   <div class="sp"></div>
+  <select id="pmList" title="Import a play from your Playmaker app"><option value="">⬇ From Playmaker…</option></select>
   <select id="savedList" title="Saved plays"><option value="">— saved plays —</option></select>
   <button id="loadBtn">Load</button>
   <button id="newBtn">New</button>
@@ -546,12 +547,55 @@ document.getElementById('importFile').onchange=e=>{ const f=e.target.files[0]; i
   r.onload=()=>{ try{ play=deserialize(JSON.parse(r.result)); cur=0; loadIntoUI(); status('Imported “'+play.name+'”.'); }
     catch(err){ status('Bad JSON file.'); } }; r.readAsText(f); };
 
+// ---------- import from the Playmaker app (read-only; maps 500x470 court, hoop at top) ----------
+const PM_MAP = (px,py) => ({ x:+((px-250)*0.03).toFixed(2), z:+(-5 + (py-2)*0.03).toFixed(2) });
+const pmId = k => (k[0]==='X' ? k : 'O'+k);
+async function loadPmList(){
+  try{ const r=await fetch(SB_URL+'/rest/v1/playmaker_plays?select=id,title,folder&order=folder,title',{headers:{apikey:SB_KEY}});
+    if(!r.ok) return; const rows=await r.json(); const sel=document.getElementById('pmList');
+    sel.innerHTML='<option value="">⬇ From Playmaker ('+rows.length+')…</option>';
+    rows.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=(p.folder?p.folder+' · ':'')+(p.title||'(untitled)'); sel.appendChild(o); });
+  }catch(e){}
+}
+function convertPlaymaker(pm){
+  const p=newPlay(); p.id=null; p.name=pm.title||'Imported'; p.tag='';
+  const ids=new Set(); (pm.steps||[]).forEach(s=>Object.keys(s.positions||{}).forEach(k=>{ if(k!=='ball') ids.add(k); }));
+  p.players=[...ids].map(k=>({ id:pmId(k), team:k[0]==='X'?'defense':'offense', label:k[0]==='X'?('x'+k.slice(1)):k }));
+  p.hasDefense=p.players.some(x=>x.team==='defense'); p.role='O1';
+  p.steps=(pm.steps||[]).map((s,si)=>{ const positions={};
+    Object.keys(s.positions||{}).forEach(k=>{ if(k==='ball')return; positions[pmId(k)]=PM_MAP(s.positions[k].x,s.positions[k].y); });
+    let ball='O1'; const b=s.positions&&s.positions.ball;
+    if(b){ let best=1e9; Object.keys(s.positions).forEach(k=>{ if(k==='ball'||k[0]==='X')return; const d=Math.hypot(s.positions[k].x-b.x,s.positions[k].y-b.y); if(d<best){best=d; ball=pmId(k);} }); }
+    return { duration:si===0?0:2, ball, positions, events:[], text:'' }; });
+  if(!p.steps.length) p.steps=[blankStep()];
+  // carry positions forward/back so everyone has a spot every step
+  p.players.forEach(pl=>{ let last=null; p.steps.forEach(s=>{ if(s.positions[pl.id]) last=s.positions[pl.id]; else if(last) s.positions[pl.id]={...last}; });
+    let first=null; for(const s of p.steps){ if(s.positions[pl.id]){first=s.positions[pl.id];break;} } if(first) p.steps.forEach(s=>{ if(!s.positions[pl.id]) s.positions[pl.id]={...first}; }); });
+  // preserve drawn curves: path midpoint -> bend control on the arriving step
+  for(let i=1;i<(pm.steps||[]).length;i++){ const paths=pm.steps[i].paths; if(!paths)continue;
+    Object.keys(paths).forEach(k=>{ if(k==='ball')return; const vid=pmId(k); const path=paths[k];
+      if(!Array.isArray(path)||path.length<3)return; const Mm=path[Math.floor(path.length/2)]; const Mv=PM_MAP(Mm.x,Mm.y);
+      const A=p.steps[i-1].positions[vid], B=p.steps[i].positions[vid]; if(!A||!B)return;
+      const cx=2*Mv.x-0.5*(A.x+B.x), cz=2*Mv.z-0.5*(A.z+B.z);
+      if(Math.hypot(cx-(A.x+B.x)/2, cz-(A.z+B.z)/2)>0.3){ B.cx=+cx.toFixed(2); B.cz=+cz.toFixed(2); } });
+  }
+  return p;
+}
+document.getElementById('pmList').onchange=async e=>{ const id=e.target.value; e.target.value=''; if(!id)return;
+  status('Importing from Playmaker…');
+  try{ const r=await fetch(SB_URL+'/rest/v1/playmaker_plays?id=eq.'+id+'&select=*',{headers:{apikey:SB_KEY}}); const rows=await r.json();
+    if(!rows||!rows[0]){ status('Could not load that play.'); return; }
+    play=convertPlaymaker(rows[0]); cur=0; loadIntoUI();
+    status('Imported “'+play.name+'” — set the Trainee, add screens/passes/words + timing, then Save to publish to the headset.');
+  }catch(err){ status('Import failed: '+err.message); }
+};
+
 function loadIntoUI(){ nameInput.value=play.name; document.getElementById('playTag').value=play.tag||''; document.getElementById('hasDefense').checked=play.hasDefense;
   selected=null; setTool('select'); refreshRole(); refreshTimeline(); redraw(); showProps(); }
 function status(m){ document.getElementById('status').textContent=m; }
 
 // ---------- boot ----------
-play=newPlay(); loadIntoUI(); refreshCloud();
+play=newPlay(); loadIntoUI(); refreshCloud(); loadPmList();
 window.__designer = { get play(){return play;}, get cur(){return cur;}, addStepAfter, startPlayback, stopPlayback };
 </script>
 </body>
