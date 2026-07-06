@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v1.9 · 2026-07-02 · bendable paths</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.0 · 2026-07-02 · skinny players at scale</div>
 
 <script type="importmap">
 {
@@ -878,8 +878,8 @@ function buildLoadedPlay(d){
 }
 function placeStep(si){ (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return; const c=coordP(p.id,si);
   if(c&&loadedFigs[p.id]) loadedFigs[p.id].position.set(c.x,0,c.z); }); }
-function applyFigureScale(s){ Object.values(loadedFigs).forEach(f=>f.scale.setScalar(1/s)); // people stay full height at any court scale
-  const b=playGroup.userData.ball; if(b) b.scale.setScalar(1/s);
+function applyFigureScale(s){ Object.values(loadedFigs).forEach(f=>f.scale.set(1, 1/s, 1)); // full HEIGHT, but thickness scales with the court so they slim down at 30%
+  const b=playGroup.userData.ball; if(b) b.scale.setScalar(1/s);   // ball stays round & full size
   loadedWalls.forEach(w=>w.scale.setScalar(1/s));
   traineePath.scale.set(1, 1/s, 1); }   // keep arrows at chest height (constant Y) while spacing scales
 function showLegs(bt){ traineeLegs.forEach((g,i)=>{ if(!g)return;   // show current leg (bright) + next (dim) only
