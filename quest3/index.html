@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.0 · 2026-07-02 · skinny players at scale</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.1 · 2026-07-02 · regulation hoop at any scale</div>
 
 <script type="importmap">
 {
@@ -284,7 +284,8 @@ function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='
 // court scale so a play fits a smaller room (100% / 60% / 30%)
 const SCALES = [1, 0.6, 0.3];
 let courtScale = 1;
-function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); applyFigureScale(s); }
+function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); applyFigureScale(s);
+  hoop.scale.setScalar(1/s); }   // rim/net/backboard stay regulation size + height for real shooting
 function cycleScale(){ setScale(SCALES[(SCALES.indexOf(courtScale)+1) % SCALES.length]); }
 
 // ---------- hoop ----------
