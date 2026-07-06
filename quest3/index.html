@@ -54,7 +54,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.1 · 2026-07-02 · regulation hoop at any scale</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.2 · 2026-07-02 · hoop on baseline, reg size</div>
 
 <script type="importmap">
 {
@@ -285,7 +285,7 @@ function cycleCourt(){ setCourtMode(courtMode==='wood' ? 'lines' : courtMode==='
 const SCALES = [1, 0.6, 0.3];
 let courtScale = 1;
 function setScale(s){ courtScale = s; arena.scale.setScalar(s); applyLineScale(s); applyFigureScale(s);
-  hoop.scale.setScalar(1/s); }   // rim/net/backboard stay regulation size + height for real shooting
+  hoop.scale.set(1,1,1); hoop.children.forEach(c=>c.scale.setScalar(1/s)); }   // regulation SIZE, but stays on the (scaled) baseline
 function cycleScale(){ setScale(SCALES[(SCALES.indexOf(courtScale)+1) % SCALES.length]); }
 
 // ---------- hoop ----------
@@ -542,8 +542,8 @@ function swish(){ blip(880,0.08,'triangle',0.2); setTimeout(()=>blip(1320,0.12,'
 
 // ---------- physics helpers ----------
 const tmp = new THREE.Vector3();
-const rimCenter = new THREE.Vector3(0, RIM_Y, HOOP_Z);
-const boardZ = HOOP_Z - 0.275, boardHalfX = 0.9, boardYmin = 3.02, boardYmax = 4.08;
+const _rim = new THREE.Vector3(), _board = new THREE.Vector3();   // hoop's real world position, recomputed each frame
+const boardHalfX = 0.9;
 
 function step(dt) {
   if (paused) return;
@@ -561,16 +561,19 @@ function step(dt) {
   vel.y -= GRAVITY * dt;
   ball.position.addScaledVector(vel, dt);
 
+  // hoop rides the (scaled) baseline but is regulation size — read its real world position
+  _rim.set(0, RIM_Y, HOOP_Z); arena.localToWorld(_rim); const ry = _rim.y;
+  _board.set(0, 3.55, HOOP_Z - 0.275); arena.localToWorld(_board);
   // make detection: descending through the rim plane, inside the ring
-  const horiz = Math.hypot(ball.position.x - rimCenter.x, ball.position.z - rimCenter.z);
-  if (prevY > RIM_Y && ball.position.y <= RIM_Y && vel.y < 0 && horiz < RIM_R - 0.03) {
+  const horiz = Math.hypot(ball.position.x - _rim.x, ball.position.z - _rim.z);
+  if (prevY > ry && ball.position.y <= ry && vel.y < 0 && horiz < RIM_R - 0.03) {
     makes++; streak++; best = Math.max(best, streak); flash = 0.6; swish(); drawScore();
   }
 
   // rim ring collision (approximate torus)
-  if (Math.abs(ball.position.y - RIM_Y) < BALL_R + 0.03 && horiz > 0.02) {
-    const near = tmp.set(rimCenter.x + (ball.position.x-rimCenter.x)/horiz*RIM_R, RIM_Y,
-                         rimCenter.z + (ball.position.z-rimCenter.z)/horiz*RIM_R);
+  if (Math.abs(ball.position.y - ry) < BALL_R + 0.03 && horiz > 0.02) {
+    const near = tmp.set(_rim.x + (ball.position.x-_rim.x)/horiz*RIM_R, ry,
+                         _rim.z + (ball.position.z-_rim.z)/horiz*RIM_R);
     const d = ball.position.distanceTo(near);
     if (d < BALL_R + 0.02) {
       const n = ball.position.clone().sub(near).normalize();
@@ -580,9 +583,9 @@ function step(dt) {
   }
 
   // backboard collision
-  if (vel.z < 0 && ball.position.z - BALL_R < boardZ + 0.03 && ball.position.z > boardZ - 0.2 &&
-      Math.abs(ball.position.x) < boardHalfX && ball.position.y > boardYmin && ball.position.y < boardYmax) {
-    ball.position.z = boardZ + 0.03 + BALL_R;
+  if (vel.z < 0 && ball.position.z - BALL_R < _board.z + 0.03 && ball.position.z > _board.z - 0.2 &&
+      Math.abs(ball.position.x - _rim.x) < boardHalfX && ball.position.y > _board.y - 0.55 && ball.position.y < _board.y + 0.55) {
+    ball.position.z = _board.z + 0.03 + BALL_R;
     vel.z = -vel.z * 0.5; vel.x *= 0.8;
   }
 
@@ -596,7 +599,7 @@ function step(dt) {
       if (impact > 1.2) blip(150 + Math.min(impact,6)*18, 0.06, 'sine', Math.min(0.06+impact*0.02,0.16));
       if (vel.lengthSq() < 0.05) vel.set(0,0,0);
       // missed shot ends the streak when the ball settles low
-      if (streak > 0 && ball.position.distanceTo(rimCenter) > 1.2 && impact < 2.5) { streak = 0; drawScore(); }
+      if (streak > 0 && ball.position.distanceTo(_rim) > 1.2 && impact < 2.5) { streak = 0; drawScore(); }
     }
   }
 
