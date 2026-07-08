@@ -54,6 +54,10 @@
   .stepchip .t { font-size:13px; font-weight:700; }
   .stepchip .d { font-size:11px; color:var(--dim); }
   #status { padding:6px 16px; border-top:1px solid var(--line); color:var(--dim); font-size:12.5px; background:#0e1424; }
+  .aibar { display:flex; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid var(--line); background:#0c1120; }
+  .aibar .ailbl { color:var(--gold); font-size:12.5px; font-weight:700; white-space:nowrap; letter-spacing:.03em; }
+  .aibar input { flex:1; }
+  #aiStatus { color:var(--dim); font-size:12.5px; white-space:nowrap; max-width:320px; overflow:hidden; text-overflow:ellipsis; }
 </style>
 </head>
 <body>
@@ -73,6 +77,12 @@
   <button id="importBtn">Import</button>
   <input type="file" id="importFile" accept="application/json" style="display:none" />
 </header>
+<div class="aibar">
+  <span class="ailbl">✨ AI author</span>
+  <input type="text" id="aiDesc" placeholder="Describe the offense — e.g. Horns, ball screen for O1, big slips to the rim, hit the roller" />
+  <button id="aiGen" class="gold">Generate ▸</button>
+  <span id="aiStatus"></span>
+</div>
 <main>
   <div class="tools">
     <div class="lbl">Tools</div>
@@ -588,6 +598,24 @@ document.getElementById('pmList').onchange=async e=>{ const id=e.target.value; e
     play=convertPlaymaker(rows[0]); cur=0; loadIntoUI();
     status('Imported “'+play.name+'” — set the Trainee, add screens/passes/words + timing, then Save to publish to the headset.');
   }catch(err){ status('Import failed: '+err.message); }
+};
+
+// ---------- AI author (Brain): describe -> generate-play edge function -> load ----------
+document.getElementById('aiGen').onclick = async () => {
+  const desc = document.getElementById('aiDesc').value.trim();
+  const st = document.getElementById('aiStatus'), btn = document.getElementById('aiGen');
+  if(!desc){ st.textContent = 'Describe the offense first.'; return; }
+  btn.disabled = true; st.textContent = 'Generating… Claude is drawing it up (~20-30s)';
+  try{
+    const r = await fetch(SB_URL+'/functions/v1/generate-play', { method:'POST',
+      headers:{ 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ description: desc }) });
+    const data = await r.json();
+    if(!r.ok || data.error) throw new Error(data.error || ('HTTP '+r.status));
+    play = deserialize(data); cur = 0; loadIntoUI();
+    st.textContent = 'Generated “'+play.name+'” — set the Trainee, tweak, then Save to publish.';
+  }catch(e){ st.textContent = 'Generate failed: ' + (e.message||e); }
+  btn.disabled = false;
 };
 
 function loadIntoUI(){ nameInput.value=play.name; document.getElementById('playTag').value=play.tag||''; document.getElementById('hasDefense').checked=play.hasDefense;
