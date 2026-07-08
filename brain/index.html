@@ -305,7 +305,8 @@ window.__courtside = async (idx)=>{
     const j = await res.json();
     if(!res.ok || j.error){ out.innerHTML = `<div class="insight" style="margin-top:14px;border-color:var(--bad)"><h3 style="color:var(--bad)">Couldn't reach the Brain</h3><div class="note">${esc(j.error||res.status)}</div></div>`; return; }
     out.innerHTML = `<div class="insight" style="margin-top:14px"><h3>⚡ Call this <span class="tag">${esc(problem.label)}${def?' · '+esc(def):''}</span></h3>
-      <div style="font-size:14px;line-height:1.7">${mdLite(j.answer)}</div></div>`;
+      <div style="font-size:14px;line-height:1.7">${mdLite(j.answer)}</div>
+      ${drawControl(j.answer,'drawName','drawOut')}</div>`;
   }catch(e){ out.innerHTML = `<div class="insight" style="margin-top:14px;border-color:var(--bad)"><h3 style="color:var(--bad)">Error</h3><div class="note">${esc(e.message)}</div></div>`; }
 };
 
@@ -601,7 +602,8 @@ window.__ask = async (postgame)=>{
         <button onclick="__rate(1,this)" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px">👍</button>
         <button onclick="__rate(-1,this)" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:14px">👎</button>
         <span id="rateMsg" style="font-size:12px;color:var(--dim)"></span>
-      </div></div>`;
+      </div>
+      ${drawControl(answer,'drawName2','drawOut2')}</div>`;
     if(!postgame) $('#askq').value='';
   }catch(e){
     out.innerHTML = `<div class="insight" style="margin-top:12px;border-color:var(--bad)"><h3 style="color:var(--bad)">Couldn't reach the Brain</h3><div class="note">${esc(e.message)}</div></div>`;
@@ -621,6 +623,75 @@ function mdLite(s){
     else { close(); html+=`<div>${ln}</div>`; }
   }
   close(); return html;
+}
+
+// ── Play diagram engine ───────────────────────────────────────────────
+// The Brain returns a JSON play spec (half-court coords x/y 0-100, rim ~[50,8]).
+// We draw it on a court: circles=players, arrows=cut/pass/dribble/shot, bar=screen.
+function extractJSON(t){
+  if(!t) return null;
+  t = t.replace(/```json/gi,'').replace(/```/g,'');
+  const a=t.indexOf('{'), b=t.lastIndexOf('}');
+  if(a<0||b<0) return null;
+  try{ return JSON.parse(t.slice(a,b+1)); }catch(e){ return null; }
+}
+function playCourt(s){
+  const W=320,H=304,pad=18;
+  const X=x=>pad+(Math.max(0,Math.min(100,+x||0))/100)*(W-2*pad);
+  const Y=y=>pad+(Math.max(0,Math.min(100,+y||0))/100)*(H-2*pad);
+  const players=s.players||[]; const byId={}; players.forEach(p=>byId[String(p.label)]=p);
+  const P=id=>byId[String(id)]; const rim={x:50,y:8};
+  const arrow=(x1,y1,x2,y2,c,dash)=>`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${c}" stroke-width="2" ${dash?`stroke-dasharray="${dash}"`:''} marker-end="url(#ah)"/>`;
+  const poly=(path,c,arrowEnd)=>{ if(!path||path.length<2) return ''; const d=path.map((p,i)=>`${i?'L':'M'}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' '); return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" ${arrowEnd?'marker-end="url(#ah)"':''}/>`; };
+  const zig=(path,c)=>{ if(!path||path.length<2) return ''; const pts=[]; for(let i=0;i<path.length-1;i++){ const x1=X(path[i][0]),y1=Y(path[i][1]),x2=X(path[i+1][0]),y2=Y(path[i+1][1]); const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len; const steps=Math.max(2,Math.round(len/10)); for(let sN=(i?1:0);sN<=steps;sN++){ const t=sN/steps,bx=x1+dx*t,by=y1+dy*t,off=(sN===0||sN===steps)?0:((sN%2)?4:-4); pts.push([bx+px*off,by+py*off]); } } const d=pts.map((p,k)=>`${k?'L':'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' '); return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" marker-end="url(#ah)"/>`; };
+  let el='';
+  el+=`<rect x="1" y="1" width="${W-2}" height="${H-2}" rx="8" fill="#12161d" stroke="#2a2f3a"/>`;
+  el+=`<line x1="10" y1="${Y(2)}" x2="${W-10}" y2="${Y(2)}" stroke="#2a2f3a" stroke-width="1.5"/>`;
+  el+=`<rect x="${X(38)}" y="${Y(2)}" width="${(X(62)-X(38)).toFixed(1)}" height="${(Y(40)-Y(2)).toFixed(1)}" fill="none" stroke="#2a2f3a"/>`;
+  el+=`<circle cx="${X(50)}" cy="${Y(40)}" r="${((X(62)-X(38))/2).toFixed(1)}" fill="none" stroke="#2a2f3a"/>`;
+  el+=`<circle cx="${X(50)}" cy="${Y(7)}" r="5" fill="none" stroke="#3a4150" stroke-width="1.5"/>`;
+  el+=`<path d="M ${X(8)} ${Y(2)} L ${X(8)} ${Y(24)} A ${(X(50)-X(8)).toFixed(1)} ${(X(50)-X(8)).toFixed(1)} 0 0 0 ${X(92)} ${Y(24)} L ${X(92)} ${Y(2)}" fill="none" stroke="#2a2f3a"/>`;
+  const at=o=>o&&o.length>=2?{x:o[0],y:o[1]}:null;
+  (s.actions||[]).forEach(a=>{
+    const ty=(a.type||'').toLowerCase();
+    if(ty==='pass'){ const f=P(a.from),t=P(a.to); if(f&&t) el+=arrow(X(f.x),Y(f.y),X(t.x),Y(t.y),'#4f8fe0','5 4'); }
+    else if(ty==='shot'){ const f=a.who?P(a.who):null; const from=f?{x:f.x,y:f.y}:(at(a.at)||{x:50,y:35}); el+=arrow(X(from.x),Y(from.y),X(rim.x),Y(rim.y),'#22d3a6',''); }
+    else if(ty==='cut'||ty==='move'||ty==='drive'){ el+= (ty==='drive') ? zig(a.path,'#eaa640') : poly(a.path,'#e8ebf0',true); }
+    else if(ty==='dribble'){ el+=zig(a.path,'#eaa640'); }
+    else if(ty==='screen'){ const pt=at(a.at)||(a.who&&P(a.who)?{x:P(a.who).x,y:P(a.who).y}:null); if(pt) el+=`<line x1="${(X(pt.x)-11).toFixed(1)}" y1="${Y(pt.y).toFixed(1)}" x2="${(X(pt.x)+11).toFixed(1)}" y2="${Y(pt.y).toFixed(1)}" stroke="#d4537e" stroke-width="3"/>`; }
+  });
+  players.forEach(p=>{ el+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="11" fill="#1e232c" stroke="#22d3a6" stroke-width="1.5"/><text x="${X(p.x)}" y="${(Y(p.y)+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#e8ebf0" font-weight="600">${esc(p.label)}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:330px" role="img" aria-label="Play diagram"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>${el}</svg>`;
+}
+window.__draw = (id)=>{ const el=$('#'+(id||'drawName')); const n=el?el.value.trim():''; if(n) drawPlay(n, id); };
+async function drawPlay(name, srcId){
+  const outId = srcId==='drawName2' ? 'drawOut2' : 'drawOut';
+  const out=$('#'+outId); if(!out) return;
+  const def=($('#csDef')&&$('#csDef').value)||'';
+  out.innerHTML=`<div class="note" style="margin-top:10px">Drawing up "${esc(name)}"…</div>`;
+  const q=`Ignore any formatting rules in your system prompt for THIS reply. Output ONLY a JSON object — no prose, no markdown fences — diagramming the basketball play "${name}"${def?` run against a ${def}`:''}. Half-court coordinates: x 0(left) to 100(right), y 0(baseline, our rim end) to 100(half-court line); the rim is near [50,8]. Schema exactly: {"name":"...","players":[{"label":"1","x":50,"y":75}],"actions":[{"type":"screen","who":"5","at":[42,30]},{"type":"dribble","who":"1","path":[[50,80],[40,55]]},{"type":"pass","from":"1","to":"4"},{"type":"cut","who":"2","path":[[12,78],[12,20]]},{"type":"shot","who":"5","at":[45,14]}],"note":"one short coaching cue"}. Action types: screen, dribble, pass, cut, shot. Include all 5 offensive players (labels 1-5) with realistic spacing, the primary action, and the shot it creates. Keep it simple for a 12U team.`;
+  try{
+    const res=await fetch(BRAIN_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`},body:JSON.stringify({question:q})});
+    const j=await res.json();
+    if(j.error){ out.innerHTML=`<div class="note" style="color:var(--bad);margin-top:10px">${esc(j.error)}</div>`; return; }
+    const spec=extractJSON(j.answer);
+    if(!spec||!Array.isArray(spec.players)||!spec.players.length){ out.innerHTML=`<div class="note" style="color:var(--bad);margin-top:10px">Couldn't parse that into a diagram — try a clearer set name.</div>`; return; }
+    out.innerHTML=`<div class="box" style="margin-top:12px;background:var(--panel2)"><h3>✏️ ${esc(spec.name||name)}</h3>
+      <div style="display:flex;justify-content:center">${playCourt(spec)}</div>
+      ${spec.note?`<div class="note" style="text-align:center;margin-top:8px;color:var(--mut)">${esc(spec.note)}</div>`:''}
+      <div class="legend" style="justify-content:center;flex-wrap:wrap;gap:12px">
+        <span><b style="background:#e8ebf0"></b>cut</span><span><b style="background:#eaa640"></b>dribble</span>
+        <span><b style="background:#4f8fe0"></b>pass</span><span><b style="background:#d4537e"></b>screen</span>
+        <span><b style="background:#22d3a6"></b>shot</span></div></div>`;
+  }catch(e){ out.innerHTML=`<div class="note" style="color:var(--bad);margin-top:10px">${esc(e.message)}</div>`; }
+}
+function drawControl(answer, inputId, outId){
+  let first=((answer||'').match(/\*\*(.+?)\*\*/)||[])[1]||'';
+  first=first.split(/[—–-]/)[0].trim();
+  return `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+    <div style="font-size:12px;color:var(--dim);margin-bottom:6px">Want to see it drawn up?</div>
+    <div class="ask"><input id="${inputId}" value="${esc(first)}" placeholder="play name to diagram" onkeydown="if(event.key==='Enter')__draw('${inputId}')" /><button onclick="__draw('${inputId}')">Draw it up ✏️</button></div>
+    <div id="${outId}"></div></div>`;
 }
 
 window.__rate = async (val, btn)=>{
