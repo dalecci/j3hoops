@@ -237,10 +237,12 @@ function renderList(){
   const losses = MATCHES.filter(m=>(m.result||'').toLowerCase()==='loss').length;
   const courtside = `<div class="match" data-id="courtside" onclick="__sel('courtside')" style="margin-bottom:6px">
       <div><div class="op" style="color:var(--accent)">⚡ Courtside</div><div class="dt">in-game tactics</div></div></div>`;
+  const playbook = `<div class="match" data-id="playbook" onclick="__sel('playbook')" style="margin-bottom:6px">
+      <div><div class="op">📖 Playbook</div><div class="dt">systems, plays &amp; counters</div></div></div>`;
   const season = `<div class="match" data-id="season" onclick="__sel('season')" style="margin-bottom:6px">
       <div><div class="op">Season</div><div class="dt">all ${MATCHES.length} games</div></div>
       <div class="sc">${wins}-${losses}</div></div>`;
-  el.innerHTML = '<div class="mtitle">Overview</div>' + courtside + season + '<div class="mtitle">Games</div>' + MATCHES.map(m=>{
+  el.innerHTML = '<div class="mtitle">Overview</div>' + courtside + playbook + season + '<div class="mtitle">Games</div>' + MATCHES.map(m=>{
     const res = (m.result||'').toLowerCase();
     const pill = res==='win'?'<span class="pill win">W</span>':res==='loss'?'<span class="pill loss">L</span>':'';
     const sc = (m.score_for!=null&&m.score_against!=null)?`${m.score_for}–${m.score_against}`:'';
@@ -256,6 +258,7 @@ async function selectMatch(id){
   CURRENT = id;
   document.querySelectorAll('.match').forEach(m=>m.classList.toggle('on', m.dataset.id===id));
   if(id==='courtside'){ return renderCourtside(); }
+  if(id==='playbook'){ return renderPlaybook(); }
   if(id==='season'){ return renderSeason(); }
   $('#content').innerHTML = '<div class="card"><div class="loading">Crunching the game…</div></div>';
   const m = MATCHES.find(x=>x.ss_match_id===id);
@@ -309,6 +312,43 @@ window.__courtside = async (idx)=>{
       ${drawControl(j.answer,'drawName','drawOut')}</div>`;
   }catch(e){ out.innerHTML = `<div class="insight" style="margin-top:14px;border-color:var(--bad)"><h3 style="color:var(--bad)">Error</h3><div class="note">${esc(e.message)}</div></div>`; }
 };
+
+// Playbook — browse the Brain's whole knowledge base; draw up any set.
+function conceptFamily(cat){
+  cat=(cat||'').toLowerCase();
+  if(cat==='offense-system') return {k:'systems',label:'Offensive systems',draw:true};
+  if(cat==='play') return {k:'plays',label:'Set plays',draw:true};
+  if(cat.indexOf('vs-')===0||cat==='vs_zone') return {k:'defense',label:'Beating each defense',draw:true};
+  if(cat==='theory'||cat==='coaching'||cat==='philosophy') return {k:'theory',label:'Theory & philosophy',draw:false};
+  return {k:'other',label:'Other',draw:false};
+}
+async function renderPlaybook(){
+  $('#content').innerHTML = `<div class="head"><h1>📖 Playbook</h1><span class="dt">everything the Brain knows</span></div><div class="card"><div class="loading">Loading playbook…</div></div>`;
+  const { data, error } = await sb.from('ss_concepts').select('*').eq('active',true).order('priority',{ascending:false});
+  if(error){ $('#content').innerHTML = emptyState('Playbook unavailable', esc(error.message)); return; }
+  const order=['systems','plays','defense','theory','other'];
+  const groups={};
+  (data||[]).forEach(c=>{ const f=conceptFamily(c.category); (groups[f.k]=groups[f.k]||{label:f.label,draw:f.draw,items:[]}).items.push(c); });
+  let html='', idx=0;
+  for(const k of order){ const g=groups[k]; if(!g) continue;
+    html += `<div class="box" style="margin-bottom:14px"><h3>${esc(g.label)} <span class="sub">${g.items.length}</span></h3>`;
+    g.items.forEach(c=>{
+      const i=idx++;
+      const tags=(CONCEPT_TAGS[c.title]||[]).filter(t=>t!=='any');
+      html += `<div style="padding:11px 0;border-bottom:1px solid rgba(42,47,58,.5)">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div style="font-size:14px;font-weight:600">${esc(c.title)}</div>
+          ${g.draw?`<button class="cschip" style="padding:5px 10px;font-size:12px;white-space:nowrap" onclick="__drawPb(${i},'${encodeURIComponent(c.title)}')">Draw it up ✏️</button>`:''}
+        </div>
+        <div style="font-size:13px;color:var(--mut);margin-top:5px;line-height:1.55">${esc(c.detail)}</div>
+        ${tags.length?`<div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${tags.map(t=>`<span style="font-size:10.5px;color:var(--dim);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px">${esc(t)}</span>`).join('')}</div>`:''}
+        <div id="pbOut${i}"></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $('#content').innerHTML = `<div class="head"><h1>📖 Playbook</h1><span class="dt">everything the Brain knows — tap “Draw it up” to diagram any set</span></div>${html}`;
+}
 
 // Aggregate every synced game into a season view.
 async function renderSeason(){
@@ -663,11 +703,11 @@ function playCourt(s){
   players.forEach(p=>{ el+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="11" fill="#1e232c" stroke="#22d3a6" stroke-width="1.5"/><text x="${X(p.x)}" y="${(Y(p.y)+4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#e8ebf0" font-weight="600">${esc(p.label)}</text>`; });
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:330px" role="img" aria-label="Play diagram"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>${el}</svg>`;
 }
-window.__draw = (id)=>{ const el=$('#'+(id||'drawName')); const n=el?el.value.trim():''; if(n) drawPlay(n, id); };
-async function drawPlay(name, srcId){
-  const outId = srcId==='drawName2' ? 'drawOut2' : 'drawOut';
+window.__draw = (id)=>{ const el=$('#'+(id||'drawName')); const n=el?el.value.trim():''; if(n){ const outId=(id==='drawName2')?'drawOut2':'drawOut'; drawPlay(n, outId, ($('#csDef')&&$('#csDef').value)||''); } };
+window.__drawPb = (i, title)=> drawPlay(decodeURIComponent(title), 'pbOut'+i, '');
+async function drawPlay(name, outId, def){
   const out=$('#'+outId); if(!out) return;
-  const def=($('#csDef')&&$('#csDef').value)||'';
+  def = def || '';
   out.innerHTML=`<div class="note" style="margin-top:10px">Drawing up "${esc(name)}"…</div>`;
   const q=`Ignore any formatting rules in your system prompt for THIS reply. Output ONLY a JSON object — no prose, no markdown fences — diagramming the basketball play "${name}"${def?` run against a ${def}`:''}. Half-court coordinates: x 0(left) to 100(right), y 0(baseline, our rim end) to 100(half-court line); the rim is near [50,8]. Schema exactly: {"name":"...","players":[{"label":"1","x":50,"y":75}],"actions":[{"type":"screen","who":"5","at":[42,30]},{"type":"dribble","who":"1","path":[[50,80],[40,55]]},{"type":"pass","from":"1","to":"4"},{"type":"cut","who":"2","path":[[12,78],[12,20]]},{"type":"shot","who":"5","at":[45,14]}],"note":"one short coaching cue"}. Action types: screen, dribble, pass, cut, shot. Include all 5 offensive players (labels 1-5) with realistic spacing, the primary action, and the shot it creates. Keep it simple for a 12U team.`;
   try{
