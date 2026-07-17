@@ -131,10 +131,22 @@ test("VALIDITY GATE: straight-arm overhead catches between shots are not counted
   approx(res.shots[1].metrics.knee, b.truth[0].kneeLoad, 6, "shot1 knee unaffected");
 });
 
+test("PORTRAIT VIDEO: aspect-normalized coords recover the same ground truth", ()=>{
+  // Simulate MediaPipe output for a 9:16 portrait camera: physical (square-space)
+  // x gets divided by the aspect during normalization. Without the engine's
+  // aspect correction this inflated knee flexion ~30° on real footage.
+  const ASPECT=9/16;
+  const {frames, truth}=makeClip({nShots:3});
+  frames.forEach(f=>f.lm.forEach(p=>{ if(p.v>0){ p.x=(p.x-0.5)/ASPECT+0.5; } }));
+  addNoise(frames, 0.003);
+  const res=analyzeFrames(frames, {...OPTS, aspect:ASPECT});
+  checkShots(res, truth, DIRTY_TOL, "portrait");
+});
+
 test("REAL CLIP (Dale 2026-06-27): 4 shots, 2 catches rejected, sane metrics", async ()=>{
-  const { loadDaleClip } = await import("./fixture.mjs");
+  const { loadDaleClip, DALE_CLIP_ASPECT } = await import("./fixture.mjs");
   const frames=loadDaleClip();
-  const res=analyzeFrames(frames, {mode:"jump", modelKey:"curry", heightIn:70});
+  const res=analyzeFrames(frames, {mode:"jump", modelKey:"curry", heightIn:70, aspect:DALE_CLIP_ASPECT});
   // the clip contains exactly 4 shooting motions + 2 overhead ball catches
   assert.equal(res.shots.length, 4, "4 real shots, catches gated out");
   assert.equal(res.side, "R");

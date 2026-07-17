@@ -5,6 +5,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+// the fixture frames were extracted at 304x540 (portrait) — angles are only
+// correct when the engine is told this aspect ratio
+export const DALE_CLIP_ASPECT = 304/540;
+
 export function loadDaleClip(){
   const p=join(dirname(fileURLToPath(import.meta.url)),"fixtures","dale_clip_landmarks.json");
   const raw=JSON.parse(readFileSync(p,"utf8"));

@@ -189,7 +189,12 @@ export function kneeFlexion(lm){
 }
 
 /* ---------------- main entry ---------------- */
-/* opts: {mode:'jump'|'ft', modelKey:'curry'|'klay'|'nash', heightIn:number|null}
+/* opts: {mode:'jump'|'ft', modelKey:'curry'|'klay'|'nash', heightIn:number|null,
+          aspect:number  — videoWidth/videoHeight. REQUIRED for correct angles:
+          MediaPipe normalizes x by width and y by height, so on a portrait
+          (9:16) clip every horizontal offset is stretched ~1.8× relative to
+          vertical. Uncorrected, that inflated knee flexion by ~30° on real
+          footage. We multiply x by the aspect to restore true geometry.}
    returns {shots, side, view, quality, avgVis, personPx, warnings} */
 export function analyzeFrames(frames, opts={}){
   const mode=opts.mode||"jump";
@@ -197,6 +202,9 @@ export function analyzeFrames(frames, opts={}){
   const heightIn=opts.heightIn||null;
   const N=frames.length;
   if(N<8) return {shots:[], side:"R", view:{ok:true}, quality:"warn", warnings:["Too few frames tracked."]};
+  const A=opts.aspect||1;
+  // work on aspect-corrected copies — callers keep their original (display) coords
+  frames=frames.map(f=>({t:f.t, lm:f.lm.map(p=>({x:p.x*A, y:p.y, v:p.v}))}));
 
   const torso=median(frames.map(torsoLen))||0.15;
   const glitchCount=repairGlitches(frames, torso);
@@ -313,11 +321,16 @@ export function analyzeFrames(frames, opts={}){
     // liftoff, and only while the hips are NOT rising fast. Once airborne (or
     // springing up) the shins fold back, which reads as deep knee flexion and
     // used to inflate the "load" by 30°+ on real clips.
+    // flex uses a morphological opening (min of the 3-frame neighborhood of the
+    // median-filtered series): taking a raw max let 2-frame tracker glitches win
+    // — the original "84° knee" failure mode. Opening kills spikes ≤2 frames wide
+    // while eroding a true sustained load peak by only ~2°.
     const loadEnd=Math.max(dipIdx, Math.min(setIdx, liftoffIdx));
     const hipRising=i=> i>=2 && (hipYs[i-2]-hipYs[i])/torso > 0.08;
+    const openKnee=i=>{ const v=[]; for(let k=-1;k<=1;k++){ const j2=i+k; if(j2>=0&&j2<N) v.push(series[j2].knee); } return Math.min(...v); };
     const cand=[];
     for(let i=Math.max(backLimit,dipIdx-Math.round(0.4/dt));i<=loadEnd;i++){
-      if(series[i].legVis>0.5 && !hipRising(i)) cand.push({i,flex:series[i].knee});
+      if(series[i].legVis>0.5 && !hipRising(i)) cand.push({i,flex:openKnee(i)});
     }
     let loadIdx, loadFlex, loadConf;
     if(cand.length>=3){

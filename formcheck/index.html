@@ -367,7 +367,7 @@ import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@m
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 // Analysis engine — pure, ground-truth-tested module (see test/engine.test.mjs)
 import { MODELS, METRICS, METRIC_ORDER, L, J, angle, clamp, mean, median,
-         analyzeFrames, consistency, metricHidden, scoreMetric } from "./engine.js?v=2";
+         analyzeFrames, consistency, metricHidden, scoreMetric } from "./engine.js?v=3";
 
 const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
@@ -635,7 +635,10 @@ async function processVideo(file){
     setProgress(0.92,"Finding your shots…");
     await new Promise(r=>setTimeout(r,20));
     if(frames.length<8) throw "Couldn't track a body. Film side-on, full body in frame, steady camera, good light.";
-    const analysis=analyzeFrames(frames,{mode:state.mode, modelKey:state.model, heightIn:getHeightIn()});
+    // aspect is REQUIRED for honest angles: portrait video stretches normalized
+    // x-coordinates ~1.8× vs y — uncorrected it inflated knee bend by ~30°.
+    const aspect=(vw>0&&vh>0)?vw/vh:9/16;
+    const analysis=analyzeFrames(frames,{mode:state.mode, modelKey:state.model, heightIn:getHeightIn(), aspect});
     if(analysis.shots.length===0) throw "Tracked you, but no clear shot found. Make sure the ball goes UP and you stay in frame.";
     state.shots=analysis.shots; state.frames=frames; state.activeShot=0; state.analysis=analysis;
     setProgress(1,"Done");
