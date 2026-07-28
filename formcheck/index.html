@@ -116,6 +116,7 @@
   .metric.na{opacity:.65}
   .chip.ck{border-color:#3a4356}
   .chip.ck.on{background:var(--orange); color:#1a0e02; border-color:var(--orange)}
+  .exPrev{width:100%; border-radius:14px; border:1px solid var(--line); background:#000; display:block}
   .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--yellow)}
   /* Kinetic timeline */
   .kin{margin-top:6px}
@@ -287,6 +288,30 @@
     </div>
     <div class="sub" style="margin-top:8px">Tap a checkpoint to jump to that frame — the angle guides draw for the checkpoint you're on. ▶ loops this shot · 🐢 slow-mo · ⟨ ⟩ frame-step</div>
     <div id="metricList" style="margin-top:14px"></div>
+  </div>
+
+  <!-- Slow-mo clip export -->
+  <div class="card">
+    <h2>🎬 Slow-mo clip for your player</h2>
+    <div class="sub">Builds a shareable video of this shot — skeleton, angle checkpoints and coaching notes burned right into the footage. Text it or AirDrop it to them.</div>
+    <div class="seg" id="slowSeg" style="margin-top:11px">
+      <button data-slow="0.5">2× slower</button>
+      <button data-slow="0.25" class="active">4× slower</button>
+      <button data-slow="0.125">8× slower</button>
+    </div>
+    <button class="btn primary" id="btnExportShot" style="margin-top:11px">🎬 Make clip of this shot</button>
+    <button class="btn ghost sm" id="btnExportReel" style="margin-top:9px">🎞️ All shots in one reel</button>
+    <div id="exportResult" class="hidden" style="margin-top:14px">
+      <!-- Poster by default: attaching a blob: URL to a <video> is a known iOS Safari
+           memory/reload trigger, so the clip is only loaded if you ask to preview it. -->
+      <img id="exportPoster" class="exPrev" alt="First frame of your clip" />
+      <video id="exportPreview" class="exPrev hidden" controls playsinline preload="none"></video>
+      <button class="btn ghost sm" id="btnPreviewClip" style="margin-top:9px">▶ Preview here</button>
+      <div class="sub" id="exportMeta" style="margin-top:7px"></div>
+      <div class="sub hidden" id="exportWarn" style="margin-top:7px; color:var(--yellow)">⚠️ This browser produced a <b>.webm</b> — iPhones can't play that in Messages. Make the clip in Chrome (or on the phone itself) to get an .mp4.</div>
+      <button class="btn primary" id="btnShareClip" style="margin-top:11px">📤 Save / Share</button>
+      <button class="btn ghost sm" id="btnDownloadClip" style="margin-top:9px">⬇️ Download</button>
+    </div>
   </div>
 
   <!-- Kinetic sequence -->
@@ -715,6 +740,7 @@ const PHASES={load:"🦵 The Load", set:"📐 Rise & Set Point", release:"🚀 R
 function renderShot(i){
   const s=state.shots[i]; const m=MODELS[state.model];
   $("#shotTitle").textContent=`Shot ${i+1}`;
+  $("#exportResult").classList.add("hidden"); // a rendered clip belongs to the shot it was made from
   drawRing($("#shotRing"), s.score, s.score>=80?"#27c281":s.score>=60?"#ffcf4d":"#ff5a5a");
   showShotInPlayer(i);
   // metrics grouped by phase checkpoint
@@ -865,31 +891,48 @@ function showShotInPlayer(i){
   else if(v.readyState>=1){ jump(); }
   else { v.addEventListener("loadedmetadata",jump,{once:true}); }
 }
+/* Which metric each checkpoint grades, and the joint triplet that shows it. */
+const CK_GUIDE={
+  load:{metric:"knee",  joints:j=>[j.hip,j.kn,j.an], label:"LOAD",      title:"Knee bend at the load"},
+  set: {metric:"elbowSet",    joints:j=>[j.sh,j.el,j.wr], label:"SET POINT", title:"Elbow at the set point"},
+  rel: {metric:"elbowRelease",joints:j=>[j.sh,j.el,j.wr], label:"RELEASE",   title:"Arm extension at release"},
+  fin: {metric:"elbowFinish", joints:j=>[j.sh,j.el,j.wr], label:"FINISH",    title:"Arm stays long"},
+};
+// Draws one checkpoint's graded angle + green ideal guide onto any context.
+function drawCheckpointGuide(c,W,H,shot,lm,ck,opts={}){
+  const g=CK_GUIDE[ck]; if(!g) return false;
+  if((shot.conf[g.metric]??1)<0.5) return false;      // never draw a guide we couldn't measure
+  const j=J(shot.side), tg=MODELS[state.model].targets[g.metric];
+  if(!tg) return false;
+  const [a,b,cc]=g.joints(j).map(i=>lm[i]);
+  const extra = ck==="load"
+    ? {idealInterior:180-tg.ideal, idealText:`ideal ${tg.ideal}° bend`}   // flexion is measured FROM straight
+    : {};
+  drawAngleArc(c,W,H,a,b,cc, shot.metrics[g.metric], tg, {...extra, ...opts});
+  return true;
+}
+/* Shared overlay renderer — used by the live review player AND the clip exporter,
+   so an exported clip is pixel-identical to what the coach sees on screen.
+   opts: {skel,ghost,angles} override the UI toggles; forceCk pins one checkpoint guide. */
+function drawShotOverlay(c,W,H,shot,t,ckT,opts={}){
+  if(!shot||!state.frames.length) return;
+  const lm=state.frames[nearestFrame(t)].lm;
+  const lw=Math.max(3,W/160);
+  if(opts.skel??state.showSkel) drawPoseSkeleton(c,W,H,lm,"#e6ebf3",lw); // your form = clean white lines
+  if(opts.ghost??state.showGhost) drawPerfectOverlay(c,W,H,lm,shot,idealPhaseT(t,shot)); // cyan ideal, anchored to you
+  if((opts.angles??state.showAngles) && ckT){
+    let ck=opts.forceCk||null;
+    if(!ck){ // otherwise: whichever checkpoint the playhead is nearest (within 0.16s)
+      let bd=0.16;
+      Object.keys(CK_GUIDE).forEach(nm=>{ const tt=ckT[nm]; if(tt==null) return; const d=Math.abs(t-tt); if(d<bd){bd=d;ck=nm;} });
+    }
+    if(ck) drawCheckpointGuide(c,W,H,shot,lm,ck,opts.guide||{});
+  }
+}
 function drawOverlayAt(t){
   const c=_p.ctx,cv=_p.canvas; if(!c) return;
   c.clearRect(0,0,cv.width,cv.height);
-  const s=state.shots[_p.shotIdx]; if(!s||!state.frames.length) return;
-  const lm=state.frames[nearestFrame(t)].lm;
-  const lw=Math.max(3,cv.width/160);
-  if(state.showSkel) drawPoseSkeleton(c,cv.width,cv.height,lm,"#e6ebf3",lw); // your form = clean white lines
-  if(state.showGhost) drawPerfectOverlay(c,cv.width,cv.height,lm,s,idealPhaseT(t,s)); // bright cyan perfect-form ghost, aligned to you
-  if(state.showAngles && _p.ckT){
-    const j=J(s.side), tg=MODELS[state.model].targets, mtr=s.metrics;
-    // draw the guide for whichever checkpoint the playhead is nearest (within 0.16s)
-    const cks=[["load",_p.ckT.load],["set",_p.ckT.set],["rel",_p.ckT.rel],["fin",_p.ckT.fin]];
-    let best=null,bd=0.16;
-    cks.forEach(([nm,tt])=>{ const d=Math.abs(t-tt); if(d<bd){bd=d;best=nm;} });
-    if(best==="load" && (s.conf.knee??1)>=0.5){
-      // knee guide: flexion is measured FROM straight, so the ideal drawn line uses the interior angle
-      drawAngleArc(c,cv.width,cv.height, lm[j.hip],lm[j.kn],lm[j.an], mtr.knee, tg.knee, {idealInterior:180-tg.knee.ideal, idealText:`ideal ${tg.knee.ideal}° bend`});
-    } else if(best==="set"){
-      drawAngleArc(c,cv.width,cv.height, lm[j.sh],lm[j.el],lm[j.wr], mtr.elbowSet, tg.elbowSet, {});
-    } else if(best==="rel"){
-      drawAngleArc(c,cv.width,cv.height, lm[j.sh],lm[j.el],lm[j.wr], mtr.elbowRelease, tg.elbowRelease, {});
-    } else if(best==="fin"){
-      drawAngleArc(c,cv.width,cv.height, lm[j.sh],lm[j.el],lm[j.wr], mtr.elbowFinish, tg.elbowFinish, {});
-    }
-  }
+  drawShotOverlay(c,cv.width,cv.height,state.shots[_p.shotIdx],t,_p.ckT);
 }
 // Map video time → ideal-motion phase t (0..1), anchored to this shot's key frames so the perfect form stays in sync with you.
 function idealPhaseT(time,s){
@@ -940,7 +983,7 @@ function drawPerfectOverlay(ctx,W,H,plm,s,t){
   const b=tx(p.ball); ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(7,sc*W*0.022),0,7); ctx.fillStyle="#00e5ff"; ctx.fill();
   ctx.shadowBlur=0; ctx.globalAlpha=1;
   ctx.fillStyle="#00e5ff"; ctx.font=`800 ${Math.max(13,W/40)}px -apple-system,sans-serif`; ctx.textBaseline="top";
-  ctx.fillText(`✨ ${MODELS[state.model].name}'s perfect form`, W*0.04, H*0.03);
+  ctx.fillText(`${MODELS[state.model].name}'s perfect form`, W*0.04, H*0.03);
   ctx.restore();
 }
 function playPlayer(){
@@ -976,9 +1019,12 @@ function drawAngleArc(ctx,W,H,a,b,c,val,tgt,opts={}){
   const bx=b.x*W, by=b.y*H;
   const flen=Math.hypot((c.x-b.x)*W,(c.y-b.y)*H);
   ctx.save(); ctx.lineCap="round";
-  // GREEN ideal segment = parent-limb direction rotated by the target angle toward the child side
-  const uaAng=Math.atan2(a.y-b.y,a.x-b.x);
-  const cross=(a.x-b.x)*(c.y-b.y)-(a.y-b.y)*(c.x-b.x);
+  // GREEN ideal segment = parent-limb direction rotated by the target angle toward the child side.
+  // All direction math is done in PIXEL space (x*W, y*H) — the only isotropic space here.
+  // Normalized coords are stretched on portrait video, so rotating in them drew a guide
+  // that disagreed with the (aspect-corrected) measured angle it was supposed to illustrate.
+  const uaAng=Math.atan2((a.y-b.y)*H,(a.x-b.x)*W);
+  const cross=((a.x-b.x)*W)*((c.y-b.y)*H)-((a.y-b.y)*H)*((c.x-b.x)*W);
   const sign=cross>=0?1:-1;
   const idealAng=uaAng+sign*((opts.idealInterior??tgt.ideal??90)*Math.PI/180);
   const ix=bx+Math.cos(idealAng)*flen, iy=by+Math.sin(idealAng)*flen;
@@ -993,9 +1039,325 @@ function drawAngleArc(ctx,W,H,a,b,c,val,tgt,opts={}){
   const fs=Math.max(15,W/32);
   ctx.textBaseline="middle"; ctx.font=`bold ${fs}px -apple-system,sans-serif`;
   ctx.fillStyle=col; ctx.fillText(`${Math.round(val)}°`, bx+W/36, by-fs*0.2);
-  ctx.fillStyle="#27e08a"; ctx.font=`800 ${fs*0.62}px -apple-system,sans-serif`;
-  ctx.fillText(opts.idealText||`ideal ${tgt.ideal||90}°`, ix+W/90, iy);
+  if(!opts.noIdealLabel){ // exported clips state the target in the caption instead
+    ctx.fillStyle="#27e08a"; ctx.font=`800 ${fs*0.62}px -apple-system,sans-serif`;
+    ctx.fillText(opts.idealText||`ideal ${tgt.ideal||90}°`, ix+W/90, iy);
+  }
   ctx.restore();
+}
+
+/* ================= SLOW-MOTION CLIP EXPORT =================
+   Renders the shot into an offscreen canvas (video frame + the SAME overlay the
+   coach sees + coaching captions), captures that canvas with MediaRecorder, and
+   hands back a real video file to text/AirDrop to the player.
+   Freezes at each checkpoint are done by PAUSING playback, never by seeking —
+   seeking mid-record hangs on some iPhone codecs. */
+const EX={busy:false, cancel:false, blob:null, url:null, name:"", slow:0.25, poster:null, wentHidden:false};
+const exSleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function pickMime(){
+  if(typeof MediaRecorder==="undefined") return null;
+  // mp4/H.264 first: .webm can't be saved to Photos or sent in Messages on iPhone.
+  // Level 3.1 (…01F) before 3.0 (…01E): 3.0 caps at 1620 macroblocks, which a
+  // landscape clip at our export size exceeds.
+  const C=["video/mp4;codecs=avc1.42E01F","video/mp4;codecs=avc1.42E01E","video/mp4;codecs=avc1","video/mp4",
+           "video/webm;codecs=h264","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  for(const m of C){ try{ if(MediaRecorder.isTypeSupported(m)) return m; }catch(e){} }
+  return ""; // let the browser pick (Safari often ignores isTypeSupported)
+}
+function exportSize(vw,vh){
+  const LONG=960, w=vw||540, h=vh||960;
+  const sc=Math.min(1, LONG/Math.max(w,h));
+  const even=n=>Math.max(2,Math.round(n*sc/2)*2); // H.264 needs even dimensions
+  return {W:even(w), H:even(h)};
+}
+function exFont(W,rel,weight){ return `${weight||800} ${Math.max(11,Math.round(W*rel))}px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif`; }
+function exRoundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function exWatermark(c,W,H){
+  c.save(); c.globalAlpha=0.85; c.textBaseline="top"; c.textAlign="left";
+  c.font=exFont(W,0.030,800); c.fillStyle="#ffffff"; c.shadowColor="#000"; c.shadowBlur=W*0.012;
+  c.fillText("FORM", W*0.035, H*0.022);
+  const wpx=c.measureText("FORM").width;
+  c.fillStyle="#ff7a18"; c.fillText("CHECK", W*0.035+wpx, H*0.022);
+  c.font=exFont(W,0.019,700); c.fillStyle="#cfd6e4";
+  c.fillText("J3 HOOPS", W*0.035, H*0.022+W*0.038);
+  c.restore();
+}
+function exWrapText(c,text,maxW){
+  const words=String(text).split(/\s+/); const lines=[]; let line="";
+  words.forEach(w=>{ const t=line?line+" "+w:w; if(c.measureText(t).width>maxW && line){ lines.push(line); line=w; } else line=t; });
+  if(line) lines.push(line);
+  return lines;
+}
+// Shrink a font until the text fits maxW (down to minRel), then return the size used.
+function exFitFont(c,text,W,startRel,minRel,maxW,weight){
+  let rel=startRel;
+  for(;;){
+    c.font=exFont(W,rel,weight);
+    if(c.measureText(text).width<=maxW || rel<=minRel) return rel;
+    rel-=0.003;
+  }
+}
+// Bottom caption slab: big value + what it means. Kept low so it never covers the shooter's arms.
+function exBanner(c,W,H,b){
+  const pad=W*0.05, boxW=W-pad*1.2, innerW=boxW-pad*1.3;
+  c.save();
+  c.textBaseline="top"; c.textAlign="left";
+  c.font=exFont(W,0.026,600);
+  const subLines=exWrapText(c,b.sub,innerW).slice(0,3);   // wrap, never run off the edge
+  const lineH=H*0.030;
+  const bh=H*0.105+subLines.length*lineH;
+  const y=H-bh-H*0.030;
+  c.fillStyle="rgba(8,10,16,0.84)"; exRoundRect(c,pad*0.6,y,boxW,bh,W*0.035); c.fill();
+  const accent = b.good===null? "#8a93a6" : b.good? "#27c281":"#ffcf4d";
+  c.fillStyle=accent; exRoundRect(c,pad*0.6,y,W*0.014,bh,W*0.01); c.fill();
+  let ty=y+H*0.015;
+  c.font=exFont(W,0.026,800); c.fillStyle=accent;
+  c.fillText(b.label, pad, ty); ty+=H*0.032;
+  const bigRel=exFitFont(c,b.big,W,0.070,0.045,innerW*0.45,900);
+  c.fillStyle="#ffffff"; c.fillText(b.big, pad, ty);
+  const bw=c.measureText(b.big).width;
+  if(b.tagline){
+    c.font=exFont(W,0.028,800); c.fillStyle=accent;
+    c.fillText(b.tagline, pad+bw+W*0.030, ty+W*bigRel*0.42);
+  }
+  ty+=W*bigRel*1.25;
+  c.font=exFont(W,0.026,600); c.fillStyle="#c8d0df";
+  subLines.forEach(ln=>{ c.fillText(ln,pad,ty); ty+=lineH; });
+  c.restore();
+}
+function exCard(c,W,H,{kicker,title,lines,accent}){
+  c.save();
+  c.fillStyle="#0b0d12"; c.fillRect(0,0,W,H);
+  const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,"#1a2030"); g.addColorStop(1,"#0b0d12");
+  c.fillStyle=g; c.fillRect(0,0,W,H);
+  c.textAlign="center"; c.textBaseline="middle";
+  const maxW=W*0.88;
+  let y=H*0.34;
+  if(kicker){ c.font=exFont(W,0.032,800); c.fillStyle=accent||"#ff9d4d"; c.fillText(kicker,W/2,y); y+=H*0.055; }
+  if(title){
+    const rel=exFitFont(c,title,W,0.082,0.044,maxW,900);   // shrink first…
+    c.fillStyle="#ffffff";
+    const tl=exWrapText(c,title,maxW);                      // …then wrap if still long
+    tl.forEach(ln=>{ c.fillText(ln,W/2,y); y+=W*rel*1.25; });
+    y+=H*0.020;
+  }
+  c.font=exFont(W,0.030,600); c.fillStyle="#c3cbdb";
+  (lines||[]).forEach(t=>{
+    exWrapText(c,t,maxW).forEach(ln=>{ c.fillText(ln,W/2,y); y+=H*0.042; });
+    y+=H*0.012;
+  });
+  c.restore();
+  exWatermark(c,W,H);
+}
+// Caption content for one checkpoint of one shot.
+function ckBanner(shot,ck){
+  const g=CK_GUIDE[ck], tg=MODELS[state.model].targets[g.metric], v=shot.metrics[g.metric];
+  const unit=(METRICS[g.metric]||{}).unit||"°";
+  if(v==null || (shot.conf[g.metric]??1)<0.5 || !tg) return null; // caller skips this beat
+  const inRange=v>=tg.min&&v<=tg.max;
+  return {
+    label:g.label,
+    big:`${Math.round(v)}${unit}`,
+    tagline: inRange?"✓ dialed in":"← work here",
+    sub: inRange ? `${g.title} — right in range (${Math.round(tg.min)}–${Math.round(tg.max)}${unit}).`
+                 : `${g.title} — aim for ${Math.round(tg.min)}–${Math.round(tg.max)}${unit}. ${tg.cue}`,
+    good: inRange
+  };
+}
+// The single most valuable thing this shot should work on.
+function topFixFor(shot){
+  const T=MODELS[state.model].targets; let worst=null;
+  METRIC_ORDER.forEach(k=>{
+    const tg=T[k]; if(!tg||tg.cueOnly||METRICS[k].cueOnly) return;
+    if(metricHidden(k,state.mode)) return;
+    if((shot.conf[k]??1)<0.5) return;
+    const v=shot.metrics[k]; if(v==null) return;
+    const sc=scoreMetric(v,tg); if(sc==null) return;
+    if(!worst||sc<worst.sc) worst={k,sc,tg,v};
+  });
+  return worst;
+}
+function exPlayerName(){ return ($("#playerName").value||"").trim(); }
+function safeName(s){ return (s||"player").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase()||"player"; }
+
+/* Records one or more shots into a single clip. shotIdxs: array of shot indices. */
+async function runExport(shotIdxs){
+  if(EX.busy){ toast("Already making a clip…"); return; }
+  if(!state.videoURL||!state.shots.length){ toast("No clip in memory — analyze a video first."); return; }
+  const mime=pickMime();
+  if(mime===null){ toast("This browser can't record video. Try Chrome or Safari."); return; }
+
+  EX.busy=true; EX.cancel=false; EX.poster=null; EX.wentHidden=false;
+  const v=_p.video;
+  const prevRate=v.playbackRate, prevTime=v.currentTime;
+  const prevCancel=$("#ovCancel").onclick;
+  $("#ovCancel").onclick=()=>{ EX.cancel=true; toast("Stopping…"); };
+  pausePlayer();
+  // Recording runs in real time, so keep the phone awake and notice if the user
+  // leaves the app — a backgrounded tab stops feeding frames and truncates the clip.
+  let wake=null;
+  try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(e){}
+  const onHide=()=>{ if(document.hidden) EX.wentHidden=true; };
+  document.addEventListener("visibilitychange",onHide);
+
+  const {W:EW,H:EH}=exportSize(state.videoW||v.videoWidth, state.videoH||v.videoHeight);
+  const cv=document.createElement("canvas"); cv.width=EW; cv.height=EH;
+  const c=cv.getContext("2d",{alpha:false});
+  const FPS=30, DT=1000/FPS;
+  const frames=n=>Math.max(1,Math.round(n/DT));
+
+  let rec=null, chunks=[];
+  const paintVideo=()=>{ try{ c.drawImage(v,0,0,EW,EH); }catch(e){ c.fillStyle="#000"; c.fillRect(0,0,EW,EH); } };
+  const hold=async(paint,ms)=>{ const n=frames(ms); for(let i=0;i<n;i++){ if(EX.cancel) return; paint(i/n); await exSleep(DT); } };
+  // guarded seek — never let a stuck seek hang the export
+  const seekTo=(t)=>new Promise(res=>{
+    let done=false; const fin=()=>{ if(done)return; done=true; v.removeEventListener("seeked",fin); res(); };
+    v.addEventListener("seeked",fin);
+    try{ v.currentTime=t; }catch(e){ fin(); }
+    setTimeout(fin,2500);
+  });
+
+  try{
+    showOverlay("Making your slow-mo clip…");
+    setProgress(0.02,"Setting up the recorder…");
+    const stream=cv.captureStream(FPS);
+    rec=new MediaRecorder(stream, mime?{mimeType:mime, videoBitsPerSecond:4500000}:{videoBitsPerSecond:4500000});
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    const stopped=new Promise(res=>{ rec.onstop=res; });
+    v.playbackRate=EX.slow;
+    v.muted=true;
+    // browsers clamp very low rates — report the rate we actually got, don't claim 8×
+    const realSlow=v.playbackRate>0?v.playbackRate:EX.slow;
+    rec.start(250);
+
+    const multi=shotIdxs.length>1;
+    for(let n=0;n<shotIdxs.length;n++){
+      if(EX.cancel) break;
+      const si=shotIdxs[n], s=state.shots[si];
+      const ser=s.series,k=s.keys;
+      const winStart=Math.max(0, ser[k.dipIdx].t-0.15);
+      const winEnd=Math.min(v.duration||1e9, ser[Math.min(ser.length-1,k.finishIdx)].t+0.25);
+      const ckT={load:ser[k.loadIdx].t, set:ser[k.setIdx].t, rel:ser[k.relIdx].t, fin:ser[Math.min(ser.length-1,k.finishIdx)].t};
+      const who=exPlayerName();
+      const M=MODELS[state.model];
+
+      // ---- beat 1: title card
+      setProgress(0.05+0.9*(n/shotIdxs.length), `Shot ${si+1} — intro…`);
+      await hold(()=>exCard(c,EW,EH,{
+        kicker: who? who.toUpperCase() : `${M.emoji} ${M.name.toUpperCase()} MODEL`,
+        title: multi? `Shot ${si+1} of ${state.shots.length}` : `Shot ${si+1}`,
+        lines: [`Form score ${s.score}/100 · ${state.mode==="ft"?"Free throw":"Jump shot"}`,
+                `Slow motion ${Math.round(1/realSlow)}× — watch the four checkpoints`],
+        accent:"#ff9d4d"
+      }), 1700);
+
+      // ---- beat 2: the shot at slow speed, pausing to teach at each checkpoint
+      await seekTo(winStart);
+      if(EX.cancel) break;
+      await v.play().catch(()=>{});
+      const cks=Object.keys(CK_GUIDE)
+        .map(nm=>({nm,t:ckT[nm]}))
+        .filter(x=>x.t>=winStart-0.01&&x.t<=winEnd+0.01)
+        .sort((a,b)=>a.t-b.t);
+      let ci=0, lastT=-1, stall=0;
+      while(!EX.cancel){
+        const t=v.currentTime;
+        if(t>=winEnd||v.ended) break;
+        paintVideo();
+        drawShotOverlay(c,EW,EH,s,t,ckT,{angles:true,guide:{noIdealLabel:true}});
+        exWatermark(c,EW,EH);
+        await exSleep(DT);
+        // stall guard: if the decoder wedges, bail out with what we have
+        if(Math.abs(t-lastT)<1e-4){ if(++stall>60) break; } else { stall=0; lastT=t; }
+        if(ci<cks.length && t>=cks[ci].t){
+          const ck=cks[ci++];
+          const b=ckBanner(s,ck.nm);
+          if(b){ // no freeze for a checkpoint we couldn't measure — never show a kid a failure card
+            v.pause();
+            await hold(()=>{ paintVideo(); drawShotOverlay(c,EW,EH,s,ck.t,ckT,{angles:true,forceCk:ck.nm,guide:{noIdealLabel:true}}); exWatermark(c,EW,EH); exBanner(c,EW,EH,b); }, 1500);
+            if(!EX.poster){ try{ EX.poster=cv.toDataURL("image/jpeg",0.7); }catch(e){} }
+            if(EX.cancel) break;
+            await v.play().catch(()=>{});
+          }
+        }
+      }
+      v.pause();
+
+      // ---- beat 3: what to work on
+      if(EX.cancel) break;
+      const fix=topFixFor(s);
+      const good=!fix||fix.sc>=85;
+      await hold(()=>exCard(c,EW,EH,{
+        kicker: good?"KEEP IT":"WORK ON THIS",
+        title: good?"Dialed in":(METRICS[fix.k]||{}).label||"Next step", // no emoji: canvas renders it as tofu on some devices
+        lines: good? ["Everything we could measure is in range.","Groove this same motion — repeat it."]
+                   : [fix.tg.cue, `Drill: ${drillFor(fix.k,state.model)}`],
+        accent: good?"#27c281":"#ffcf4d"
+      }), 2300);
+    }
+
+    setProgress(0.97,"Encoding…");
+    if(rec.state!=="inactive") rec.stop();
+    await stopped;
+    await exSleep(120);
+
+    const blob=new Blob(chunks,{type:(rec.mimeType||mime||"video/mp4")});
+    if(!blob.size) throw "The recorder produced an empty file.";
+    if(EX.url){ try{URL.revokeObjectURL(EX.url);}catch(e){} }
+    EX.blob=blob; EX.url=URL.createObjectURL(blob);
+    const ext=/mp4/.test(blob.type)?"mp4":"webm";
+    const who=safeName(exPlayerName());
+    EX.name= shotIdxs.length>1 ? `formcheck-${who}-all-shots.${ext}`
+                               : `formcheck-${who}-shot${shotIdxs[0]+1}.${ext}`;
+    hideOverlay();
+    showExportResult(blob, EX.cancel);
+  }catch(err){
+    hideOverlay();
+    console.error("FormCheck export:",err);
+    toast(typeof err==="string"?err:"Couldn't make the clip — try again.");
+  }finally{
+    try{ if(rec&&rec.state!=="inactive") rec.stop(); }catch(e){}
+    document.removeEventListener("visibilitychange",onHide);
+    try{ if(wake) await wake.release(); }catch(e){}
+    v.playbackRate=prevRate;
+    try{ v.pause(); }catch(e){}
+    await seekTo(Math.min(prevTime, v.duration||prevTime));
+    $("#ovCancel").onclick=prevCancel;
+    EX.busy=false; EX.cancel=false;
+    drawOverlayAt(v.currentTime);
+  }
+}
+
+function showExportResult(blob,partial){
+  const box=$("#exportResult"); box.classList.remove("hidden");
+  const pv=$("#exportPreview"); pv.classList.add("hidden"); pv.removeAttribute("src");
+  const po=$("#exportPoster"); po.classList.remove("hidden");
+  if(EX.poster) po.src=EX.poster;
+  $("#btnPreviewClip").classList.remove("hidden");
+  const kb=blob.size/1024;
+  const note = partial?" · stopped early" : EX.wentHidden?" · you left the app mid-record, check it plays through":"";
+  $("#exportMeta").textContent=`${EX.name} · ${kb>1024?(kb/1024).toFixed(1)+" MB":Math.round(kb)+" KB"}${note}`;
+  const webm=!/mp4/.test(blob.type);
+  $("#exportWarn").classList.toggle("hidden",!webm);
+  box.scrollIntoView({behavior:"smooth",block:"center"});
+  toast("Clip ready 🎬");
+}
+async function shareClip(){
+  if(!EX.blob){ toast("Make a clip first."); return; }
+  const file=new File([EX.blob],EX.name,{type:EX.blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:"FormCheck", text:"Your shooting form in slow motion 🏀"}); return; }
+    catch(e){ if(e&&e.name==="AbortError") return; console.warn("share failed",e); }
+  }
+  downloadClip(); // desktop, or share unavailable
+}
+function downloadClip(){
+  if(!EX.url){ toast("Make a clip first."); return; }
+  const a=document.createElement("a");
+  a.href=EX.url; a.download=EX.name; a.rel="noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  toast("Saved to your downloads");
 }
 
 /* tale of the tape — averages use only reliably-measured reps */
@@ -1179,6 +1541,24 @@ function drawTrendChart(data){
 function showOverlay(t){ $("#ovTitle").textContent=t; $("#ovBar").style.width="0%"; $("#ovMsg").textContent=""; $("#overlay").classList.remove("hidden"); }
 function setProgress(p,msg){ $("#ovBar").style.width=Math.round(p*100)+"%"; if(msg)$("#ovMsg").textContent=msg; }
 function hideOverlay(){ $("#overlay").classList.add("hidden"); }
+
+/* ---------------- EXPORT WIRING ---------------- */
+$("#btnExportShot").onclick=()=>runExport([state.activeShot]);
+$("#btnExportReel").onclick=()=>runExport(state.shots.map((_,i)=>i));
+$("#btnShareClip").onclick=shareClip;
+$("#btnDownloadClip").onclick=downloadClip;
+$("#btnPreviewClip").onclick=()=>{
+  if(!EX.url) return;
+  const pv=$("#exportPreview");
+  pv.src=EX.url; pv.classList.remove("hidden");
+  $("#exportPoster").classList.add("hidden");
+  $("#btnPreviewClip").classList.add("hidden");
+  pv.play().catch(()=>{});
+};
+$$("#slowSeg button").forEach(b=>b.onclick=()=>{
+  EX.slow=+b.dataset.slow;
+  $$("#slowSeg button").forEach(x=>x.classList.toggle("active",x===b));
+});
 
 /* ---------------- INIT ---------------- */
 renderModels(); updateModelUI(); avatarLoop(); initHeight();
