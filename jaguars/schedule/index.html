@@ -2,38 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#16121C">
 <title>Jaguars Practice Scheduler</title>
 </head>
 <body>
 <style>
-  :root{
-    --ground:#F5F2F8; --panel:#FFFFFF; --panel-2:#EFEAF4;
-    --ink:#1B1420; --ink-2:#5B5266; --ink-3:#8B8296;
-    --line:#DED5E6; --line-strong:#C6B8D4;
-    --purple:#5B2D8E; --purple-ink:#FFFFFF; --purple-soft:#EDE3F7;
-    --gold:#B57F06; --gold-bright:#F0B429; --gold-soft:#FBF0D6;
-    --teal:#2F7D8C;
-    --ok:#217A4B; --ok-soft:#DFF1E6;
-    --warn:#9A5B06; --warn-soft:#FBEBD3;
-    --bad:#B32E2E; --bad-soft:#FBE0E0;
-    --mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",Menlo,monospace;
-    --sans:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
-  }
-  @media (prefers-color-scheme:dark){
-    :root{
-      --ground:#16121C; --panel:#1F1927; --panel-2:#262032;
-      --ink:#F2EDF7; --ink-2:#B5AAC2; --ink-3:#847A91;
-      --line:#332B40; --line-strong:#453A54;
-      --purple:#A879DE; --purple-ink:#17101F; --purple-soft:#2C2039;
-      --gold:#F0B429; --gold-bright:#F0B429; --gold-soft:#332714;
-      --teal:#4FA8B8;
-      --ok:#57C98A; --ok-soft:#16301F;
-      --warn:#E9A94A; --warn-soft:#33260F;
-      --bad:#F07070; --bad-soft:#3A1A1A;
-    }
-  }
-  :root[data-theme="dark"]{
+  /* Dark only — the gym at night. Deliberately single-theme: the page ignores
+     the device's light/dark setting so it always looks the same on every phone. */
+  :root, :root[data-theme="light"], :root[data-theme="dark"]{
+    color-scheme:dark;
     --ground:#16121C; --panel:#1F1927; --panel-2:#262032;
     --ink:#F2EDF7; --ink-2:#B5AAC2; --ink-3:#847A91;
     --line:#332B40; --line-strong:#453A54;
@@ -43,17 +22,8 @@
     --ok:#57C98A; --ok-soft:#16301F;
     --warn:#E9A94A; --warn-soft:#33260F;
     --bad:#F07070; --bad-soft:#3A1A1A;
-  }
-  :root[data-theme="light"]{
-    --ground:#F5F2F8; --panel:#FFFFFF; --panel-2:#EFEAF4;
-    --ink:#1B1420; --ink-2:#5B5266; --ink-3:#8B8296;
-    --line:#DED5E6; --line-strong:#C6B8D4;
-    --purple:#5B2D8E; --purple-ink:#FFFFFF; --purple-soft:#EDE3F7;
-    --gold:#B57F06; --gold-bright:#F0B429; --gold-soft:#FBF0D6;
-    --teal:#2F7D8C;
-    --ok:#217A4B; --ok-soft:#DFF1E6;
-    --warn:#9A5B06; --warn-soft:#FBEBD3;
-    --bad:#B32E2E; --bad-soft:#FBE0E0;
+    --mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
   }
 
   *{box-sizing:border-box}
