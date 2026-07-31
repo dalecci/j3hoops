@@ -183,6 +183,8 @@
   .dl.same{color:var(--ink-3)}
   .dl b{font-weight:600}
   .card.moved{box-shadow:inset 3px 0 0 var(--gold-bright)}
+  .card.paired{border-style:dashed;border-color:var(--gold-bright)}
+  .card.paired .who i{color:var(--gold)}
 
   .rules{padding:9px;display:flex;flex-direction:column;gap:6px}
   .rules:empty::before{content:"No rules yet";font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);padding:4px}
@@ -361,7 +363,7 @@
 
   var DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   var PER_WEEK = 2;
-  var STORE = "jaguars-scheduler-v5";
+  var STORE = "jaguars-scheduler-v6";
 
   var TEAMS = [
     {id:"g3", label:"Grade 3", num:"3", div:"elem"},
@@ -410,12 +412,39 @@
     {t:"notAfter",    label:"A team must be finished by a time"},
     {t:"noVenue",     label:"A team can't use a gym"},
     {t:"onlyVenue",   label:"A team only practices at one gym"},
+    {t:"countAsOne",  label:"Two teams count as ONE team in a block"},
     {t:"notTogether", label:"Two teams can't share a block"},
     {t:"together",    label:"Two teams always practice together"},
     {t:"spread",      label:"A team is never on back-to-back days"},
     {t:"maxPaid",     label:"Limit how many paid sessions per week"},
     {t:"note",        label:"Note to myself (not enforced)"}
   ];
+
+  /* Teams joined by a "count as one" rule form a unit. A block's occupancy is
+     counted in units, not head-count, so a paired 3rd card can still fit. */
+  function unitMap(){
+    var p={};
+    TEAMS.forEach(function(t){ p[t.id]=t.id; });
+    function find(x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; }
+    (S.rules||[]).forEach(function(r){
+      if(r.on && r.type==="countAsOne" && r.team && r.team2 && r.team!==r.team2){
+        var a=find(r.team), b=find(r.team2);
+        if(a!==b) p[a]=b;
+      }
+    });
+    var m={};
+    TEAMS.forEach(function(t){ m[t.id]=find(t.id); });
+    return m;
+  }
+  function unitsIn(list,m){
+    var seen={}, n=0;
+    list.forEach(function(t){ var g=m[t]||t; if(!seen[g]){ seen[g]=1; n++; } });
+    return n;
+  }
+  function partnersOf(tid,list,m){
+    var g=m[tid]||tid;
+    return list.filter(function(x){ return x!==tid && (m[x]||x)===g; });
+  }
 
   var S = load() || defaults();
 
@@ -509,6 +538,7 @@
       case "onlyVenue":   return tn(r.team)+" only practices at "+vn(r.venue);
       case "notTogether": return tn(r.team)+" and "+tn(r.team2)+" can't share a block";
       case "together":    return tn(r.team)+" and "+tn(r.team2)+" always practice together";
+      case "countAsOne":  return tn(r.team)+" and "+tn(r.team2)+" count as one team in a block";
       case "spread":      return tn(r.team)+" is never on back-to-back days";
       case "maxPaid":     return "At most "+r.n+" paid session(s) a week";
       default:            return "Note: "+(r.text||"(empty)");
@@ -733,6 +763,7 @@
       case "onlyVenue":   return [tname(r.team),"only practices at",vname(r.venue)];
       case "notTogether": return [tname(r.team),"and",tname(r.team2),"can't share a block"];
       case "together":    return [tname(r.team),"and",tname(r.team2),"always practice together"];
+      case "countAsOne":  return [tname(r.team),"and",tname(r.team2),"count as one team in a block"];
       case "spread":      return [tname(r.team),"is never on back-to-back days"];
       case "maxPaid":     return ["At most",String(r.n),"paid session(s) a week"];
       default:            return [r.text||"(note)"];
@@ -741,12 +772,14 @@
 
   /* ---------------- audit ---------------- */
   function audit(){
-    var out=[], badCards={}, blocks=liveBlocks();
+    var out=[], badCards={}, blocks=liveBlocks(), um=unitMap();
 
     blocks.forEach(function(b){
       var list=at(b.id), v=venue(b.venue), al=allowList(b);
-      if(list.length>b.cap){
-        out.push({sev:"bad",ic:"CAP",msg:b.day+" "+span(b)+" holds "+list.length+" teams. Cap is "+b.cap+"."});
+      var u=unitsIn(list,um);
+      if(u>b.cap){
+        out.push({sev:"bad",ic:"CAP",msg:b.day+" "+span(b)+" holds "+u+
+          (u===list.length?"":" ("+list.length+" teams, paired)")+". Cap is "+b.cap+"."});
         list.forEach(function(t){ badCards[key(b.id,t)]=1; });
       }
       list.forEach(function(t){
@@ -761,10 +794,25 @@
         out.push({sev:"warn",ic:"HRS",msg:b.day+" "+span(b)+" falls outside "+v.name+" hours ("+fmt(v.open)+"–"+fmt(v.close)+")."});
     });
 
+    // demand counted in units: paired teams sharing a block only need one slot
+    var seenG={}, unitCount=0;
+    TEAMS.forEach(function(t){ var g=um[t.id]; if(!seenG[g]){ seenG[g]=1; unitCount++; } });
     var capacity = blocks.reduce(function(n,b){ return n+b.cap; },0);
-    var needed = TEAMS.length*PER_WEEK;
+    var needed = unitCount*PER_WEEK;
     if(capacity<needed)
-      out.push({sev:"bad",ic:"FIT",msg:"Only "+capacity+" slots open, "+needed+" needed. Add a block or reopen a day."});
+      out.push({sev:"bad",ic:"FIT",msg:"Only "+capacity+" slots open, "+needed+" needed"+
+        (unitCount<TEAMS.length?" ("+unitCount+" units after pairing)":"")+". Add a block or reopen a day."});
+
+    // pairing only pays off when the paired teams actually share a block
+    rules().forEach(function(r){
+      if(!r.on || r.type!=="countAsOne" || !r.team || !r.team2) return;
+      var shared=blocks.some(function(b){
+        var l=at(b.id); return l.indexOf(r.team)>=0 && l.indexOf(r.team2)>=0; });
+      var both=count(r.team)>0 && count(r.team2)>0;
+      if(both && !shared)
+        out.push({sev:"warn",ic:"PAIR",msg:tname(r.team)+" and "+tname(r.team2)+
+          " are paired but never share a block, so they're still using two slots."});
+    });
 
     TEAMS.forEach(function(t){
       var n=count(t.id);
@@ -802,12 +850,17 @@
 
   /* ---------------- solver ---------------- */
   function generate(quiet){
-    var blocks = liveBlocks();
+    var blocks = liveBlocks(), um = unitMap();
     var fixed={}, need={};
     TEAMS.forEach(function(t){ need[t.id]=PER_WEEK; });
     blocks.forEach(function(b){
-      fixed[b.id] = at(b.id).filter(function(t){ return locked(b.id,t); }).slice(0,b.cap);
-      fixed[b.id].forEach(function(t){ need[t]--; });
+      var keep=[];
+      at(b.id).forEach(function(t){
+        if(!locked(b.id,t)) return;
+        if(unitsIn(keep.concat([t]),um)<=b.cap) keep.push(t);
+      });
+      fixed[b.id]=keep;
+      keep.forEach(function(t){ need[t]--; });
     });
 
     var best=null, bestScore=Infinity;
@@ -822,14 +875,14 @@
       for(var d=0; d<demand.length; d++){
         var tid=demand[d], tm=team(tid);
         var opts = blocks.filter(function(b){
-          if(a[b.id].length>=b.cap) return false;
           if(a[b.id].indexOf(tid)>=0) return false;
+          if(unitsIn(a[b.id].concat([tid]),um)>b.cap) return false;
           if(allowList(b).indexOf(tm.div)<0) return false;
           if(blocks.some(function(o){ return o.day===b.day && a[o.id].indexOf(tid)>=0; })) return false;
           return allowedByRules(b,tid,a,blocks);
         });
         if(!opts.length){ ok=false; break; }
-        opts.sort(function(x,y){ return pick(x,tid,a,blocks)-pick(y,tid,a,blocks)+(Math.random()-0.5)*0.7; });
+        opts.sort(function(x,y){ return pick(x,tid,a,blocks,um)-pick(y,tid,a,blocks,um)+(Math.random()-0.5)*0.7; });
         a[opts[0].id].push(tid);
       }
       if(!ok) continue;
@@ -856,8 +909,10 @@
     return true;
   }
 
-  function pick(b,tid,a,blocks){
+  function pick(b,tid,a,blocks,um){
     var c=0, v=venue(b.venue);
+    // sitting with a paired team is free capacity — prefer it strongly
+    if(um && partnersOf(tid,a[b.id],um).length) c-=8;
     if(v.rate) c+=6;
     if(b.day==="Sat"||b.day==="Sun") c+=4;
     if(b.tent) c+=1;
@@ -911,7 +966,7 @@
   }
 
   /* ---------------- interaction ---------------- */
-  var picked=null, dragKind=null, MOVED={};
+  var picked=null, dragKind=null, MOVED={}, MAP={};
 
   function move(tid,from,to){
     if(from===to) return;
@@ -947,7 +1002,12 @@
     var who=document.createElement("div"); who.className="who";
     var b=document.createElement("b"); b.textContent=t.label;
     var i=document.createElement("i");
-    i.textContent = bid ? (lk?"Locked here":divLabel(t.div)) : count(t.id)+" of "+PER_WEEK+" placed";
+    var mates = bid ? partnersOf(t.id,at(bid),MAP) : [];
+    if(mates.length) el.classList.add("paired");
+    i.textContent = bid
+      ? (mates.length ? "1 slot with "+mates.map(tname).join(" + ")
+                      : (lk?"Locked here":divLabel(t.div)))
+      : count(t.id)+" of "+PER_WEEK+" placed";
     who.appendChild(b); who.appendChild(i);
     el.appendChild(n); el.appendChild(who);
 
@@ -1101,10 +1161,12 @@
 
     var meta=document.createElement("div"); meta.className="meta";
     var vn=document.createElement("span"); vn.className="venue"; vn.textContent=v.name;
+    var used=unitsIn(list,MAP);
     var pips=document.createElement("span"); pips.className="pips";
-    for(var i=0;i<Math.max(b.cap,list.length);i++){
+    pips.title=used+" of "+b.cap+" slots used"+(used<list.length?" ("+list.length+" teams, paired)":"");
+    for(var i=0;i<Math.max(b.cap,used);i++){
       var p=document.createElement("span");
-      p.className="pip"+(i<list.length?(i>=b.cap?" over":" on"):"");
+      p.className="pip"+(i<used?(i>=b.cap?" over":" on"):"");
       pips.appendChild(p);
     }
     meta.appendChild(vn); meta.appendChild(pips);
@@ -1141,7 +1203,7 @@
       var tm=team(tid);
       if(tm) body.appendChild(cardEl(tm,b.id,!!a.badCards[key(b.id,tid)]));
     });
-    for(var j=list.length;j<b.cap;j++){
+    for(var j=used;j<b.cap;j++){
       var gh=document.createElement("div"); gh.className="slot-ghost"; gh.textContent="Open slot";
       body.appendChild(gh);
     }
@@ -1155,6 +1217,7 @@
   function render(){
     var a=audit();
     MOVED=movedCards();
+    MAP=unitMap();
 
     var placed=TEAMS.filter(function(t){ return count(t.id)===PER_WEEK; }).length;
     var errs=a.issues.filter(function(i){return i.sev==="bad";}).length;
@@ -1415,7 +1478,8 @@
           sent.appendChild(inlineSel(teamOpts(),r.team,function(v){ r.team=v; touched(); }));
           var mid={noDay:"can't practice on",mustDay:"must practice on",notBefore:"can't start before",
                    notAfter:"must be done by",noVenue:"can't use",onlyVenue:"only practices at",
-                   notTogether:"and",together:"and",spread:"is never on back-to-back days"}[r.type];
+                   notTogether:"and",together:"and",countAsOne:"and",
+                   spread:"is never on back-to-back days"}[r.type];
           sent.appendChild(word(mid));
           if(r.type==="noDay"||r.type==="mustDay")
             sent.appendChild(inlineSel(dayOpts(),r.day,function(v){ r.day=v; touched(); }));
@@ -1423,9 +1487,11 @@
             sent.appendChild(inlineSel(timeOpts(),r.time,function(v){ r.time=+v; touched(); }));
           else if(r.type==="noVenue"||r.type==="onlyVenue")
             sent.appendChild(inlineSel(venueOpts(),r.venue,function(v){ r.venue=v; touched(); }));
-          else if(r.type==="notTogether"||r.type==="together"){
+          else if(r.type==="notTogether"||r.type==="together"||r.type==="countAsOne"){
             sent.appendChild(inlineSel(teamOpts(),r.team2,function(v){ r.team2=v; touched(); }));
-            sent.appendChild(word(r.type==="notTogether"?"can't share a block":"always practice together"));
+            sent.appendChild(word(r.type==="notTogether" ? "can't share a block"
+                                : r.type==="together"   ? "always practice together"
+                                : "count as one team in a block"));
           }
         }
       }
