@@ -186,6 +186,16 @@
   .card.paired{border-style:dashed;border-color:var(--gold-bright)}
   .card.paired .who i{color:var(--gold)}
 
+  .teamlist{padding:9px;display:flex;flex-direction:column;gap:5px}
+  .trow{display:flex;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--line);border-radius:3px;background:var(--ground)}
+  .tnum{width:24px;height:24px;flex:none;display:grid;place-items:center;border-radius:2px;font-family:var(--mono);font-size:11px;font-weight:700;background:var(--purple);color:var(--purple-ink)}
+  .trow.d-mid .tnum{background:var(--teal);color:#fff}
+  .trow.d-high .tnum{background:var(--gold-bright);color:#2A1D05}
+  .tname{flex:1;min-width:0;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tdiv{flex:none;font-size:10.5px;padding:2px 4px;width:auto;max-width:82px}
+  .addteam{padding:9px;border-top:1px solid var(--line)}
+  .addteam select{font-size:11.5px}
+
   .rules{padding:9px;display:flex;flex-direction:column;gap:6px}
   .rules:empty::before{content:"No rules yet";font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);padding:4px}
   .rule-row{display:flex;gap:7px;align-items:flex-start;padding:7px 8px;border:1px solid var(--line);border-radius:3px;background:var(--ground)}
@@ -247,7 +257,41 @@
   .gate-err{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bad);min-height:14px}
 
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-  @media print{.bar,.bench-wrap,.notes-wrap,.ven-wrap,.hint,.day-acts,.editor,.grip{display:none!important}.cols{grid-template-columns:1fr}body{background:#fff}.week{grid-template-columns:repeat(4,1fr)}}
+  /* ---------- printed schedule ---------- */
+  #printout{display:none}
+  @media print{
+    @page{ size:letter portrait; margin:0.45in; }
+    html,body{background:#fff!important;color:#000!important}
+    .mast,.bar,.cols,.hint,.gate{display:none!important}
+    #printout{display:block!important}
+    .p-grid tr,.p-team{break-inside:avoid;page-break-inside:avoid}
+  }
+  #printout{font-family:var(--sans);color:#000}
+  .p-head{border-bottom:2.5px solid #000;padding-bottom:7px;margin-bottom:13px;
+    display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+  .p-title{font-size:21px;font-weight:800;letter-spacing:-.02em;text-transform:uppercase;line-height:1}
+  .p-sub{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin-top:3px;color:#444}
+  .p-meta{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;color:#555;text-align:right;line-height:1.6}
+  table.p-grid{width:100%;border-collapse:collapse;margin-bottom:15px}
+  .p-grid th{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:#555;text-align:left;padding:0 7px 4px;border-bottom:1px solid #000;font-weight:400}
+  .p-day td{padding:9px 7px 3px;font-size:11.5px;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;border-bottom:1px solid #bbb}
+  .p-grid tbody tr.p-slot td{padding:6px 7px;border-bottom:1px solid #e2e2e2;vertical-align:top;font-size:12px}
+  .p-time{font-family:var(--mono);font-size:12px;font-weight:700;white-space:nowrap;width:20%}
+  .p-gym{width:26%;color:#333}
+  .p-who{font-weight:600}
+  .p-pair{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#666;font-weight:400}
+  .p-rest td{padding:6px 7px;border-bottom:1px solid #e2e2e2;font-size:11px;color:#777;font-style:italic}
+  .p-h2{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:#555;margin:0 0 6px;padding-bottom:3px;border-bottom:1px solid #000}
+  .p-teams{columns:2;column-gap:22px}
+  .p-team{break-inside:avoid;display:flex;gap:7px;align-items:baseline;padding:3px 0;font-size:11px}
+  .p-team b{flex:none;min-width:62px;font-weight:700}
+  .p-team span{color:#333}
+  .p-foot{margin-top:13px;padding-top:7px;border-top:1px solid #bbb;
+    font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:#666;
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
 </style>
 
 <script>document.documentElement.classList.add("locked");</script>
@@ -347,6 +391,14 @@
         <div class="issues" id="issues"></div>
       </section>
 
+      <section class="panel teams-wrap">
+        <div class="panel-h"><span>Teams</span><span id="teamcount"></span></div>
+        <div class="teamlist" id="teamlist"></div>
+        <div class="addteam">
+          <select id="addteam" aria-label="Add a team"></select>
+        </div>
+      </section>
+
       <section class="panel rules-wrap">
         <div class="panel-h"><span>My rules</span><span id="rulecount"></span></div>
         <div class="rules" id="rules"></div>
@@ -402,6 +454,8 @@
 
     <section class="week" id="week"></section>
   </div>
+
+  <div id="printout"></div>
 </div>
 
 <script>
@@ -420,18 +474,40 @@
                 "jaguars-scheduler-v3","jaguars-scheduler-v2","jaguars-scheduler-v1"];
   var recovered = null, loadError = null;
 
-  var TEAMS = [
-    {id:"g3", label:"Grade 3", num:"3", div:"elem"},
-    {id:"g5", label:"Grade 5", num:"5", div:"elem"},
-    {id:"g6", label:"Grade 6", num:"6", div:"mid"},
-    {id:"g7a",label:"Grade 7A",num:"7A",div:"mid"},
-    {id:"g7b",label:"Grade 7B",num:"7B",div:"mid"},
-    {id:"g8", label:"Grade 8", num:"8", div:"mid"},
-    {id:"g9", label:"Grade 9", num:"9", div:"high"}
-  ];
+  function baseTeams(){
+    return [
+      {id:"g3", label:"Grade 3", num:"3", div:"elem"},
+      {id:"g5", label:"Grade 5", num:"5", div:"elem"},
+      {id:"g6", label:"Grade 6", num:"6", div:"mid"},
+      {id:"g7a",label:"Grade 7A",num:"7A",div:"mid"},
+      {id:"g7b",label:"Grade 7B",num:"7B",div:"mid"},
+      {id:"g8", label:"Grade 8", num:"8", div:"mid"},
+      {id:"g9", label:"Grade 9", num:"9", div:"high"}
+    ];
+  }
+
+  // Live view of S.teams. Re-pointed by useTeams() whenever the whole state is
+  // swapped out (load, restore, import, cloud pull) so call sites stay valid.
+  var TEAMS = baseTeams();
+  function useTeams(){ if(S && Array.isArray(S.teams) && S.teams.length) TEAMS=S.teams; }
+
+  function divFor(g){ return g<=5 ? "elem" : (g<=8 ? "mid" : "high"); }
+  function teamCatalog(){
+    var out=[];
+    for(var g=1; g<=12; g++){
+      out.push({grade:g, div:divFor(g), items:[
+        {id:"g"+g,      label:"Grade "+g,          num:String(g)},
+        {id:"g"+g+"a",  label:"Grade "+g+"A",      num:g+"A"},
+        {id:"g"+g+"b",  label:"Grade "+g+"B",      num:g+"B"},
+        {id:"g"+g+"gi", label:"Grade "+g+" Girls", num:g+"G"}
+      ]});
+    }
+    return out;
+  }
 
   function defaults(){
     return {
+      teams:baseTeams(),
       venues:[
         {id:"school",name:"School Gym",   rate:0,  open:17*60,close:21*60,days:{Mon:1,Wed:1},tone:0},
         {id:"ymca",  name:"YMCA",         rate:0,  open:9*60, close:20*60,days:{Tue:1,Thu:1,Sun:1},tone:1},
@@ -502,6 +578,7 @@
   }
 
   var S = load() || defaults();
+  useTeams();
 
   /* Fill in anything a newer version added, without touching what's already there.
      Every future field only needs adding to defaults() — it backfills from here. */
@@ -511,7 +588,8 @@
     Object.keys(def).forEach(function(k){
       if(d[k]===undefined || d[k]===null) d[k]=def[k];
     });
-    if(!Array.isArray(d.venues)   || !d.venues.length) d.venues=def.venues;
+    if(!Array.isArray(d.teams)  || !d.teams.length) d.teams=baseTeams();
+    if(!Array.isArray(d.venues) || !d.venues.length) d.venues=def.venues;
     if(!Array.isArray(d.blocks))    d.blocks=def.blocks;
     if(!Array.isArray(d.rules))     d.rules=[];
     if(!Array.isArray(d.scenarios)) d.scenarios=[];
@@ -678,7 +756,7 @@
       if(!force && JSON.stringify(d)===JSON.stringify(S)){ cloud.remoteAt=row.updated_at; cloudSet("ok","up to date"); return false; }
       pushBackup();
       var keepUndo=snapshot(), keepSync=S.sync;
-      S=d; S.undo=keepUndo; S.sync=keepSync;
+      S=d; S.undo=keepUndo; S.sync=keepSync; useTeams();
       cloud.remoteAt=row.updated_at;
       try{ localStorage.setItem(STORE,JSON.stringify(S)); }catch(e){}
       render();
@@ -734,7 +812,7 @@
     if(!d || !Array.isArray(d.blocks)){ flash("That file isn't a Jaguars schedule."); return false; }
     S.undo=snapshot();
     var keepUndo=S.undo;
-    S=d; S.undo=keepUndo;
+    S=d; S.undo=keepUndo; useTeams();
     save(); render();
     flash("Loaded "+label+". Undo load puts back what you had.");
     return true;
@@ -790,14 +868,16 @@
   function deep(o){ return JSON.parse(JSON.stringify(o)); }
 
   function snapshot(){
-    return deep({venues:S.venues, blocks:S.blocks, assign:S.assign,
+    return deep({teams:S.teams, venues:S.venues, blocks:S.blocks, assign:S.assign,
                  locks:S.locks, blockedDays:S.blockedDays, rules:S.rules});
   }
   function restore(d){
     var x=deep(d);
+    if(Array.isArray(x.teams) && x.teams.length) S.teams=x.teams;
     S.venues=x.venues; S.blocks=x.blocks; S.assign=x.assign;
     S.locks=x.locks; S.blockedDays=x.blockedDays; S.rules=x.rules;
     S.open=null;
+    useTeams();
   }
   function planLetter(){
     var used={}, i;
@@ -1630,6 +1710,8 @@
       d.appendChild(ic); d.appendChild(s); iss.appendChild(d);
     });
 
+    renderTeams();
+    renderPrint();
     renderRules(a);
     renderVenues();
     renderPlans();
@@ -1794,6 +1876,199 @@
   function dayOpts(){ return DAYS.map(function(d){ return {v:d,t:d}; }); }
   function venueOpts(){ return S.venues.map(function(v){ return {v:v.id,t:v.name}; }); }
   function word(t){ var s=document.createElement("span"); s.textContent=t; return s; }
+
+  /* The printed sheet is built from state rather than by restyling the grid —
+     the screen layout doesn't reduce to something readable on paper. */
+  function renderPrint(){
+    var out=document.getElementById("printout");
+    if(!out) return;
+    out.innerHTML="";
+    var um=unitMap();
+
+    function el(tag,cls,txt){
+      var e=document.createElement(tag);
+      if(cls) e.className=cls;
+      if(txt!==undefined) e.textContent=txt;
+      return e;
+    }
+
+    var head=el("div","p-head");
+    var left=el("div");
+    left.appendChild(el("div","p-title","SW Florida Jaguars"));
+    left.appendChild(el("div","p-sub","Weekly Practice Schedule"));
+    var meta=el("div","p-meta");
+    meta.appendChild(el("div",null,TEAMS.length+" teams · "+PER_WEEK+" practices each"));
+    meta.appendChild(el("div",null,new Date().toLocaleDateString(undefined,
+      {year:"numeric",month:"long",day:"numeric"})));
+    head.appendChild(left); head.appendChild(meta);
+    out.appendChild(head);
+
+    var table=el("table","p-grid");
+    var thead=el("thead"), hr=el("tr");
+    ["Time","Location","Teams"].forEach(function(h){ hr.appendChild(el("th",null,h)); });
+    thead.appendChild(hr); table.appendChild(thead);
+    var tb=el("tbody");
+
+    DAYS.forEach(function(day){
+      if(S.blockedDays[day]) return;
+      var mine=S.blocks.filter(function(b){ return b.day===day && b.on && at(b.id).length; })
+                       .sort(function(x,y){ return x.start-y.start; });
+      if(!mine.length) return;
+
+      var dr=el("tr","p-day");
+      var dc=el("td",null,longDay(day)); dc.colSpan=3;
+      dr.appendChild(dc); tb.appendChild(dr);
+
+      mine.forEach(function(b){
+        var r=el("tr","p-slot");
+        r.appendChild(el("td","p-time",span(b)));
+        r.appendChild(el("td","p-gym",venue(b.venue).name));
+        var who=el("td","p-who");
+        var list=at(b.id), done={}, parts=[];
+        list.forEach(function(tid){
+          if(done[tid]) return;
+          var mates=partnersOf(tid,list,um);
+          if(mates.length){
+            [tid].concat(mates).forEach(function(x){ done[x]=1; });
+            parts.push({text:[tid].concat(mates).map(tname).join(" + "), pair:true});
+          } else {
+            done[tid]=1;
+            parts.push({text:tname(tid), pair:false});
+          }
+        });
+        parts.forEach(function(p,i){
+          if(i) who.appendChild(document.createTextNode("   ·   "));
+          who.appendChild(document.createTextNode(p.text));
+          if(p.pair){
+            var tag=el("span","p-pair"," (share the floor)");
+            who.appendChild(tag);
+          }
+        });
+        r.appendChild(who);
+        tb.appendChild(r);
+      });
+    });
+
+    var free=DAYS.filter(function(d){
+      if(S.blockedDays[d]) return true;
+      return !S.blocks.some(function(b){ return b.day===d && b.on && at(b.id).length; });
+    });
+    if(free.length){
+      var fr=el("tr","p-rest");
+      var fc=el("td",null,"No practice: "+free.map(longDay).join(", "));
+      fc.colSpan=3; fr.appendChild(fc); tb.appendChild(fr);
+    }
+
+    table.appendChild(tb);
+    out.appendChild(table);
+
+    out.appendChild(el("p","p-h2","Each team's week"));
+    var grid=el("div","p-teams");
+    TEAMS.forEach(function(t){
+      var row=el("div","p-team");
+      row.appendChild(el("b",null,t.label));
+      var slots=[];
+      DAYS.forEach(function(d){
+        S.blocks.filter(function(b){ return b.day===d && b.on && !S.blockedDays[d]; })
+          .sort(function(x,y){ return x.start-y.start; })
+          .forEach(function(b){
+            if(at(b.id).indexOf(t.id)>=0) slots.push(day3(b.day)+" "+span(b));
+          });
+      });
+      row.appendChild(el("span",null, slots.length ? slots.join("  ·  ") : "not scheduled"));
+      grid.appendChild(row);
+    });
+    out.appendChild(grid);
+
+    var foot=el("div","p-foot");
+    var gyms={};
+    S.blocks.forEach(function(b){ if(b.on && !S.blockedDays[b.day] && at(b.id).length) gyms[b.venue]=1; });
+    foot.appendChild(el("span",null,"Gyms: "+Object.keys(gyms).map(function(v){ return venue(v).name; }).join(" · ")));
+    var c=cost();
+    foot.appendChild(el("span",null, c ? "Gym cost: $"+c+" per week" : "No paid gym time"));
+    out.appendChild(foot);
+  }
+  function longDay(d){
+    return {Mon:"Monday",Tue:"Tuesday",Wed:"Wednesday",Thu:"Thursday",
+            Fri:"Friday",Sat:"Saturday",Sun:"Sunday"}[d]||d;
+  }
+  function day3(d){ return d; }
+
+  function renderTeams(){
+    var w=document.getElementById("teamlist"); w.innerHTML="";
+    TEAMS.forEach(function(t){
+      var row=document.createElement("div"); row.className="trow d-"+t.div;
+      var n=document.createElement("span"); n.className="tnum"; n.textContent=t.num;
+      var nm=document.createElement("span"); nm.className="tname"; nm.textContent=t.label;
+      var dv=document.createElement("select"); dv.className="tdiv";
+      dv.setAttribute("aria-label",t.label+" division");
+      [["elem","Elem"],["mid","Middle"],["high","High"]].forEach(function(p){
+        var o=document.createElement("option");
+        o.value=p[0]; o.textContent=p[1];
+        if(t.div===p[0]) o.selected=true;
+        dv.appendChild(o);
+      });
+      dv.addEventListener("change",function(){ t.div=dv.value; touched(); });
+      var del=document.createElement("button");
+      del.className="rdel"; del.textContent="✕"; del.title="Remove "+t.label;
+      del.setAttribute("aria-label","Remove "+t.label);
+      del.addEventListener("click",function(){ removeTeam(t); });
+      row.appendChild(n); row.appendChild(nm); row.appendChild(dv); row.appendChild(del);
+      w.appendChild(row);
+    });
+    document.getElementById("teamcount").textContent =
+      TEAMS.length+" · "+(TEAMS.length*PER_WEEK)+" slots needed";
+    fillAddTeam();
+  }
+
+  function fillAddTeam(){
+    var sel=document.getElementById("addteam");
+    var have={}; TEAMS.forEach(function(t){ have[t.id]=1; });
+    sel.innerHTML="";
+    var ph=document.createElement("option");
+    ph.value=""; ph.textContent="+ Add a team…"; sel.appendChild(ph);
+    teamCatalog().forEach(function(g){
+      var avail=g.items.filter(function(it){ return !have[it.id]; });
+      if(!avail.length) return;
+      var grp=document.createElement("optgroup");
+      grp.label="Grade "+g.grade;
+      avail.forEach(function(it){
+        var o=document.createElement("option");
+        o.value=g.grade+"|"+it.id+"|"+it.label+"|"+it.num;
+        o.textContent=it.label;
+        grp.appendChild(o);
+      });
+      sel.appendChild(grp);
+    });
+    sel.value="";
+  }
+
+  function addTeam(v){
+    var p=v.split("|");
+    var t={id:p[1], label:p[2], num:p[3], div:divFor(+p[0])};
+    if(TEAMS.some(function(x){ return x.id===t.id; })) return;
+    S.teams.push(t); useTeams();
+    touched();
+    flash(t.label+" added. It needs "+PER_WEEK+" practices — rerun the brain to place it.");
+  }
+
+  function removeTeam(t){
+    if(TEAMS.length<2){ flash("You need at least one team."); return; }
+    S.teams=TEAMS.filter(function(x){ return x.id!==t.id; });
+    useTeams();
+    // take it out of every block, lock and rule so nothing points at a ghost
+    Object.keys(S.assign).forEach(function(b){
+      S.assign[b]=S.assign[b].filter(function(x){ return x!==t.id; });
+    });
+    Object.keys(S.locks).forEach(function(k){
+      if(k.split("::")[1]===t.id) delete S.locks[k];
+    });
+    var before=rules().length;
+    S.rules=rules().filter(function(r){ return r.team!==t.id && r.team2!==t.id; });
+    var dropped=before-S.rules.length;
+    touched();
+    flash(t.label+" removed"+(dropped?", plus "+dropped+" rule(s) that referred to it.":"."));
+  }
 
   function renderRules(a){
     var w=document.getElementById("rules"); w.innerHTML="";
@@ -1983,7 +2258,7 @@
     pushBackup();                 // never let Reset be the thing that loses work
     S.undo=snapshot();
     var keepUndo=S.undo, keepScen=S.scenarios, keepBk=S.savedAt;
-    S=defaults();
+    S=defaults(); useTeams();
     S.undo=keepUndo; S.scenarios=keepScen||[];   // saved plans survive a reset
     save();
     autoBox.checked=true;
@@ -2045,6 +2320,10 @@
   });
 
   document.getElementById("addven").addEventListener("click",addVenue);
+
+  document.getElementById("addteam").addEventListener("change",function(){
+    if(this.value) addTeam(this.value);
+  });
 
   var addSel=document.getElementById("addrule");
   function fillAdd(){
