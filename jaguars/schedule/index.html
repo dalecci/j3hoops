@@ -1530,6 +1530,11 @@
     renderVenues();
     renderPlans();
     renderSafe();
+
+    // the notes box is a plain input, so it has to be re-synced whenever the
+    // whole state is swapped out (sync link, file restore, snapshot, undo)
+    var nb=document.getElementById("notes");
+    if(nb && document.activeElement!==nb && nb.value!==(S.notes||"")) nb.value=S.notes||"";
   }
 
   function renderSafe(){
@@ -1949,8 +1954,8 @@
     }
   }catch(e){
     loadError="startup: "+((e&&e.message)||e);
-    try{ renderSafe(); }catch(e2){}
   }
+  try{ renderSafe(); }catch(e2){}   // reflect the startup save in "saved just now"
   // keep the "saved 3 min ago" line honest without re-rendering the grid
   setInterval(renderSafe,30000);
 })();
