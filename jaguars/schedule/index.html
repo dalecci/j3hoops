@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jaguars Practice Scheduler</title>
+</head>
+<body>
+<style>
+  :root{
+    --ground:#F5F2F8; --panel:#FFFFFF; --panel-2:#EFEAF4;
+    --ink:#1B1420; --ink-2:#5B5266; --ink-3:#8B8296;
+    --line:#DED5E6; --line-strong:#C6B8D4;
+    --purple:#5B2D8E; --purple-ink:#FFFFFF; --purple-soft:#EDE3F7;
+    --gold:#B57F06; --gold-bright:#F0B429; --gold-soft:#FBF0D6;
+    --teal:#2F7D8C;
+    --ok:#217A4B; --ok-soft:#DFF1E6;
+    --warn:#9A5B06; --warn-soft:#FBEBD3;
+    --bad:#B32E2E; --bad-soft:#FBE0E0;
+    --mono:"Cascadia Mono",Consolas,ui-monospace,"SF Mono",Menlo,monospace;
+    --sans:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#16121C; --panel:#1F1927; --panel-2:#262032;
+      --ink:#F2EDF7; --ink-2:#B5AAC2; --ink-3:#847A91;
+      --line:#332B40; --line-strong:#453A54;
+      --purple:#A879DE; --purple-ink:#17101F; --purple-soft:#2C2039;
+      --gold:#F0B429; --gold-bright:#F0B429; --gold-soft:#332714;
+      --teal:#4FA8B8;
+      --ok:#57C98A; --ok-soft:#16301F;
+      --warn:#E9A94A; --warn-soft:#33260F;
+      --bad:#F07070; --bad-soft:#3A1A1A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#16121C; --panel:#1F1927; --panel-2:#262032;
+    --ink:#F2EDF7; --ink-2:#B5AAC2; --ink-3:#847A91;
+    --line:#332B40; --line-strong:#453A54;
+    --purple:#A879DE; --purple-ink:#17101F; --purple-soft:#2C2039;
+    --gold:#F0B429; --gold-bright:#F0B429; --gold-soft:#332714;
+    --teal:#4FA8B8;
+    --ok:#57C98A; --ok-soft:#16301F;
+    --warn:#E9A94A; --warn-soft:#33260F;
+    --bad:#F07070; --bad-soft:#3A1A1A;
+  }
+  :root[data-theme="light"]{
+    --ground:#F5F2F8; --panel:#FFFFFF; --panel-2:#EFEAF4;
+    --ink:#1B1420; --ink-2:#5B5266; --ink-3:#8B8296;
+    --line:#DED5E6; --line-strong:#C6B8D4;
+    --purple:#5B2D8E; --purple-ink:#FFFFFF; --purple-soft:#EDE3F7;
+    --gold:#B57F06; --gold-bright:#F0B429; --gold-soft:#FBF0D6;
+    --teal:#2F7D8C;
+    --ok:#217A4B; --ok-soft:#DFF1E6;
+    --warn:#9A5B06; --warn-soft:#FBEBD3;
+    --bad:#B32E2E; --bad-soft:#FBE0E0;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1440px;margin:0 auto;padding:0 20px 64px}
+
+  .mast{position:relative;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--purple-soft),transparent 72%);margin:0 -20px 20px;padding:22px 20px 18px;overflow:hidden}
+  .mast::after{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:linear-gradient(90deg,var(--purple) 0 42%,var(--gold-bright) 42% 58%,var(--purple) 58% 100%)}
+  .court{position:absolute;right:-70px;top:-90px;width:280px;height:280px;border:1px solid var(--gold-bright);opacity:.16;border-radius:50%;pointer-events:none}
+  .court.i2{right:-30px;top:-50px;width:200px;height:200px}
+  .mast-row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;position:relative}
+  .brand{display:flex;align-items:center;gap:13px}
+  .claw{width:42px;height:42px;flex:none;display:grid;place-items:center;background:var(--purple);color:var(--purple-ink);font-family:var(--mono);font-size:19px;font-weight:700;letter-spacing:-.5px;border-bottom:3px solid var(--gold-bright)}
+  h1{margin:0;font-size:25px;line-height:1.05;font-weight:700;letter-spacing:-.028em;text-transform:uppercase;text-wrap:balance}
+  .sub{margin:3px 0 0;font-family:var(--mono);font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+
+  .stats{display:flex;flex-wrap:wrap;gap:8px}
+  .stat{background:var(--panel);border:1px solid var(--line);padding:8px 14px 9px;min-width:102px;border-radius:4px}
+  .stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);display:block}
+  .stat .v{font-family:var(--mono);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;display:block;margin-top:1px}
+  .stat.good .v{color:var(--ok)} .stat.bad .v{color:var(--bad)} .stat.warn .v{color:var(--warn)}
+  .stat .note{font-size:10.5px;color:var(--ink-3);display:block;margin-top:-2px}
+
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 0 16px}
+  button{font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);padding:8px 13px;border-radius:4px;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
+  button:hover{background:var(--panel-2);border-color:var(--purple)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px}
+  button.primary{background:var(--purple);border-color:var(--purple);color:var(--purple-ink)}
+  button.primary:hover{filter:brightness(1.12)}
+  .spacer{flex:1}
+  .hint{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase}
+  .toggle{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);cursor:pointer;user-select:none;padding:7px 10px;border:1px solid var(--line-strong);border-radius:4px;background:var(--panel)}
+  .toggle input{accent-color:var(--purple);margin:0}
+
+  .cols{display:grid;grid-template-columns:250px minmax(0,1fr);gap:18px;align-items:start}
+  @media (max-width:1050px){.cols{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:4px}
+  .panel-h{padding:11px 13px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .stack{display:flex;flex-direction:column;gap:14px}
+
+  .bench-body{padding:9px;display:flex;flex-direction:column;gap:7px;min-height:56px}
+  .bench-body.empty::before{content:"All teams placed";font-family:var(--mono);font-size:11px;color:var(--ok);letter-spacing:.05em;padding:8px 4px}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;padding:10px 13px;border-top:1px solid var(--line)}
+  .lg{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .sw{width:11px;height:11px;border-radius:2px}
+
+  .week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:9px}
+  @media (max-width:1300px){.week{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  @media (max-width:820px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:540px){.week{grid-template-columns:1fr}}
+  .day{display:flex;flex-direction:column;gap:8px;min-width:0;padding:4px;border-radius:4px;border:1px dashed transparent}
+  .day.dropday{border-color:var(--gold-bright);background:var(--gold-soft)}
+  .day-h{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 2px 5px;border-bottom:1px solid var(--line-strong)}
+  .day-h .nm{display:flex;align-items:baseline;gap:6px;min-width:0}
+  .day-h b{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em}
+  .day-h .ct{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .day-acts{display:flex;gap:2px;flex:none}
+  .mini{width:22px;height:22px;padding:0;display:grid;place-items:center;font-size:12px;line-height:1;border-radius:3px;border:1px solid transparent;background:transparent;color:var(--ink-3)}
+  .mini:hover{background:var(--panel-2);border-color:var(--line-strong);color:var(--ink)}
+  .mini.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .day.blocked{opacity:.62}
+  .day.blocked .day-h{border-bottom-color:var(--bad)}
+  .day.blocked .day-h b{color:var(--bad);text-decoration:line-through}
+  .blocked-note{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--bad);background:var(--bad-soft);border:1px solid var(--bad);border-radius:3px;padding:8px;text-align:center}
+
+  .block{background:var(--panel);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;overflow:hidden;transition:border-color .12s,box-shadow .12s,opacity .12s}
+  .block.drop{border-color:var(--gold-bright);box-shadow:0 0 0 2px var(--gold-soft)}
+  .block.ghosting{opacity:.35}
+  .block.off{opacity:.5}
+  .block-h{padding:7px 8px;border-bottom:1px solid var(--line);background:var(--panel-2);cursor:grab}
+  .block-h:active{cursor:grabbing}
+  .block.v-school .block-h{background:var(--purple-soft)}
+  .block.v-ymca .block-h{background:var(--ok-soft)}
+  .block.v-cape .block-h{background:var(--gold-soft)}
+  .bh-top{display:flex;align-items:center;gap:5px}
+  .grip{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:-1px;flex:none;cursor:grab}
+  .time{font-family:var(--mono);font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;flex:1;min-width:0}
+  .meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:3px}
+  .venue{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pips{display:flex;gap:3px;flex:none}
+  .pip{width:7px;height:7px;border:1px solid var(--line-strong);border-radius:1px}
+  .pip.on{background:var(--purple);border-color:var(--purple)}
+  .pip.over{background:var(--bad);border-color:var(--bad)}
+  .rule{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:4px;display:block}
+  .tag{display:inline-block;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;padding:1px 5px;border-radius:2px;margin-top:5px;margin-right:4px}
+  .tag.paid{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold-bright)}
+  .tag.tent{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn)}
+  .tag.bad{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad)}
+  .block-body{padding:7px;display:flex;flex-direction:column;gap:6px;min-height:42px}
+  .slot-ghost{border:1px dashed var(--line-strong);border-radius:3px;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:9px 8px;text-align:center}
+
+  .editor{padding:8px;border-top:1px solid var(--line);background:var(--ground);display:flex;flex-direction:column;gap:7px}
+  .frow{display:flex;flex-direction:column;gap:3px}
+  .frow label{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+  select,input[type="number"]{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--panel);border:1px solid var(--line-strong);border-radius:3px;padding:5px 6px;width:100%}
+  select:focus-visible,input:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .chip{font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;padding:4px 6px;border:1px solid var(--line-strong);border-radius:3px;background:var(--panel);color:var(--ink-3);cursor:pointer}
+  .chip.on{background:var(--purple);border-color:var(--purple);color:var(--purple-ink)}
+  .ed-acts{display:flex;gap:6px}
+  .ed-acts button{flex:1;padding:6px 8px;font-size:11.5px}
+  .ed-acts button.del{color:var(--bad);border-color:var(--bad)}
+
+  .card{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:3px;padding:6px 7px;cursor:grab;transition:border-color .12s,background .12s}
+  .card:hover{border-color:var(--purple)}
+  .card:active{cursor:grabbing}
+  .card.dragging{opacity:.35}
+  .card.sel{border-color:var(--gold-bright);box-shadow:0 0 0 2px var(--gold-soft)}
+  .card.locked{background:var(--purple-soft);border-color:var(--purple)}
+  .card.err{border-color:var(--bad);background:var(--bad-soft)}
+  .num{width:26px;height:26px;flex:none;display:grid;place-items:center;background:var(--purple);color:var(--purple-ink);border-radius:2px;font-family:var(--mono);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .card.d-mid .num{background:var(--teal);color:#fff}
+  .card.d-high .num{background:var(--gold-bright);color:#2A1D05}
+  .card .who{flex:1;min-width:0}
+  .card .who b{display:block;font-size:12.5px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .who i{display:block;font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .lock{flex:none;width:24px;height:24px;padding:0;display:grid;place-items:center;background:transparent;border:1px solid transparent;font-size:12px;line-height:1;color:var(--ink-3);border-radius:2px}
+  .lock:hover{background:var(--panel-2);border-color:var(--line-strong)}
+  .lock.on{color:var(--purple);border-color:var(--purple);background:var(--panel)}
+
+  .issues{padding:9px;display:flex;flex-direction:column;gap:6px}
+  .issue{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.35;padding:7px 8px;border-radius:3px;border:1px solid var(--line)}
+  .issue.bad{background:var(--bad-soft);border-color:var(--bad)}
+  .issue.warn{background:var(--warn-soft);border-color:var(--warn)}
+  .issue.ok{background:var(--ok-soft);border-color:var(--ok)}
+  .issue .ic{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 4px;border-radius:2px;flex:none;margin-top:1px;background:var(--panel);border:1px solid currentColor}
+  .issue.bad .ic{color:var(--bad)} .issue.warn .ic{color:var(--warn)} .issue.ok .ic{color:var(--ok)}
+
+  .rules{padding:9px;display:flex;flex-direction:column;gap:6px}
+  .rules:empty::before{content:"No rules yet";font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);padding:4px}
+  .rule-row{display:flex;gap:7px;align-items:flex-start;padding:7px 8px;border:1px solid var(--line);border-radius:3px;background:var(--ground)}
+  .rule-row.off{opacity:.48}
+  .rule-row.hit{border-color:var(--bad);background:var(--bad-soft)}
+  .rule-row .sent{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11.5px;line-height:1.8}
+  .rsel{font-family:var(--mono);font-size:10.5px;padding:2px 4px;width:auto;max-width:118px;border-radius:2px}
+  .rtx{flex:1;min-width:120px;font-family:var(--sans);font-size:11.5px;padding:3px 5px;background:var(--panel);color:var(--ink);border:1px solid var(--line-strong);border-radius:2px}
+  .rtx:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
+  .rchk{accent-color:var(--purple);margin:4px 0 0;flex:none;cursor:pointer}
+  .rdel{flex:none;width:20px;height:20px;padding:0;display:grid;place-items:center;font-size:11px;line-height:1;background:transparent;border:1px solid transparent;color:var(--ink-3);border-radius:2px}
+  .rdel:hover{border-color:var(--bad);color:var(--bad);background:var(--panel)}
+  .addrule{padding:9px;border-top:1px solid var(--line)}
+  .addrule select{font-size:11.5px}
+
+  .ven{padding:9px 11px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+  .ven:last-child{border-bottom:0}
+  .ven-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .ven-top b{font-size:12.5px;font-weight:600}
+  .ven-rate{font-family:var(--mono);font-size:10px;color:var(--ink-3);display:flex;align-items:center;gap:4px}
+  .ven-rate input{width:52px;padding:3px 5px;font-size:10.5px}
+  .notes{padding:9px}
+  textarea{width:100%;min-height:80px;resize:vertical;background:var(--ground);color:var(--ink);border:1px solid var(--line-strong);border-radius:3px;padding:8px 9px;font-family:var(--sans);font-size:12.5px;line-height:1.5}
+  textarea:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
+
+  /* ---------- access gate ---------- */
+  :root.locked .wrap{display:none}
+  :root:not(.locked) .gate{display:none}
+  .gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--ground);padding:24px}
+  .gate-card{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--gold-bright);border-radius:4px;padding:26px 24px;width:100%;max-width:330px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+  .gate-card h2{margin:0;font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:-.02em;text-wrap:balance}
+  .gate-card p{margin:0;font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+  .gate-card input{width:100%;text-align:center;font-family:var(--mono);font-size:22px;letter-spacing:.35em;font-variant-numeric:tabular-nums;padding:10px;background:var(--ground);color:var(--ink);border:1px solid var(--line-strong);border-radius:3px}
+  .gate-card input:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
+  .gate-card button{width:100%;padding:10px}
+  .gate-err{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bad);min-height:14px}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media print{.bar,.bench-wrap,.notes-wrap,.ven-wrap,.hint,.day-acts,.editor,.grip{display:none!important}.cols{grid-template-columns:1fr}body{background:#fff}.week{grid-template-columns:repeat(4,1fr)}}
+</style>
+
+<script>document.documentElement.classList.add("locked");</script>
+
+<div class="gate" id="gate">
+  <form class="gate-card" id="gateform">
+    <div class="claw">SWJ</div>
+    <h2>Jaguars Practice Scheduler</h2>
+    <p>Team access code</p>
+    <input type="password" id="gatepw" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="Team access code">
+    <button type="submit" class="primary">Enter</button>
+    <span class="gate-err" id="gateerr"></span>
+  </form>
+</div>
+
+<script>
+(function(){
+  var CODE = "1212", KEY = "jaguars-gate";
+  var root = document.documentElement;
+  function unlock(){ root.classList.remove("locked"); }
+  try{ if(localStorage.getItem(KEY) === CODE) unlock(); }catch(e){}
+
+  var form = document.getElementById("gateform");
+  var pw   = document.getElementById("gatepw");
+  var err  = document.getElementById("gateerr");
+
+  form.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    if(pw.value.trim() === CODE){
+      try{ localStorage.setItem(KEY, CODE); }catch(e){}
+      err.textContent = "";
+      unlock();
+      window.dispatchEvent(new Event("resize"));
+    } else {
+      err.textContent = "That code isn't right";
+      pw.value = "";
+      pw.focus();
+    }
+  });
+
+  if(root.classList.contains("locked")) pw.focus();
+})();
+</script>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="court"></div><div class="court i2"></div>
+    <div class="mast-row">
+      <div class="brand">
+        <div class="claw">SWJ</div>
+        <div>
+          <h1>Jaguars Practice Scheduler</h1>
+          <p class="sub">SW Florida Jaguars &middot; 7 teams &middot; 2 practices each per week</p>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </header>
+
+  <div class="bar">
+    <button class="primary" id="gen">Rerun the brain</button>
+    <button id="clear">Clear unlocked</button>
+    <button id="lockall">Lock all</button>
+    <button id="addblock">+ Block</button>
+    <label class="toggle"><input type="checkbox" id="auto" checked> Auto-rerun on change</label>
+    <span class="spacer"></span>
+    <span class="hint" id="hint">Drag cards between blocks &middot; drag a block header to another day</span>
+    <button id="reset">Reset</button>
+    <button id="print">Print</button>
+  </div>
+
+  <div class="cols">
+    <div class="stack">
+      <section class="panel bench-wrap">
+        <div class="panel-h"><span>Bench</span><span id="benchcount">0</span></div>
+        <div class="bench-body" id="bench"></div>
+        <div class="legend">
+          <span class="lg"><span class="sw" style="background:var(--purple)"></span>Elementary</span>
+          <span class="lg"><span class="sw" style="background:var(--teal)"></span>Middle</span>
+          <span class="lg"><span class="sw" style="background:var(--gold-bright)"></span>High</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-h"><span>Rule check</span></div>
+        <div class="issues" id="issues"></div>
+      </section>
+
+      <section class="panel rules-wrap">
+        <div class="panel-h"><span>My rules</span><span id="rulecount"></span></div>
+        <div class="rules" id="rules"></div>
+        <div class="addrule">
+          <select id="addrule" aria-label="Add a rule"></select>
+        </div>
+      </section>
+
+      <section class="panel ven-wrap">
+        <div class="panel-h"><span>Venues &amp; hours</span></div>
+        <div id="venues"></div>
+      </section>
+
+      <section class="panel notes-wrap">
+        <div class="panel-h"><span>New parameters</span></div>
+        <div class="notes">
+          <textarea id="notes" placeholder="Paste the next thing the league owner sends and we'll fold it in."></textarea>
+        </div>
+      </section>
+    </div>
+
+    <section class="week" id="week"></section>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  var PER_WEEK = 2;
+  var STORE = "jaguars-scheduler-v3";
+
+  var TEAMS = [
+    {id:"g3", label:"Grade 3", num:"3", div:"elem"},
+    {id:"g5", label:"Grade 5", num:"5", div:"elem"},
+    {id:"g6", label:"Grade 6", num:"6", div:"mid"},
+    {id:"g7a",label:"Grade 7A",num:"7A",div:"mid"},
+    {id:"g7b",label:"Grade 7B",num:"7B",div:"mid"},
+    {id:"g8", label:"Grade 8", num:"8", div:"mid"},
+    {id:"g9", label:"Grade 9", num:"9", div:"high"}
+  ];
+
+  function defaults(){
+    return {
+      venues:[
+        {id:"school",name:"School Gym",   rate:0,  open:17*60,close:21*60,days:{Mon:1,Wed:1},cls:"v-school"},
+        {id:"ymca",  name:"YMCA",         rate:0,  open:9*60, close:20*60,days:{Tue:1,Thu:1,Sun:1},cls:"v-ymca"},
+        {id:"cape",  name:"Cape Coral CC",rate:100,open:7*60, close:14*60,days:{Sat:1},cls:"v-cape"}
+      ],
+      blocks:[
+        {id:"b1",day:"Mon",start:17*60,dur:120,venue:"school",allow:{elem:1},           cap:2,on:1},
+        {id:"b2",day:"Mon",start:19*60,dur:120,venue:"school",allow:{mid:1,high:1},     cap:2,on:1},
+        {id:"b3",day:"Tue",start:18*60,dur:120,venue:"ymca",  allow:{elem:1,mid:1,high:1},cap:2,on:1,tent:1},
+        {id:"b4",day:"Wed",start:17*60,dur:120,venue:"school",allow:{elem:1},           cap:2,on:1},
+        {id:"b5",day:"Wed",start:19*60,dur:120,venue:"school",allow:{mid:1,high:1},     cap:2,on:1},
+        {id:"b6",day:"Thu",start:18*60,dur:120,venue:"ymca",  allow:{elem:1,mid:1,high:1},cap:2,on:1,tent:1},
+        {id:"b7",day:"Sat",start:7*60, dur:120,venue:"cape",  allow:{elem:1,mid:1,high:1},cap:2,on:1}
+      ],
+      assign:{b1:["g3","g5"],b2:["g6","g7a"],b3:["g8","g9"],b4:["g3","g5"],b5:["g6","g7a"],b6:["g8","g7b"],b7:["g9","g7b"]},
+      rules:[
+        {id:"r1",type:"maxPaid",n:1,on:1},
+        {id:"r2",type:"note",text:"Keep weekends open for families on non-game weeks.",on:1},
+        {id:"r3",type:"note",text:"Once a month I have a Tuesday night work meeting — need a coach on that block.",on:1}
+      ],
+      locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true, seq:8, rseq:4, open:null
+    };
+  }
+
+  var RULE_TYPES=[
+    {t:"noDay",       label:"A team can't practice on a day"},
+    {t:"mustDay",     label:"A team must practice on a day"},
+    {t:"notBefore",   label:"A team can't start before a time"},
+    {t:"notAfter",    label:"A team must be finished by a time"},
+    {t:"noVenue",     label:"A team can't use a gym"},
+    {t:"onlyVenue",   label:"A team only practices at one gym"},
+    {t:"notTogether", label:"Two teams can't share a block"},
+    {t:"together",    label:"Two teams always practice together"},
+    {t:"spread",      label:"A team is never on back-to-back days"},
+    {t:"maxPaid",     label:"Limit how many paid sessions per week"},
+    {t:"note",        label:"Note to myself (not enforced)"}
+  ];
+
+  var S = load() || defaults();
+
+  function load(){ try{ var r=localStorage.getItem(STORE); return r?JSON.parse(r):null; }catch(e){ return null; } }
+  function save(){ try{ localStorage.setItem(STORE,JSON.stringify(S)); }catch(e){} }
+
+  function team(id){ for(var i=0;i<TEAMS.length;i++) if(TEAMS[i].id===id) return TEAMS[i]; return null; }
+  function venue(id){ for(var i=0;i<S.venues.length;i++) if(S.venues[i].id===id) return S.venues[i]; return S.venues[0]; }
+  function blk(id){ for(var i=0;i<S.blocks.length;i++) if(S.blocks[i].id===id) return S.blocks[i]; return null; }
+  function key(b,t){ return b+"::"+t; }
+  function locked(b,t){ return !!S.locks[key(b,t)]; }
+  function at(id){ return S.assign[id] || (S.assign[id]=[]); }
+  function live(b){ return b.on && !S.blockedDays[b.day]; }
+  function liveBlocks(){ return S.blocks.filter(live); }
+  function count(tid){ var n=0; liveBlocks().forEach(function(b){ if(at(b.id).indexOf(tid)>=0) n++; }); return n; }
+  function di(d){ return DAYS.indexOf(d); }
+  function allowList(b){ return Object.keys(b.allow).filter(function(k){ return b.allow[k]; }); }
+
+  function fmt(m){
+    var h = Math.floor(m/60), mm = m%60, ap = h>=12 ? "PM" : "AM";
+    var hh = h%12; if(hh===0) hh=12;
+    return hh+":"+(mm<10?"0":"")+mm+" "+ap;
+  }
+  function span(b){
+    var a = fmt(b.start), z = fmt(b.start+b.dur);
+    var ap1 = a.slice(-2), ap2 = z.slice(-2);
+    return ap1===ap2 ? a.slice(0,-3)+"–"+z : a+"–"+z;
+  }
+  function divName(list){
+    if(list.length>=3) return "open";
+    if(list.length===1 && list[0]==="elem") return "elementary";
+    if(list.indexOf("elem")<0) return "middle & high";
+    return list.join(" + ");
+  }
+  function divLabel(d){ return d==="elem"?"Elementary":d==="mid"?"Middle":"High school"; }
+
+  /* ---------------- rules ---------------- */
+  function rules(){ return S.rules || (S.rules=[]); }
+  function tname(id){ var t=team(id); return t?t.label:"a team"; }
+  function vname(id){ return venue(id).name; }
+
+  // may team `tid` go into block `b`, given the placements so far in `a`?
+  function ruleAllows(r,b,tid,a,blocks){
+    if(!r.on) return true;
+    switch(r.type){
+      case "noDay":     return !(r.team===tid && b.day===r.day);
+      case "noVenue":   return !(r.team===tid && b.venue===r.venue);
+      case "onlyVenue": return !(r.team===tid && b.venue!==r.venue);
+      case "notBefore": return !(r.team===tid && b.start<r.time);
+      case "notAfter":  return !(r.team===tid && b.start+b.dur>r.time);
+      case "notTogether":
+        if(tid===r.team  && a[b.id].indexOf(r.team2)>=0) return false;
+        if(tid===r.team2 && a[b.id].indexOf(r.team)>=0)  return false;
+        return true;
+      case "spread":
+        if(r.team!==tid) return true;
+        return !blocks.some(function(o){
+          return a[o.id].indexOf(tid)>=0 && Math.abs(di(o.day)-di(b.day))===1; });
+      case "maxPaid":
+        if(!venue(b.venue).rate) return true;
+        var used={};
+        blocks.forEach(function(o){ if(a[o.id].length && venue(o.venue).rate) used[o.id]=1; });
+        return used[b.id] ? true : Object.keys(used).length < (r.n||0);
+      default: return true;
+    }
+  }
+  function allowedByRules(b,tid,a,blocks){
+    return rules().every(function(r){ return ruleAllows(r,b,tid,a,blocks); });
+  }
+
+  // does the schedule as it stands break rule `r`? returns a message, or null
+  function ruleBroken(r,blocks){
+    if(!r.on) return null;
+    var i, b, list;
+    function inBlock(t,b){ return at(b.id).indexOf(t)>=0; }
+    switch(r.type){
+      case "noDay":
+        for(i=0;i<blocks.length;i++) if(blocks[i].day===r.day && inBlock(r.team,blocks[i]))
+          return tname(r.team)+" is scheduled on "+r.day+".";
+        return null;
+      case "mustDay":
+        for(i=0;i<blocks.length;i++) if(blocks[i].day===r.day && inBlock(r.team,blocks[i])) return null;
+        return tname(r.team)+" has nothing on "+r.day+".";
+      case "notBefore":
+        for(i=0;i<blocks.length;i++) if(inBlock(r.team,blocks[i]) && blocks[i].start<r.time)
+          return tname(r.team)+" starts at "+fmt(blocks[i].start)+", before "+fmt(r.time)+".";
+        return null;
+      case "notAfter":
+        for(i=0;i<blocks.length;i++) if(inBlock(r.team,blocks[i]) && blocks[i].start+blocks[i].dur>r.time)
+          return tname(r.team)+" runs to "+fmt(blocks[i].start+blocks[i].dur)+", past "+fmt(r.time)+".";
+        return null;
+      case "noVenue":
+        for(i=0;i<blocks.length;i++) if(inBlock(r.team,blocks[i]) && blocks[i].venue===r.venue)
+          return tname(r.team)+" is booked at "+vname(r.venue)+".";
+        return null;
+      case "onlyVenue":
+        for(i=0;i<blocks.length;i++) if(inBlock(r.team,blocks[i]) && blocks[i].venue!==r.venue)
+          return tname(r.team)+" is at "+vname(blocks[i].venue)+", not "+vname(r.venue)+".";
+        return null;
+      case "notTogether":
+        for(i=0;i<blocks.length;i++) if(inBlock(r.team,blocks[i]) && inBlock(r.team2,blocks[i]))
+          return tname(r.team)+" and "+tname(r.team2)+" share the "+blocks[i].day+" "+span(blocks[i])+" block.";
+        return null;
+      case "together":
+        for(i=0;i<blocks.length;i++){
+          if(inBlock(r.team,blocks[i]) !== inBlock(r.team2,blocks[i]))
+            return tname(r.team)+" and "+tname(r.team2)+" aren't in all the same blocks.";
+        }
+        return null;
+      case "spread":
+        var days=[];
+        blocks.forEach(function(x){ if(inBlock(r.team,x)) days.push(di(x.day)); });
+        days.sort(function(x,y){return x-y;});
+        for(i=1;i<days.length;i++) if(days[i]-days[i-1]===1)
+          return tname(r.team)+" is on back-to-back days.";
+        return null;
+      case "maxPaid":
+        var used={};
+        blocks.forEach(function(x){ if(at(x.id).length && venue(x.venue).rate) used[x.id]=1; });
+        var n=Object.keys(used).length;
+        return n>(r.n||0) ? n+" paid sessions booked, limit is "+r.n+"." : null;
+      default: return null;
+    }
+  }
+
+  function ruleSentence(r){
+    switch(r.type){
+      case "noDay":       return [tname(r.team),"can't practice on",r.day];
+      case "mustDay":     return [tname(r.team),"must practice on",r.day];
+      case "notBefore":   return [tname(r.team),"can't start before",fmt(r.time)];
+      case "notAfter":    return [tname(r.team),"must be done by",fmt(r.time)];
+      case "noVenue":     return [tname(r.team),"can't use",vname(r.venue)];
+      case "onlyVenue":   return [tname(r.team),"only practices at",vname(r.venue)];
+      case "notTogether": return [tname(r.team),"and",tname(r.team2),"can't share a block"];
+      case "together":    return [tname(r.team),"and",tname(r.team2),"always practice together"];
+      case "spread":      return [tname(r.team),"is never on back-to-back days"];
+      case "maxPaid":     return ["At most",String(r.n),"paid session(s) a week"];
+      default:            return [r.text||"(note)"];
+    }
+  }
+
+  /* ---------------- audit ---------------- */
+  function audit(){
+    var out=[], badCards={}, blocks=liveBlocks();
+
+    blocks.forEach(function(b){
+      var list=at(b.id), v=venue(b.venue), al=allowList(b);
+      if(list.length>b.cap){
+        out.push({sev:"bad",ic:"CAP",msg:b.day+" "+span(b)+" holds "+list.length+" teams. Cap is "+b.cap+"."});
+        list.forEach(function(t){ badCards[key(b.id,t)]=1; });
+      }
+      list.forEach(function(t){
+        var tm=team(t);
+        if(tm && al.indexOf(tm.div)<0){
+          out.push({sev:"bad",ic:"DIV",msg:tm.label+" is in a "+divName(al)+" block on "+b.day+"."});
+          badCards[key(b.id,t)]=1;
+        }
+      });
+      if(!v.days[b.day]) out.push({sev:"warn",ic:"GYM",msg:v.name+" isn't listed as available on "+b.day+"."});
+      else if(b.start<v.open || b.start+b.dur>v.close)
+        out.push({sev:"warn",ic:"HRS",msg:b.day+" "+span(b)+" falls outside "+v.name+" hours ("+fmt(v.open)+"–"+fmt(v.close)+")."});
+    });
+
+    var capacity = blocks.reduce(function(n,b){ return n+b.cap; },0);
+    var needed = TEAMS.length*PER_WEEK;
+    if(capacity<needed)
+      out.push({sev:"bad",ic:"FIT",msg:"Only "+capacity+" slots open, "+needed+" needed. Add a block or reopen a day."});
+
+    TEAMS.forEach(function(t){
+      var n=count(t.id);
+      if(n<PER_WEEK) out.push({sev:"warn",ic:t.num,msg:t.label+" has "+n+" of "+PER_WEEK+" practices."});
+      if(n>PER_WEEK) out.push({sev:"bad",ic:t.num,msg:t.label+" has "+n+" practices, "+(n-PER_WEEK)+" too many."});
+      var hardSpread = rules().some(function(r){
+        return r.on && r.type==="spread" && r.team===t.id; });
+      var days=[];
+      blocks.forEach(function(b){ if(at(b.id).indexOf(t.id)>=0) days.push(di(b.day)); });
+      days.sort(function(a,b){return a-b;});
+      for(var i=1;i<days.length;i++){
+        if(days[i]===days[i-1]) out.push({sev:"warn",ic:t.num,msg:t.label+" practices twice on the same day."});
+        else if(days[i]-days[i-1]===1 && !hardSpread) out.push({sev:"warn",ic:t.num,msg:t.label+" is on back-to-back days."});
+      }
+    });
+
+    var broken={};
+    rules().forEach(function(r){
+      var m = ruleBroken(r,blocks);
+      if(m){ broken[r.id]=1; out.push({sev:"bad",ic:"RULE",msg:m}); }
+    });
+
+    if(!out.length) out.push({sev:"ok",ic:"OK",msg:"Every team has 2 practices, no block is over cap, nobody is on back-to-back days, and all your rules hold."});
+    return {issues:out,badCards:badCards,broken:broken};
+  }
+
+  function cost(){
+    var c=0;
+    liveBlocks().forEach(function(b){
+      var v=venue(b.venue);
+      if(v.rate && at(b.id).length) c += v.rate*(b.dur/60);
+    });
+    return Math.round(c);
+  }
+
+  /* ---------------- solver ---------------- */
+  function generate(quiet){
+    var blocks = liveBlocks();
+    var fixed={}, need={};
+    TEAMS.forEach(function(t){ need[t.id]=PER_WEEK; });
+    blocks.forEach(function(b){
+      fixed[b.id] = at(b.id).filter(function(t){ return locked(b.id,t); }).slice(0,b.cap);
+      fixed[b.id].forEach(function(t){ need[t]--; });
+    });
+
+    var best=null, bestScore=Infinity;
+    for(var run=0; run<700; run++){
+      var a={};
+      blocks.forEach(function(b){ a[b.id]=fixed[b.id].slice(); });
+      var demand=[];
+      TEAMS.forEach(function(t){ for(var i=0;i<Math.max(0,need[t.id]);i++) demand.push(t.id); });
+      shuffle(demand);
+
+      var ok=true;
+      for(var d=0; d<demand.length; d++){
+        var tid=demand[d], tm=team(tid);
+        var opts = blocks.filter(function(b){
+          if(a[b.id].length>=b.cap) return false;
+          if(a[b.id].indexOf(tid)>=0) return false;
+          if(allowList(b).indexOf(tm.div)<0) return false;
+          if(blocks.some(function(o){ return o.day===b.day && a[o.id].indexOf(tid)>=0; })) return false;
+          return allowedByRules(b,tid,a,blocks);
+        });
+        if(!opts.length){ ok=false; break; }
+        opts.sort(function(x,y){ return pick(x,tid,a,blocks)-pick(y,tid,a,blocks)+(Math.random()-0.5)*0.7; });
+        a[opts[0].id].push(tid);
+      }
+      if(!ok) continue;
+      var sc=score(a,blocks);
+      if(sc<bestScore){ bestScore=sc; best=a; }
+      if(bestScore===0) break;
+    }
+
+    if(!best){
+      var enforced = rules().filter(function(r){ return r.on && r.type!=="note"; }).length;
+      flash(enforced
+        ? "Nothing fits with all " + enforced + " rules on. Switch one off, reopen a day, or add a block."
+        : "No arrangement fits. Unlock a card, reopen a day, or add a block.");
+      return false;
+    }
+    S.blocks.forEach(function(b){ if(!live(b)) best[b.id] = []; });
+    S.assign = best;
+    Object.keys(S.locks).forEach(function(k){
+      var p=k.split("::");
+      if((S.assign[p[0]]||[]).indexOf(p[1])<0) delete S.locks[k];
+    });
+    save(); render();
+    if(!quiet) flash("Rebuilt. Locked cards stayed put.");
+    return true;
+  }
+
+  function pick(b,tid,a,blocks){
+    var c=0, v=venue(b.venue);
+    if(v.rate) c+=6;
+    if(b.day==="Sat"||b.day==="Sun") c+=4;
+    if(b.tent) c+=1;
+    if(!v.days[b.day]) c+=3;
+    if(b.start<v.open || b.start+b.dur>v.close) c+=3;
+    blocks.forEach(function(o){
+      if(a[o.id].indexOf(tid)>=0 && Math.abs(di(o.day)-di(b.day))===1) c+=5;
+    });
+    return c;
+  }
+
+  function score(a,blocks){
+    var s=0, paid={};
+    TEAMS.forEach(function(t){
+      var days=[];
+      blocks.forEach(function(b){ if(a[b.id].indexOf(t.id)>=0) days.push(di(b.day)); });
+      days.sort(function(x,y){return x-y;});
+      for(var i=1;i<days.length;i++) if(days[i]-days[i-1]===1) s+=10;
+      if(days.length!==PER_WEEK) s+=50;
+    });
+    blocks.forEach(function(b){
+      if(a[b.id].length){
+        if(venue(b.venue).rate) paid[b.id]=1;
+        if(b.day==="Sat"||b.day==="Sun") s+=3;
+      }
+    });
+    // soft rules — the solver leans on these rather than refusing outright
+    rules().forEach(function(r){
+      if(!r.on) return;
+      if(r.type==="mustDay"){
+        var has = blocks.some(function(b){ return b.day===r.day && a[b.id].indexOf(r.team)>=0; });
+        if(!has) s += 40;
+      }
+      if(r.type==="together"){
+        blocks.forEach(function(b){
+          if((a[b.id].indexOf(r.team)>=0) !== (a[b.id].indexOf(r.team2)>=0)) s += 20;
+        });
+      }
+    });
+    return s + Object.keys(paid).length*8;
+  }
+
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i]; a[i]=a[j]; a[j]=t; }
+  }
+
+  function touched(){
+    save();
+    if(S.autorun && generate(true)) return;
+    render();
+  }
+
+  /* ---------------- interaction ---------------- */
+  var picked=null, dragKind=null;
+
+  function move(tid,from,to){
+    if(from===to) return;
+    if(from){
+      if(locked(from,tid)){ flash("That card is locked. Unlock it first."); return; }
+      var f=at(from), i=f.indexOf(tid);
+      if(i>=0) f.splice(i,1);
+      delete S.locks[key(from,tid)];
+    }
+    if(to && at(to).indexOf(tid)<0) at(to).push(tid);
+    save(); render();
+  }
+
+  function flash(m){
+    var h=document.getElementById("hint");
+    h.textContent=m;
+    clearTimeout(flash._t);
+    flash._t=setTimeout(function(){
+      h.textContent="Drag cards between blocks · drag a block header to another day";
+    },3600);
+  }
+
+  /* ---------------- render ---------------- */
+  function cardEl(t,bid,bad){
+    var el=document.createElement("div"), lk=bid&&locked(bid,t.id);
+    el.className="card d-"+t.div+(lk?" locked":"")+(bad?" err":"")+
+      (picked&&picked.tid===t.id&&picked.from===(bid||"")?" sel":"");
+    el.draggable=true;
+
+    var n=document.createElement("div"); n.className="num"; n.textContent=t.num;
+    var who=document.createElement("div"); who.className="who";
+    var b=document.createElement("b"); b.textContent=t.label;
+    var i=document.createElement("i");
+    i.textContent = bid ? (lk?"Locked here":divLabel(t.div)) : count(t.id)+" of "+PER_WEEK+" placed";
+    who.appendChild(b); who.appendChild(i);
+    el.appendChild(n); el.appendChild(who);
+
+    if(bid){
+      var lb=document.createElement("button");
+      lb.className="lock"+(lk?" on":"");
+      lb.textContent=lk?"◆":"◇";
+      lb.title=lk?"Unlock":"Lock this team into this block";
+      lb.setAttribute("aria-label",lb.title);
+      lb.addEventListener("click",function(ev){
+        ev.stopPropagation();
+        var k=key(bid,t.id);
+        if(S.locks[k]) delete S.locks[k]; else S.locks[k]=1;
+        save(); render();
+      });
+      el.appendChild(lb);
+    }
+
+    el.addEventListener("dragstart",function(ev){
+      ev.stopPropagation();
+      dragKind="team";
+      ev.dataTransfer.setData("text/plain",JSON.stringify({kind:"team",tid:t.id,from:bid||""}));
+      ev.dataTransfer.effectAllowed="move";
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragend",function(){ dragKind=null; el.classList.remove("dragging"); });
+    el.addEventListener("click",function(ev){
+      ev.stopPropagation();
+      if(picked&&picked.tid===t.id&&picked.from===(bid||"")){ picked=null; render(); return; }
+      picked={tid:t.id,from:bid||""}; render(); flash("Now tap a block to place "+t.label);
+    });
+    return el;
+  }
+
+  function teamDrop(el,bid){
+    el.addEventListener("dragover",function(ev){
+      if(dragKind!=="team") return;
+      ev.preventDefault(); ev.stopPropagation(); el.classList.add("drop");
+    });
+    el.addEventListener("dragleave",function(){ el.classList.remove("drop"); });
+    el.addEventListener("drop",function(ev){
+      if(dragKind!=="team") return;
+      ev.preventDefault(); ev.stopPropagation(); el.classList.remove("drop");
+      var d; try{ d=JSON.parse(ev.dataTransfer.getData("text/plain")); }catch(e){ return; }
+      if(d.kind!=="team") return;
+      move(d.tid,d.from||null,bid);
+    });
+    el.addEventListener("click",function(){
+      if(!picked) return;
+      var p=picked; picked=null; move(p.tid,p.from||null,bid);
+    });
+  }
+
+  function sel(label,opts,val,fn){
+    var w=document.createElement("div"); w.className="frow";
+    var l=document.createElement("label"); l.textContent=label;
+    var s=document.createElement("select");
+    opts.forEach(function(o){
+      var op=document.createElement("option");
+      op.value=String(o.v); op.textContent=o.t;
+      if(String(o.v)===String(val)) op.selected=true;
+      s.appendChild(op);
+    });
+    s.addEventListener("change",function(){ fn(s.value); });
+    s.addEventListener("click",function(e){ e.stopPropagation(); });
+    w.appendChild(l); w.appendChild(s);
+    return w;
+  }
+
+  function timeOpts(){
+    var o=[];
+    for(var m=6*60;m<=22*60;m+=15) o.push({v:m,t:fmt(m)});
+    return o;
+  }
+
+  function editor(b){
+    var e=document.createElement("div"); e.className="editor";
+    e.addEventListener("click",function(ev){ ev.stopPropagation(); });
+
+    e.appendChild(sel("Day",DAYS.map(function(d){return {v:d,t:d};}),b.day,function(v){ b.day=v; touched(); }));
+
+    var two=document.createElement("div"); two.className="two";
+    two.appendChild(sel("Starts",timeOpts(),b.start,function(v){ b.start=+v; touched(); }));
+    two.appendChild(sel("Length",[
+      {v:60,t:"1 hr"},{v:90,t:"1½ hr"},{v:120,t:"2 hr"},{v:150,t:"2½ hr"},{v:180,t:"3 hr"}
+    ],b.dur,function(v){ b.dur=+v; touched(); }));
+    e.appendChild(two);
+
+    e.appendChild(sel("Venue",S.venues.map(function(v){return {v:v.id,t:v.name};}),b.venue,function(v){ b.venue=v; touched(); }));
+
+    var two2=document.createElement("div"); two2.className="two";
+    two2.appendChild(sel("Max teams",[{v:1,t:"1"},{v:2,t:"2"},{v:3,t:"3"},{v:4,t:"4"}],b.cap,function(v){ b.cap=+v; touched(); }));
+    two2.appendChild(sel("Status",[{v:1,t:"Confirmed"},{v:0,t:"Tentative"}],b.tent?0:1,function(v){ b.tent=(v==="0")?1:0; touched(); }));
+    e.appendChild(two2);
+
+    var dw=document.createElement("div"); dw.className="frow";
+    var dl=document.createElement("label"); dl.textContent="Who can use it";
+    var chips=document.createElement("div"); chips.className="chips";
+    [["elem","Elem"],["mid","Middle"],["high","High"]].forEach(function(p){
+      var c=document.createElement("button");
+      c.className="chip"+(b.allow[p[0]]?" on":"");
+      c.textContent=p[1];
+      c.addEventListener("click",function(ev){
+        ev.stopPropagation();
+        if(b.allow[p[0]]) delete b.allow[p[0]]; else b.allow[p[0]]=1;
+        if(!allowList(b).length) b.allow[p[0]]=1;
+        touched();
+      });
+      chips.appendChild(c);
+    });
+    dw.appendChild(dl); dw.appendChild(chips);
+    e.appendChild(dw);
+
+    var acts=document.createElement("div"); acts.className="ed-acts";
+    var off=document.createElement("button");
+    off.textContent=b.on?"Turn off":"Turn on";
+    off.addEventListener("click",function(ev){ ev.stopPropagation(); b.on=b.on?0:1; touched(); });
+    var del=document.createElement("button");
+    del.className="del"; del.textContent="Delete";
+    del.addEventListener("click",function(ev){
+      ev.stopPropagation();
+      S.blocks=S.blocks.filter(function(x){ return x.id!==b.id; });
+      delete S.assign[b.id];
+      Object.keys(S.locks).forEach(function(k){ if(k.indexOf(b.id+"::")===0) delete S.locks[k]; });
+      S.open=null; touched();
+    });
+    acts.appendChild(off); acts.appendChild(del);
+    e.appendChild(acts);
+    return e;
+  }
+
+  function blockEl(b,a){
+    var v=venue(b.venue), list=at(b.id), al=allowList(b);
+    var el=document.createElement("div");
+    el.className="block "+v.cls+(b.on?"":" off");
+
+    var h=document.createElement("div"); h.className="block-h"; h.draggable=true;
+    var top=document.createElement("div"); top.className="bh-top";
+    var g=document.createElement("span"); g.className="grip"; g.textContent="⠿";
+    var t=document.createElement("span"); t.className="time"; t.textContent=span(b);
+    var ed=document.createElement("button");
+    ed.className="mini"; ed.textContent="⋯"; ed.title="Edit this block";
+    ed.setAttribute("aria-label","Edit this block");
+    ed.addEventListener("click",function(ev){
+      ev.stopPropagation();
+      S.open = (S.open===b.id) ? null : b.id;
+      save(); render();
+    });
+    top.appendChild(g); top.appendChild(t); top.appendChild(ed);
+    h.appendChild(top);
+
+    var meta=document.createElement("div"); meta.className="meta";
+    var vn=document.createElement("span"); vn.className="venue"; vn.textContent=v.name;
+    var pips=document.createElement("span"); pips.className="pips";
+    for(var i=0;i<Math.max(b.cap,list.length);i++){
+      var p=document.createElement("span");
+      p.className="pip"+(i<list.length?(i>=b.cap?" over":" on"):"");
+      pips.appendChild(p);
+    }
+    meta.appendChild(vn); meta.appendChild(pips);
+    h.appendChild(meta);
+
+    var r=document.createElement("span"); r.className="rule";
+    r.textContent = al.length>=3 ? "Open to all" : divName(al)+" only";
+    h.appendChild(r);
+
+    if(v.rate){
+      var tg=document.createElement("span"); tg.className="tag paid";
+      tg.textContent="$"+Math.round(v.rate*(b.dur/60));
+      h.appendChild(tg);
+    }
+    if(b.tent){
+      var tg2=document.createElement("span"); tg2.className="tag tent"; tg2.textContent="Tentative";
+      h.appendChild(tg2);
+    }
+    if(!b.on){
+      var tg3=document.createElement("span"); tg3.className="tag bad"; tg3.textContent="Off";
+      h.appendChild(tg3);
+    }
+
+    h.addEventListener("dragstart",function(ev){
+      dragKind="block";
+      ev.dataTransfer.setData("text/plain",JSON.stringify({kind:"block",bid:b.id}));
+      ev.dataTransfer.effectAllowed="move";
+      el.classList.add("ghosting");
+    });
+    h.addEventListener("dragend",function(){ dragKind=null; el.classList.remove("ghosting"); });
+
+    var body=document.createElement("div"); body.className="block-body";
+    list.forEach(function(tid){
+      var tm=team(tid);
+      if(tm) body.appendChild(cardEl(tm,b.id,!!a.badCards[key(b.id,tid)]));
+    });
+    for(var j=list.length;j<b.cap;j++){
+      var gh=document.createElement("div"); gh.className="slot-ghost"; gh.textContent="Open slot";
+      body.appendChild(gh);
+    }
+
+    el.appendChild(h); el.appendChild(body);
+    if(S.open===b.id) el.appendChild(editor(b));
+    teamDrop(el,b.id);
+    return el;
+  }
+
+  function render(){
+    var a=audit();
+
+    var placed=TEAMS.filter(function(t){ return count(t.id)===PER_WEEK; }).length;
+    var errs=a.issues.filter(function(i){return i.sev==="bad";}).length;
+    var warns=a.issues.filter(function(i){return i.sev==="warn";}).length;
+    var blocks=liveBlocks();
+    var used=blocks.filter(function(b){ return at(b.id).length; }).length;
+    var c=cost();
+
+    var st=document.getElementById("stats"); st.innerHTML="";
+    [{k:"Teams set",v:placed+"/"+TEAMS.length,cls:placed===TEAMS.length?"good":"warn"},
+     {k:"Blocks live",v:used+"/"+blocks.length,cls:""},
+     {k:"Conflicts",v:String(errs),cls:errs?"bad":"good"},
+     {k:"Warnings",v:String(warns),cls:warns?"warn":"good"},
+     {k:"Gym cost",v:"$"+c,cls:c?"warn":"good",note:c?"per week":"no paid gym"}
+    ].forEach(function(s){
+      var d=document.createElement("div"); d.className="stat "+s.cls;
+      var k=document.createElement("span"); k.className="k"; k.textContent=s.k;
+      var v=document.createElement("span"); v.className="v"; v.textContent=s.v;
+      d.appendChild(k); d.appendChild(v);
+      if(s.note){ var n=document.createElement("span"); n.className="note"; n.textContent=s.note; d.appendChild(n); }
+      st.appendChild(d);
+    });
+
+    var bench=document.getElementById("bench"); bench.innerHTML="";
+    var short=TEAMS.filter(function(t){ return count(t.id)<PER_WEEK; });
+    short.forEach(function(t){ bench.appendChild(cardEl(t,null,false)); });
+    bench.className="bench-body"+(short.length?"":" empty");
+    document.getElementById("benchcount").textContent = short.length ? short.length+" short" : "clear";
+    teamDrop(bench,null);
+
+    var week=document.getElementById("week"); week.innerHTML="";
+    DAYS.forEach(function(day){
+      var col=document.createElement("div");
+      var mine=S.blocks.filter(function(b){ return b.day===day; })
+                       .sort(function(x,y){ return x.start-y.start; });
+      var isBlocked=!!S.blockedDays[day];
+      col.className="day"+(isBlocked?" blocked":"");
+
+      var h=document.createElement("div"); h.className="day-h";
+      var nmw=document.createElement("div"); nmw.className="nm";
+      var nm=document.createElement("b"); nm.textContent=day;
+      var ct=document.createElement("span"); ct.className="ct";
+      var n=isBlocked?0:mine.reduce(function(s,b){ return s+(live(b)?at(b.id).length:0); },0);
+      ct.textContent = isBlocked ? "blocked" : (mine.length ? n+" teams" : "free");
+      nmw.appendChild(nm); nmw.appendChild(ct);
+
+      var acts=document.createElement("div"); acts.className="day-acts";
+      var add=document.createElement("button");
+      add.className="mini"; add.textContent="+"; add.title="Add a block on "+day;
+      add.setAttribute("aria-label","Add a block on "+day);
+      add.addEventListener("click",function(){
+        var id="b"+(S.seq++);
+        var last=mine.length?mine[mine.length-1]:null;
+        S.blocks.push({id:id,day:day,start:last?Math.min(last.start+last.dur,21*60):17*60,
+                       dur:120,venue:S.venues[0].id,allow:{elem:1,mid:1,high:1},cap:2,on:1});
+        S.assign[id]=[]; S.open=id; touched();
+      });
+      var bd=document.createElement("button");
+      bd.className="mini danger"; bd.textContent=isBlocked?"↺":"✕";
+      bd.title=isBlocked?"Reopen "+day:"Block out "+day;
+      bd.setAttribute("aria-label",bd.title);
+      bd.addEventListener("click",function(){
+        if(isBlocked) delete S.blockedDays[day]; else S.blockedDays[day]=1;
+        touched();
+      });
+      acts.appendChild(add); acts.appendChild(bd);
+      h.appendChild(nmw); h.appendChild(acts);
+      col.appendChild(h);
+
+      if(isBlocked){
+        var bn=document.createElement("div"); bn.className="blocked-note";
+        bn.textContent="Blocked out";
+        col.appendChild(bn);
+      } else if(!mine.length){
+        var g=document.createElement("div"); g.className="slot-ghost"; g.textContent="No gym";
+        col.appendChild(g);
+      } else {
+        mine.forEach(function(b){ col.appendChild(blockEl(b,a)); });
+      }
+
+      col.addEventListener("dragover",function(ev){
+        if(dragKind!=="block") return;
+        ev.preventDefault(); col.classList.add("dropday");
+      });
+      col.addEventListener("dragleave",function(){ col.classList.remove("dropday"); });
+      col.addEventListener("drop",function(ev){
+        if(dragKind!=="block") return;
+        ev.preventDefault(); col.classList.remove("dropday");
+        var d; try{ d=JSON.parse(ev.dataTransfer.getData("text/plain")); }catch(e){ return; }
+        if(d.kind!=="block") return;
+        var b=blk(d.bid);
+        if(!b || b.day===day) return;
+        b.day=day;
+        flash("Moved the "+span(b)+" block to "+day+".");
+        touched();
+      });
+
+      week.appendChild(col);
+    });
+
+    var iss=document.getElementById("issues"); iss.innerHTML="";
+    a.issues.slice(0,10).forEach(function(i){
+      var d=document.createElement("div"); d.className="issue "+i.sev;
+      var ic=document.createElement("span"); ic.className="ic"; ic.textContent=i.ic;
+      var s=document.createElement("span"); s.textContent=i.msg;
+      d.appendChild(ic); d.appendChild(s); iss.appendChild(d);
+    });
+
+    renderRules(a);
+    renderVenues();
+  }
+
+  function inlineSel(opts,val,fn){
+    var s=document.createElement("select"); s.className="rsel";
+    opts.forEach(function(o){
+      var op=document.createElement("option");
+      op.value=String(o.v); op.textContent=o.t;
+      if(String(o.v)===String(val)) op.selected=true;
+      s.appendChild(op);
+    });
+    s.addEventListener("change",function(){ fn(s.value); });
+    return s;
+  }
+  function teamOpts(){ return TEAMS.map(function(t){ return {v:t.id,t:t.label}; }); }
+  function dayOpts(){ return DAYS.map(function(d){ return {v:d,t:d}; }); }
+  function venueOpts(){ return S.venues.map(function(v){ return {v:v.id,t:v.name}; }); }
+  function word(t){ var s=document.createElement("span"); s.textContent=t; return s; }
+
+  function renderRules(a){
+    var w=document.getElementById("rules"); w.innerHTML="";
+    var list=rules();
+
+    list.forEach(function(r){
+      var row=document.createElement("div");
+      row.className="rule-row"+(r.on?"":" off")+(a.broken[r.id]?" hit":"");
+
+      var chk=document.createElement("input");
+      chk.type="checkbox"; chk.className="rchk"; chk.checked=!!r.on;
+      chk.title=r.on?"Turn this rule off":"Turn this rule on";
+      chk.setAttribute("aria-label",chk.title);
+      chk.addEventListener("change",function(){ r.on=chk.checked?1:0; touched(); });
+
+      var sent=document.createElement("div"); sent.className="sent";
+
+      if(r.type==="note"){
+        var tx=document.createElement("input");
+        tx.type="text"; tx.className="rtx"; tx.value=r.text||"";
+        tx.placeholder="Write the rule in your own words";
+        tx.setAttribute("aria-label","Note");
+        tx.addEventListener("input",function(){ r.text=tx.value; save(); });
+        sent.appendChild(tx);
+      } else {
+        // build the sentence with the variable parts as dropdowns
+        if(r.type==="maxPaid"){
+          sent.appendChild(word("At most"));
+          sent.appendChild(inlineSel([{v:0,t:"0"},{v:1,t:"1"},{v:2,t:"2"},{v:3,t:"3"}],r.n,
+            function(v){ r.n=+v; touched(); }));
+          sent.appendChild(word("paid session(s) a week"));
+        } else {
+          sent.appendChild(inlineSel(teamOpts(),r.team,function(v){ r.team=v; touched(); }));
+          var mid={noDay:"can't practice on",mustDay:"must practice on",notBefore:"can't start before",
+                   notAfter:"must be done by",noVenue:"can't use",onlyVenue:"only practices at",
+                   notTogether:"and",together:"and",spread:"is never on back-to-back days"}[r.type];
+          sent.appendChild(word(mid));
+          if(r.type==="noDay"||r.type==="mustDay")
+            sent.appendChild(inlineSel(dayOpts(),r.day,function(v){ r.day=v; touched(); }));
+          else if(r.type==="notBefore"||r.type==="notAfter")
+            sent.appendChild(inlineSel(timeOpts(),r.time,function(v){ r.time=+v; touched(); }));
+          else if(r.type==="noVenue"||r.type==="onlyVenue")
+            sent.appendChild(inlineSel(venueOpts(),r.venue,function(v){ r.venue=v; touched(); }));
+          else if(r.type==="notTogether"||r.type==="together"){
+            sent.appendChild(inlineSel(teamOpts(),r.team2,function(v){ r.team2=v; touched(); }));
+            sent.appendChild(word(r.type==="notTogether"?"can't share a block":"always practice together"));
+          }
+        }
+      }
+
+      var del=document.createElement("button");
+      del.className="rdel"; del.textContent="✕"; del.title="Delete this rule";
+      del.setAttribute("aria-label","Delete this rule");
+      del.addEventListener("click",function(){
+        S.rules=rules().filter(function(x){ return x.id!==r.id; });
+        touched();
+      });
+
+      row.appendChild(chk); row.appendChild(sent); row.appendChild(del);
+      w.appendChild(row);
+    });
+
+    var live=list.filter(function(r){ return r.on && r.type!=="note"; }).length;
+    document.getElementById("rulecount").textContent = live ? live+" enforced" : "none enforced";
+  }
+
+  function renderVenues(){
+    var w=document.getElementById("venues"); w.innerHTML="";
+    S.venues.forEach(function(v){
+      var d=document.createElement("div"); d.className="ven";
+      var top=document.createElement("div"); top.className="ven-top";
+      var b=document.createElement("b"); b.textContent=v.name;
+      var rate=document.createElement("span"); rate.className="ven-rate";
+      var dollar=document.createElement("span"); dollar.textContent="$";
+      var inp=document.createElement("input");
+      inp.type="number"; inp.min="0"; inp.step="5"; inp.value=v.rate;
+      inp.setAttribute("aria-label",v.name+" hourly rate");
+      inp.addEventListener("change",function(){ v.rate=Math.max(0,+inp.value||0); touched(); });
+      var per=document.createElement("span"); per.textContent="/hr";
+      rate.appendChild(dollar); rate.appendChild(inp); rate.appendChild(per);
+      top.appendChild(b); top.appendChild(rate);
+      d.appendChild(top);
+
+      var chips=document.createElement("div"); chips.className="chips";
+      DAYS.forEach(function(day){
+        var c=document.createElement("button");
+        c.className="chip"+(v.days[day]?" on":"");
+        c.textContent=day;
+        c.addEventListener("click",function(){
+          if(v.days[day]) delete v.days[day]; else v.days[day]=1;
+          touched();
+        });
+        chips.appendChild(c);
+      });
+      d.appendChild(chips);
+
+      var two=document.createElement("div"); two.className="two";
+      two.appendChild(sel("Opens",timeOpts(),v.open,function(x){ v.open=+x; touched(); }));
+      two.appendChild(sel("Closes",timeOpts(),v.close,function(x){ v.close=+x; touched(); }));
+      d.appendChild(two);
+      w.appendChild(d);
+    });
+  }
+
+  /* ---------------- wire ---------------- */
+  document.getElementById("gen").addEventListener("click",function(){ generate(false); });
+  document.getElementById("clear").addEventListener("click",function(){
+    S.blocks.forEach(function(b){
+      S.assign[b.id]=at(b.id).filter(function(t){ return locked(b.id,t); });
+    });
+    save(); render(); flash("Cleared everything that wasn't locked.");
+  });
+  document.getElementById("lockall").addEventListener("click",function(){
+    liveBlocks().forEach(function(b){
+      at(b.id).forEach(function(t){ S.locks[key(b.id,t)]=1; });
+    });
+    save(); render(); flash("Every placed team is locked.");
+  });
+  document.getElementById("addblock").addEventListener("click",function(){
+    var id="b"+(S.seq++);
+    S.blocks.push({id:id,day:"Mon",start:17*60,dur:120,venue:S.venues[0].id,
+                   allow:{elem:1,mid:1,high:1},cap:2,on:1});
+    S.assign[id]=[]; S.open=id; save(); render();
+    flash("New block added on Monday. Drag it to the day you want.");
+  });
+  var autoBox=document.getElementById("auto");
+  autoBox.checked=!!S.autorun;
+  autoBox.addEventListener("change",function(){ S.autorun=autoBox.checked; save(); });
+  document.getElementById("reset").addEventListener("click",function(){
+    S=defaults(); save();
+    autoBox.checked=true;
+    document.getElementById("notes").value="";
+    render(); flash("Back to the starting schedule.");
+  });
+  document.getElementById("print").addEventListener("click",function(){ window.print(); });
+
+  var addSel=document.getElementById("addrule");
+  function fillAdd(){
+    addSel.innerHTML="";
+    var ph=document.createElement("option");
+    ph.value=""; ph.textContent="+ Add a rule…"; addSel.appendChild(ph);
+    RULE_TYPES.forEach(function(rt){
+      var o=document.createElement("option");
+      o.value=rt.t; o.textContent=rt.label; addSel.appendChild(o);
+    });
+    addSel.value="";
+  }
+  fillAdd();
+  addSel.addEventListener("change",function(){
+    var t=addSel.value; if(!t) return;
+    var r={id:"r"+(S.rseq=(S.rseq||1)+1), type:t, on:1,
+           team:TEAMS[0].id, team2:TEAMS[1].id, day:"Sat",
+           venue:S.venues[0].id, time:18*60, n:1, text:""};
+    rules().push(r);
+    fillAdd();
+    touched();
+    flash(t==="note" ? "Note added — type it in." : "Rule added. The schedule now works around it.");
+  });
+
+  var notes=document.getElementById("notes");
+  notes.value=S.notes||"";
+  notes.addEventListener("input",function(){ S.notes=notes.value; save(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
