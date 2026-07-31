@@ -212,6 +212,15 @@
   .tones{display:flex;gap:3px;flex:none}
   .tone{width:14px;height:14px;padding:0;border-radius:3px;border:1px solid var(--line-strong);cursor:pointer}
   .tone.on{border-color:var(--gold-bright);box-shadow:0 0 0 2px var(--gold-soft)}
+  .safe{padding:9px;display:flex;flex-direction:column;gap:7px}
+  .safe-note{margin:0 0 2px;font-size:11px;line-height:1.45;color:var(--ink-3)}
+  .safe-row{display:flex;gap:6px}
+  .safe-row button{flex:1}
+  .safe-row select{flex:1;min-width:0}
+  .safe-row button#bkrestore{flex:none}
+  #linkbox{min-height:52px;font-family:var(--mono);font-size:10px;word-break:break-all}
+  .recovered{margin:0;padding:7px 8px;border:1px solid var(--ok);background:var(--ok-soft);border-radius:3px;font-size:11px;line-height:1.4}
+
   .addven{padding:9px 11px;border-top:1px solid var(--line)}
   .addven button{width:100%}
   .notes{padding:9px}
@@ -345,6 +354,28 @@
         <div class="addven"><button id="addven">+ Add a gym</button></div>
       </section>
 
+      <section class="panel safe-wrap">
+        <div class="panel-h"><span>Backup &amp; sync</span><span id="savedat"></span></div>
+        <div class="safe">
+          <p class="recovered" id="loadwarn" style="display:none"></p>
+          <p class="safe-note">Saves to this browser as you work. Download a file, or move it to
+          another device with a link.</p>
+          <div class="safe-row">
+            <button id="dlbackup">Download backup</button>
+            <button id="upbackup">Restore file</button>
+          </div>
+          <div class="safe-row">
+            <button id="copysync">Copy sync link</button>
+          </div>
+          <textarea id="linkbox" readonly style="display:none" aria-label="Sync link"></textarea>
+          <input type="file" id="filepick" accept="application/json,.json" hidden>
+          <div class="safe-row">
+            <select id="bklist" aria-label="Automatic snapshots"></select>
+            <button id="bkrestore">Restore</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel notes-wrap">
         <div class="panel-h"><span>New parameters</span></div>
         <div class="notes">
@@ -363,7 +394,15 @@
 
   var DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   var PER_WEEK = 2;
-  var STORE = "jaguars-scheduler-v6";
+  // One stable key from here on. Older keys are read once and carried forward,
+  // never discarded — bumping the key used to wipe saved work on every deploy.
+  // New fields added in future versions get backfilled by migrate(), so adding
+  // a feature can never reset someone's schedule again.
+  var STORE  = "jaguars-scheduler";
+  var BACKUP = "jaguars-scheduler-backups";
+  var LEGACY = ["jaguars-scheduler-v6","jaguars-scheduler-v5","jaguars-scheduler-v4",
+                "jaguars-scheduler-v3","jaguars-scheduler-v2","jaguars-scheduler-v1"];
+  var recovered = null, loadError = null;
 
   var TEAMS = [
     {id:"g3", label:"Grade 3", num:"3", div:"elem"},
@@ -448,8 +487,83 @@
 
   var S = load() || defaults();
 
-  function load(){ try{ var r=localStorage.getItem(STORE); return r?JSON.parse(r):null; }catch(e){ return null; } }
-  function save(){ try{ localStorage.setItem(STORE,JSON.stringify(S)); }catch(e){} }
+  /* Fill in anything a newer version added, without touching what's already there.
+     Every future field only needs adding to defaults() — it backfills from here. */
+  function migrate(d){
+    if(!d || typeof d!=="object") return null;
+    var def=defaults();
+    Object.keys(def).forEach(function(k){
+      if(d[k]===undefined || d[k]===null) d[k]=def[k];
+    });
+    if(!Array.isArray(d.venues)   || !d.venues.length) d.venues=def.venues;
+    if(!Array.isArray(d.blocks))    d.blocks=def.blocks;
+    if(!Array.isArray(d.rules))     d.rules=[];
+    if(!Array.isArray(d.scenarios)) d.scenarios=[];
+    d.venues.forEach(function(v,i){
+      if(v.tone===undefined) v.tone=i%6;          // pre-tone versions stored a css class
+      if(!v.days) v.days={};
+      if(typeof v.rate!=="number") v.rate=0;
+    });
+    d.blocks.forEach(function(b){
+      if(b.cap===undefined) b.cap=2;
+      if(b.on===undefined)  b.on=1;
+      if(!b.allow) b.allow={elem:1,mid:1,high:1};
+    });
+    if(!d.assign) d.assign={};
+    if(!d.locks)  d.locks={};
+    if(!d.blockedDays) d.blockedDays={};
+    return d;
+  }
+
+  function load(){
+    try{
+      var r=localStorage.getItem(STORE);
+      if(r) return migrate(JSON.parse(r));
+      for(var i=0;i<LEGACY.length;i++){          // rescue anything an older build left behind
+        var o=localStorage.getItem(LEGACY[i]);
+        if(o){
+          var d=migrate(JSON.parse(o));
+          if(d){ recovered=LEGACY[i]; return d; }
+        }
+      }
+    }catch(e){
+      // never fail silently here — this is the one place data can go missing
+      loadError=String((e&&e.message)||e);
+    }
+    return null;
+  }
+
+  var lastBackup=0;
+  function save(){
+    try{
+      S.savedAt=new Date().toISOString();
+      localStorage.setItem(STORE,JSON.stringify(S));
+    }catch(e){
+      flash("Couldn't save — browser storage is full or blocked. Download a backup now.");
+      return;
+    }
+    var now=new Date().getTime();
+    if(now-lastBackup>90000){ lastBackup=now; pushBackup(); }
+  }
+
+  /* Rolling local history, so a bad edit or a bad rule is always recoverable. */
+  function backups(){
+    try{ return JSON.parse(localStorage.getItem(BACKUP)||"[]"); }catch(e){ return []; }
+  }
+  function pushBackup(){
+    try{
+      var arr=backups();
+      arr.unshift({at:new Date().toISOString(), state:JSON.parse(JSON.stringify(S))});
+      localStorage.setItem(BACKUP,JSON.stringify(arr.slice(0,15)));
+    }catch(e){}
+  }
+  function ago(iso){
+    var s=Math.floor((new Date().getTime()-new Date(iso).getTime())/1000);
+    if(s<60) return "just now";
+    if(s<3600) return Math.floor(s/60)+" min ago";
+    if(s<86400) return Math.floor(s/3600)+" hr ago";
+    return Math.floor(s/86400)+" d ago";
+  }
 
   function team(id){ for(var i=0;i<TEAMS.length;i++) if(TEAMS[i].id===id) return TEAMS[i]; return null; }
   function venue(id){ for(var i=0;i<S.venues.length;i++) if(S.venues[i].id===id) return S.venues[i]; return S.venues[0]; }
@@ -480,6 +594,92 @@
     return list.join(" + ");
   }
   function divLabel(d){ return d==="elem"?"Elementary":d==="mid"?"Middle":"High school"; }
+
+  /* ---------------- backup, restore, sync ---------------- */
+  function b64enc(str){
+    var bytes=new TextEncoder().encode(str), bin="";
+    for(var i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  }
+  function b64dec(s){
+    s=s.replace(/-/g,"+").replace(/_/g,"/");
+    while(s.length%4) s+="=";
+    var bin=atob(s), bytes=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  function payload(){
+    return {app:"jaguars-scheduler", saved:new Date().toISOString(), state:S};
+  }
+
+  function downloadBackup(){
+    try{
+      var txt=JSON.stringify(payload(),null,2);
+      var url=URL.createObjectURL(new Blob([txt],{type:"application/json"}));
+      var a=document.createElement("a");
+      a.href=url;
+      a.download="jaguars-schedule-"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); },2000);
+      flash("Backup downloaded. Keep it somewhere safe.");
+    }catch(e){ flash("Couldn't build the backup file."); }
+  }
+
+  function applyImported(obj,label){
+    var d=migrate(obj && obj.state ? obj.state : obj);
+    if(!d || !Array.isArray(d.blocks)){ flash("That file isn't a Jaguars schedule."); return false; }
+    S.undo=snapshot();
+    var keepUndo=S.undo;
+    S=d; S.undo=keepUndo;
+    save(); render();
+    flash("Loaded "+label+". Undo load puts back what you had.");
+    return true;
+  }
+
+  function importFile(file){
+    var fr=new FileReader();
+    fr.onload=function(){
+      try{ applyImported(JSON.parse(fr.result), file.name); }
+      catch(e){ flash("Couldn't read that file — is it the .json backup?"); }
+    };
+    fr.onerror=function(){ flash("Couldn't read that file."); };
+    fr.readAsText(file);
+  }
+
+  function syncLink(){
+    var base=location.origin+location.pathname;
+    return base+"#load="+b64enc(JSON.stringify(payload()));
+  }
+  function copySync(){
+    var link=syncLink();
+    if(link.length>18000){
+      flash("Too much saved to fit in a link. Use Download backup instead.");
+      return;
+    }
+    function ok(){ flash("Sync link copied. Open it on your other device."); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(link).then(ok,function(){ showLink(link); });
+    } else showLink(link);
+  }
+  function showLink(link){
+    var box=document.getElementById("linkbox");
+    box.style.display="block"; box.value=link; box.focus(); box.select();
+    flash("Copy this link and open it on your other device.");
+  }
+
+  function checkIncomingLink(){
+    var m=(location.hash||"").match(/^#load=(.+)$/);
+    if(!m) return false;
+    try{
+      var obj=JSON.parse(b64dec(m[1]));
+      history.replaceState(null,"",location.pathname);
+      return applyImported(obj,"the schedule from that link");
+    }catch(e){
+      history.replaceState(null,"",location.pathname);
+      flash("That sync link was incomplete — it may have been cut short.");
+      return false;
+    }
+  }
 
   /* ---------------- plans (saved scenarios) ---------------- */
   function scens(){ return S.scenarios || (S.scenarios=[]); }
@@ -1329,6 +1529,37 @@
     renderRules(a);
     renderVenues();
     renderPlans();
+    renderSafe();
+  }
+
+  function renderSafe(){
+    document.getElementById("savedat").textContent =
+      loadError ? "load error" : (S.savedAt ? "saved "+ago(S.savedAt) : "not saved yet");
+    var warn=document.getElementById("loadwarn");
+    if(loadError){
+      warn.style.display="block";
+      warn.style.borderColor="var(--bad)"; warn.style.background="var(--bad-soft)";
+      warn.textContent="Couldn't read the saved schedule ("+loadError+"). Restore a backup file "+
+        "before changing anything, or the saved copy may be overwritten.";
+    } else warn.style.display="none";
+    var sel=document.getElementById("bklist");
+    var arr=backups(), keep=sel.value;
+    sel.innerHTML="";
+    if(!arr.length){
+      var o=document.createElement("option");
+      o.value=""; o.textContent="No snapshots yet";
+      sel.appendChild(o); sel.disabled=true;
+      document.getElementById("bkrestore").disabled=true;
+      return;
+    }
+    sel.disabled=false;
+    document.getElementById("bkrestore").disabled=false;
+    arr.forEach(function(b,i){
+      var o=document.createElement("option");
+      o.value=String(i); o.textContent="Snapshot "+ago(b.at);
+      sel.appendChild(o);
+    });
+    if(keep && arr[+keep]) sel.value=keep;
   }
 
   function renderPlans(){
@@ -1629,12 +1860,32 @@
   autoBox.checked=!!S.autorun;
   autoBox.addEventListener("change",function(){ S.autorun=autoBox.checked; save(); });
   document.getElementById("reset").addEventListener("click",function(){
-    S=defaults(); save();
+    pushBackup();                 // never let Reset be the thing that loses work
+    S.undo=snapshot();
+    var keepUndo=S.undo, keepScen=S.scenarios, keepBk=S.savedAt;
+    S=defaults();
+    S.undo=keepUndo; S.scenarios=keepScen||[];   // saved plans survive a reset
+    save();
     autoBox.checked=true;
     document.getElementById("notes").value="";
     render(); flash("Back to the starting schedule.");
   });
   document.getElementById("print").addEventListener("click",function(){ window.print(); });
+
+  document.getElementById("dlbackup").addEventListener("click",downloadBackup);
+  document.getElementById("copysync").addEventListener("click",copySync);
+  var filepick=document.getElementById("filepick");
+  document.getElementById("upbackup").addEventListener("click",function(){ filepick.click(); });
+  filepick.addEventListener("change",function(){
+    if(filepick.files && filepick.files[0]) importFile(filepick.files[0]);
+    filepick.value="";
+  });
+  document.getElementById("bkrestore").addEventListener("click",function(){
+    var sel=document.getElementById("bklist");
+    var arr=backups(), i=+sel.value;
+    if(!arr[i]){ flash("No snapshot picked."); return; }
+    applyImported({state:arr[i].state},"the snapshot from "+ago(arr[i].at));
+  });
 
   document.getElementById("savescen").addEventListener("click",function(){
     var s={id:"s"+(S.sseq=(S.sseq||0)+1), name:planLetter(), data:snapshot()};
@@ -1680,7 +1931,28 @@
   notes.value=S.notes||"";
   notes.addEventListener("input",function(){ S.notes=notes.value; save(); });
 
+  // a schedule arriving by link wins over whatever this browser had
+  var cameFromLink=false;
+  try{ cameFromLink=checkIncomingLink(); }
+  catch(e){ loadError="link: "+((e&&e.message)||e); }
+
   render();
+
+  try{
+    if(recovered && !cameFromLink){
+      pushBackup();
+      save();
+      flash("Recovered your schedule from an earlier version of the app.");
+    } else if(!cameFromLink && !backups().length){
+      pushBackup();
+      save();
+    }
+  }catch(e){
+    loadError="startup: "+((e&&e.message)||e);
+    try{ renderSafe(); }catch(e2){}
+  }
+  // keep the "saved 3 min ago" line honest without re-rendering the grid
+  setInterval(renderSafe,30000);
 })();
 </script>
 </body>
