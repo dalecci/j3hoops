@@ -102,6 +102,72 @@
 </style>
 </head>
 <body>
+<!-- ===== J3 gate (matches /admin: PIN 4545, sessionStorage j3-hoops-unlocked) ===== -->
+<style>
+  html.j3-locked body > :not(.j3-gate) { display: none !important; }
+  html.j3-locked .j3-gate { display: flex !important; }
+  .j3-gate { display: none; position: fixed; inset: 0; z-index: 2147483647;
+    align-items: center; justify-content: center; padding: 24px;
+    background: #07111E; color: #fff;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  .j3-gate-card { width: 100%; max-width: 320px; box-sizing: border-box; text-align: center;
+    background: #0E1C2D; border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 34px 26px; }
+  .j3-mark { width: 44px; height: 44px; margin: 0 auto 16px; display: grid; place-items: center;
+    background: #FF6B1A; color: #07111E; border-radius: 10px; font-weight: 800; font-size: 17px; }
+  .j3-gate-title { font-family: Georgia, 'Times New Roman', serif; font-weight: 600; font-size: 28px;
+    letter-spacing: -0.015em; line-height: 1; margin-bottom: 6px; }
+  .j3-gate-sub { font-size: 11px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+    color: rgba(255,255,255,0.55); margin-bottom: 26px; }
+  .j3-gate-input { width: 100%; box-sizing: border-box; text-align: center; letter-spacing: 0.5em;
+    font-size: 24px; padding: 13px; background: #07111E; color: #fff;
+    border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; outline: none; }
+  .j3-gate-input:focus { border-color: #FF6B1A; box-shadow: 0 0 0 3px rgba(255,107,26,0.18); }
+  .j3-gate-input.err { border-color: #F0584F; box-shadow: 0 0 0 3px rgba(240,88,79,0.20); }
+  .j3-gate-btn { width: 100%; box-sizing: border-box; margin-top: 12px; padding: 13px;
+    font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    background: #FF6B1A; color: #07111E; border: 0; border-radius: 10px; }
+  .j3-gate-btn:hover { background: #FF8534; }
+  .j3-gate-hint { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(255,255,255,0.35); margin-top: 20px; }
+</style>
+<script>(function(){ if (sessionStorage.getItem('j3-hoops-unlocked') !== '1') document.documentElement.classList.add('j3-locked'); })();</script>
+<div class="j3-gate" id="j3Gate">
+  <div class="j3-gate-card">
+    <div class="j3-mark">J3</div>
+    <div class="j3-gate-title">J3 Hoops</div>
+    <div class="j3-gate-sub">Coaches Only</div>
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="j3-gate-input" id="j3Pin" placeholder="••••" autocomplete="off" aria-label="Four-digit code" />
+    <button class="j3-gate-btn" id="j3UnlockBtn">Enter</button>
+    <div class="j3-gate-hint">Four-digit code</div>
+  </div>
+</div>
+<script>
+(function(){
+  var PIN = '4545', KEY = 'j3-hoops-unlocked';
+  var gate = document.getElementById('j3Gate'),
+      pin  = document.getElementById('j3Pin'),
+      btn  = document.getElementById('j3UnlockBtn');
+  function unlock(){
+    sessionStorage.setItem(KEY, '1');
+    document.documentElement.classList.remove('j3-locked');
+    gate.style.display = 'none';
+    window.dispatchEvent(new Event('resize'));
+  }
+  function tryUnlock(){
+    if (pin.value === PIN) { unlock(); }
+    else {
+      pin.classList.add('err'); pin.value = '';
+      setTimeout(function(){ pin.classList.remove('err'); try{ pin.focus(); }catch(e){} }, 420);
+    }
+  }
+  btn.addEventListener('click', tryUnlock);
+  pin.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
+  if (document.documentElement.classList.contains('j3-locked')) {
+    setTimeout(function(){ try{ pin.focus(); }catch(e){} }, 60);
+  }
+})();
+</script>
+<!-- ===== /J3 gate ===== -->
 <div class="wrap">
   <header>
     <div class="logo">B</div>
