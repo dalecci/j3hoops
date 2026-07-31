@@ -212,6 +212,13 @@
   .tones{display:flex;gap:3px;flex:none}
   .tone{width:14px;height:14px;padding:0;border-radius:3px;border:1px solid var(--line-strong);cursor:pointer}
   .tone.on{border-color:var(--gold-bright);box-shadow:0 0 0 2px var(--gold-soft)}
+  .cloud{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .cloud-toggle{padding:6px 9px}
+  .cloud-state{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);min-width:0}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
+  .dot.ok{background:var(--ok)} .dot.busy{background:var(--gold-bright)}
+  .dot.err{background:var(--bad)} .dot.missing{background:var(--warn)}
+  .setupsql{margin:0;padding:8px;border:1px solid var(--warn);background:var(--warn-soft);border-radius:3px;font-family:var(--mono);font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
   .safe{padding:9px;display:flex;flex-direction:column;gap:7px}
   .safe-note{margin:0 0 2px;font-size:11px;line-height:1.45;color:var(--ink-3)}
   .safe-row{display:flex;gap:6px}
@@ -358,8 +365,17 @@
         <div class="panel-h"><span>Backup &amp; sync</span><span id="savedat"></span></div>
         <div class="safe">
           <p class="recovered" id="loadwarn" style="display:none"></p>
-          <p class="safe-note">Saves to this browser as you work. Download a file, or move it to
-          another device with a link.</p>
+          <div class="cloud">
+            <label class="toggle cloud-toggle"><input type="checkbox" id="synctoggle"> Sync my devices</label>
+            <div class="cloud-state"><span class="dot" id="clouddot"></span><span id="cloudmsg">off</span></div>
+          </div>
+          <div class="safe-row">
+            <button id="pushnow">Send now</button>
+            <button id="pullnow">Get latest</button>
+          </div>
+          <p class="setupsql" id="setupsql" style="display:none"></p>
+          <p class="safe-note">Also saves to this browser as you work. Download a file, or move it
+          to another device with a link.</p>
           <div class="safe-row">
             <button id="dlbackup">Download backup</button>
             <button id="upbackup">Restore file</button>
@@ -438,7 +454,7 @@
       ],
       locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true,
       seq:8, rseq:4, vseq:1, sseq:1, open:null,
-      scenarios:[], compare:null, undo:null
+      scenarios:[], compare:null, undo:null, sync:true
     };
   }
 
@@ -544,6 +560,7 @@
     }
     var now=new Date().getTime();
     if(now-lastBackup>90000){ lastBackup=now; pushBackup(); }
+    cloudQueue();
   }
 
   /* Rolling local history, so a bad edit or a bad rule is always recoverable. */
@@ -594,6 +611,93 @@
     return list.join(" + ");
   }
   function divLabel(d){ return d==="elem"?"Elementary":d==="mid"?"Middle":"High school"; }
+
+  /* ---------------- cloud sync (same Supabase project as the other J3 apps) ---------------- */
+  var SB_URL = "https://vlcpgwxeybpzwidjackz.supabase.co";
+  var SB_KEY = "sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU";
+  var SB_TABLE = "jaguars_schedule";
+  var SB_H = {apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json"};
+  var ROW = "main";
+
+  var cloud = {state:"off", msg:"", remoteAt:null, pushing:false, pulling:false};
+
+  var SETUP_SQL =
+    "create table if not exists public.jaguars_schedule (\n"+
+    "  id text primary key,\n"+
+    "  name text,\n"+
+    "  data jsonb not null,\n"+
+    "  updated_at timestamptz not null default now()\n"+
+    ");\n"+
+    "alter table public.jaguars_schedule enable row level security;\n"+
+    "create policy jag_read   on public.jaguars_schedule for select using (true);\n"+
+    "create policy jag_insert on public.jaguars_schedule for insert with check (true);\n"+
+    "create policy jag_update on public.jaguars_schedule for update using (true) with check (true);";
+
+  function cloudSet(st,msg){ cloud.state=st; cloud.msg=msg||""; try{ renderSafe(); }catch(e){} }
+
+  function cloudPush(){
+    if(!S.sync || cloud.pushing) return Promise.resolve(false);
+    cloud.pushing=true; cloudSet("busy","saving to cloud");
+    var stamp=new Date().toISOString();
+    return fetch(SB_URL+"/rest/v1/"+SB_TABLE,{
+      method:"POST",
+      headers:Object.assign({},SB_H,{Prefer:"resolution=merge-duplicates"}),
+      body:JSON.stringify({id:ROW, name:"Jaguars practice week", data:S, updated_at:stamp})
+    }).then(function(r){
+      if(r.status===404){ cloudSet("missing","table not created yet"); return false; }
+      if(!r.ok) return r.text().then(function(t){ throw new Error(r.status+" "+t.slice(0,90)); });
+      cloud.remoteAt=stamp;
+      cloudSet("ok","synced just now");
+      return true;
+    }).catch(function(e){
+      cloudSet("err",String(e.message||e).slice(0,80));
+      return false;
+    }).then(function(v){ cloud.pushing=false; return v; });
+  }
+
+  function cloudGet(){
+    return fetch(SB_URL+"/rest/v1/"+SB_TABLE+"?id=eq."+ROW+"&select=data,updated_at",{headers:SB_H})
+      .then(function(r){
+        if(r.status===404){ cloudSet("missing","table not created yet"); return null; }
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return r.json();
+      }).then(function(rows){ return (rows && rows[0]) || null; });
+  }
+
+  /* Pull only when the cloud copy is genuinely newer than what we last saw,
+     so a poll can never quietly undo something just typed here. */
+  function cloudPull(force){
+    if(!S.sync || cloud.pulling) return Promise.resolve(false);
+    cloud.pulling=true;
+    return cloudGet().then(function(row){
+      if(!row){ if(force) cloudSet("ok","nothing saved in the cloud yet"); return false; }
+      var newer = !cloud.remoteAt || new Date(row.updated_at) > new Date(cloud.remoteAt);
+      if(!force && !newer){ cloudSet("ok","up to date"); return false; }
+      var d=migrate(row.data);
+      if(!d || !Array.isArray(d.blocks)){ cloudSet("err","cloud copy unreadable"); return false; }
+      if(!force && JSON.stringify(d)===JSON.stringify(S)){ cloud.remoteAt=row.updated_at; cloudSet("ok","up to date"); return false; }
+      pushBackup();
+      var keepUndo=snapshot(), keepSync=S.sync;
+      S=d; S.undo=keepUndo; S.sync=keepSync;
+      cloud.remoteAt=row.updated_at;
+      try{ localStorage.setItem(STORE,JSON.stringify(S)); }catch(e){}
+      render();
+      cloudSet("ok","pulled from your other device");
+      flash("Pulled the newer schedule from the cloud. Undo load puts yours back.");
+      return true;
+    }).catch(function(e){
+      cloudSet("err",String(e.message||e).slice(0,80));
+      return false;
+    }).then(function(v){ cloud.pulling=false; return v; });
+  }
+
+  var pushTimer=null;
+  function cloudQueue(){
+    if(!S.sync) return;
+    clearTimeout(pushTimer);
+    cloudSet("busy","saving to cloud");
+    pushTimer=setTimeout(cloudPush,1500);
+  }
 
   /* ---------------- backup, restore, sync ---------------- */
   function b64enc(str){
@@ -1547,6 +1651,17 @@
       warn.textContent="Couldn't read the saved schedule ("+loadError+"). Restore a backup file "+
         "before changing anything, or the saved copy may be overwritten.";
     } else warn.style.display="none";
+    var dot=document.getElementById("clouddot"), cm=document.getElementById("cloudmsg");
+    var sql=document.getElementById("setupsql");
+    dot.className="dot"+(S.sync?" "+cloud.state:"");
+    cm.textContent = !S.sync ? "off" : (cloud.msg || cloud.state);
+    document.getElementById("pushnow").disabled=!S.sync;
+    document.getElementById("pullnow").disabled=!S.sync;
+    if(S.sync && cloud.state==="missing"){
+      sql.style.display="block";
+      sql.textContent="One-time setup — run this in the Supabase SQL editor:\n\n"+SETUP_SQL;
+    } else sql.style.display="none";
+
     var sel=document.getElementById("bklist");
     var arr=backups(), keep=sel.value;
     sel.innerHTML="";
@@ -1877,6 +1992,28 @@
   });
   document.getElementById("print").addEventListener("click",function(){ window.print(); });
 
+  var syncBox=document.getElementById("synctoggle");
+  syncBox.checked=!!S.sync;
+  syncBox.addEventListener("change",function(){
+    S.sync=syncBox.checked;
+    try{ localStorage.setItem(STORE,JSON.stringify(S)); }catch(e){}
+    if(S.sync){
+      cloudSet("busy","checking cloud");
+      cloudPull(true).then(function(pulled){ if(!pulled) cloudPush(); });
+      flash("Sync on. This week is shared with your other devices.");
+    } else {
+      cloudSet("off","");
+      flash("Sync off. This device keeps its own copy.");
+    }
+  });
+  document.getElementById("pushnow").addEventListener("click",function(){
+    clearTimeout(pushTimer);
+    cloudPush().then(function(ok){ if(ok) flash("Sent to the cloud."); });
+  });
+  document.getElementById("pullnow").addEventListener("click",function(){
+    cloudPull(true).then(function(got){ if(!got) flash("Nothing newer in the cloud."); });
+  });
+
   document.getElementById("dlbackup").addEventListener("click",downloadBackup);
   document.getElementById("copysync").addEventListener("click",copySync);
   var filepick=document.getElementById("filepick");
@@ -1956,6 +2093,16 @@
     loadError="startup: "+((e&&e.message)||e);
   }
   try{ renderSafe(); }catch(e2){}   // reflect the startup save in "saved just now"
+
+  if(S.sync){
+    cloudSet("busy","checking cloud");
+    cloudPull(false).then(function(pulled){ if(!pulled) cloudPush(); });
+    // pick up edits made on the other device
+    setInterval(function(){ if(!document.hidden) cloudPull(false); },25000);
+    document.addEventListener("visibilitychange",function(){
+      if(!document.hidden) cloudPull(false);
+    });
+  }
   // keep the "saved 3 min ago" line honest without re-rendering the grid
   setInterval(renderSafe,30000);
 })();
