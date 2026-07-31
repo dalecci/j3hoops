@@ -157,6 +157,33 @@
   .issue .ic{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 4px;border-radius:2px;flex:none;margin-top:1px;background:var(--panel);border:1px solid currentColor}
   .issue.bad .ic{color:var(--bad)} .issue.warn .ic{color:var(--warn)} .issue.ok .ic{color:var(--ok)}
 
+  /* ---------- plans & compare ---------- */
+  .scen-list{padding:9px;display:flex;flex-direction:column;gap:6px}
+  .scen-list:empty::before{content:"No saved plans yet";font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);padding:4px}
+  .scen{display:flex;gap:5px;align-items:center;padding:6px 7px;border:1px solid var(--line);border-radius:3px;background:var(--ground)}
+  .scen.cmp{border-color:var(--gold-bright);background:var(--gold-soft)}
+  .scen-name{flex:1;min-width:0;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:3px;padding:2px 4px}
+  .scen-name:hover{border-color:var(--line-strong)}
+  .scen-name:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px;background:var(--panel)}
+  .sbtn{flex:none;padding:3px 6px;font-size:10px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase}
+  .sbtn.on{background:var(--gold-bright);border-color:var(--gold-bright);color:#2A1D05}
+  .scen-acts{padding:9px;border-top:1px solid var(--line);display:flex;gap:6px}
+  .scen-acts button{flex:1}
+  .scen-acts button:disabled{opacity:.4;cursor:not-allowed}
+  .cmp-head{padding:9px 11px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--gold-soft)}
+  .cmp-head .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .diff{padding:9px;display:flex;flex-direction:column;gap:10px}
+  .diff-group{display:flex;flex-direction:column;gap:4px}
+  .diff-group h4{margin:0;font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);font-weight:400}
+  .dl{display:flex;gap:6px;align-items:flex-start;font-size:11.5px;line-height:1.4}
+  .dl .m{font-family:var(--mono);font-size:11px;font-weight:700;flex:none;width:9px;text-align:center}
+  .dl.add .m{color:var(--ok)}
+  .dl.rem .m{color:var(--bad)}
+  .dl.chg .m{color:var(--gold)}
+  .dl.same{color:var(--ink-3)}
+  .dl b{font-weight:600}
+  .card.moved{box-shadow:inset 3px 0 0 var(--gold-bright)}
+
   .rules{padding:9px;display:flex;flex-direction:column;gap:6px}
   .rules:empty::before{content:"No rules yet";font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-3);padding:4px}
   .rule-row{display:flex;gap:7px;align-items:flex-start;padding:7px 8px;border:1px solid var(--line);border-radius:3px;background:var(--ground)}
@@ -286,6 +313,17 @@
         </div>
       </section>
 
+      <section class="panel scen-wrap">
+        <div class="panel-h"><span>Plans</span><span id="scencount"></span></div>
+        <div class="scen-list" id="scenlist"></div>
+        <div class="scen-acts">
+          <button id="savescen">Save this plan</button>
+          <button id="undoload" disabled>Undo load</button>
+        </div>
+        <div id="cmphead"></div>
+        <div id="diff"></div>
+      </section>
+
       <section class="panel">
         <div class="panel-h"><span>Rule check</span></div>
         <div class="issues" id="issues"></div>
@@ -323,7 +361,7 @@
 
   var DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   var PER_WEEK = 2;
-  var STORE = "jaguars-scheduler-v4";
+  var STORE = "jaguars-scheduler-v5";
 
   var TEAMS = [
     {id:"g3", label:"Grade 3", num:"3", div:"elem"},
@@ -357,7 +395,9 @@
         {id:"r2",type:"note",text:"Keep weekends open for families on non-game weeks.",on:1},
         {id:"r3",type:"note",text:"Once a month I have a Tuesday night work meeting — need a coach on that block.",on:1}
       ],
-      locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true, seq:8, rseq:4, vseq:1, open:null
+      locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true,
+      seq:8, rseq:4, vseq:1, sseq:1, open:null,
+      scenarios:[], compare:null, undo:null
     };
   }
 
@@ -411,6 +451,188 @@
     return list.join(" + ");
   }
   function divLabel(d){ return d==="elem"?"Elementary":d==="mid"?"Middle":"High school"; }
+
+  /* ---------------- plans (saved scenarios) ---------------- */
+  function scens(){ return S.scenarios || (S.scenarios=[]); }
+  function deep(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function snapshot(){
+    return deep({venues:S.venues, blocks:S.blocks, assign:S.assign,
+                 locks:S.locks, blockedDays:S.blockedDays, rules:S.rules});
+  }
+  function restore(d){
+    var x=deep(d);
+    S.venues=x.venues; S.blocks=x.blocks; S.assign=x.assign;
+    S.locks=x.locks; S.blockedDays=x.blockedDays; S.rules=x.rules;
+    S.open=null;
+  }
+  function planLetter(){
+    var used={}, i;
+    scens().forEach(function(s){ used[s.name]=1; });
+    for(i=0;i<26;i++){ var n="Plan "+String.fromCharCode(65+i); if(!used[n]) return n; }
+    return "Plan "+(scens().length+1);
+  }
+
+  /* --- reading a snapshot without touching live state --- */
+  function vIn(d,id){
+    for(var i=0;i<d.venues.length;i++) if(d.venues[i].id===id) return d.venues[i];
+    return d.venues[0]||{name:"?",rate:0};
+  }
+  function liveIn(d,b){ return b.on && !d.blockedDays[b.day]; }
+  function slotLabel(d,b){ return b.day+" "+span(b)+" · "+vIn(d,b.venue).name; }
+  function slotsOf(d,tid){
+    var out=[];
+    d.blocks.forEach(function(b){
+      if(!liveIn(d,b)) return;
+      if((d.assign[b.id]||[]).indexOf(tid)>=0) out.push(slotLabel(d,b));
+    });
+    return out.sort();
+  }
+  function costOf(d){
+    var c=0;
+    d.blocks.forEach(function(b){
+      if(!liveIn(d,b)) return;
+      var v=vIn(d,b.venue);
+      if(v.rate && (d.assign[b.id]||[]).length) c+=v.rate*(b.dur/60);
+    });
+    return Math.round(c);
+  }
+  function ruleTextOf(d,r){
+    function tn(id){ var t=team(id); return t?t.label:"a team"; }
+    function vn(id){ return vIn(d,id).name; }
+    switch(r.type){
+      case "noDay":       return tn(r.team)+" can't practice on "+r.day;
+      case "mustDay":     return tn(r.team)+" must practice on "+r.day;
+      case "notBefore":   return tn(r.team)+" can't start before "+fmt(r.time);
+      case "notAfter":    return tn(r.team)+" must be done by "+fmt(r.time);
+      case "noVenue":     return tn(r.team)+" can't use "+vn(r.venue);
+      case "onlyVenue":   return tn(r.team)+" only practices at "+vn(r.venue);
+      case "notTogether": return tn(r.team)+" and "+tn(r.team2)+" can't share a block";
+      case "together":    return tn(r.team)+" and "+tn(r.team2)+" always practice together";
+      case "spread":      return tn(r.team)+" is never on back-to-back days";
+      case "maxPaid":     return "At most "+r.n+" paid session(s) a week";
+      default:            return "Note: "+(r.text||"(empty)");
+    }
+  }
+
+  /* --- the diff: what changed going from `was` to `now` --- */
+  function diffPlans(now,was){
+    var groups=[];
+    function g(title,lines){ if(lines.length) groups.push({title:title,lines:lines}); }
+    function only(a,b){ return a.filter(function(x){ return b.indexOf(x)<0; }); }
+
+    // headline numbers
+    var head=[];
+    function num(label,a,b,pre){
+      if(a===b) return;
+      head.push({m:"~",cls:"chg",text:label+": "+(pre||"")+b+" → "+(pre||"")+a});
+    }
+    num("Cost a week",costOf(now),costOf(was),"$");
+    num("Blocks",now.blocks.filter(function(b){return liveIn(now,b);}).length,
+                 was.blocks.filter(function(b){return liveIn(was,b);}).length);
+    num("Gyms",now.venues.length,was.venues.length);
+    g("Headline",head);
+
+    // where each team practises
+    var moves=[];
+    TEAMS.forEach(function(t){
+      var a=slotsOf(now,t.id), b=slotsOf(was,t.id);
+      var gone=only(b,a), got=only(a,b);
+      if(!gone.length && !got.length) return;
+      gone.forEach(function(s){ moves.push({m:"−",cls:"rem",bold:t.label,text:"off "+s}); });
+      got.forEach(function(s){  moves.push({m:"+",cls:"add",bold:t.label,text:"now "+s}); });
+    });
+    g("Team practices",moves);
+
+    // blocks themselves
+    var bl=[];
+    var wasById={}; was.blocks.forEach(function(b){ wasById[b.id]=b; });
+    var nowById={}; now.blocks.forEach(function(b){ nowById[b.id]=b; });
+    now.blocks.forEach(function(b){
+      var o=wasById[b.id];
+      if(!o){ bl.push({m:"+",cls:"add",text:"Added "+slotLabel(now,b)}); return; }
+      var ch=[];
+      if(o.day!==b.day) ch.push(o.day+" → "+b.day);
+      if(o.start!==b.start||o.dur!==b.dur) ch.push(span(o)+" → "+span(b));
+      if(o.venue!==b.venue) ch.push(vIn(was,o.venue).name+" → "+vIn(now,b.venue).name);
+      if(o.cap!==b.cap) ch.push("cap "+o.cap+" → "+b.cap);
+      if(!!o.on!==!!b.on) ch.push(b.on?"turned on":"turned off");
+      if(ch.length) bl.push({m:"~",cls:"chg",text:ch.join(", ")});
+    });
+    was.blocks.forEach(function(b){
+      if(!nowById[b.id]) bl.push({m:"−",cls:"rem",text:"Removed "+slotLabel(was,b)});
+    });
+    g("Blocks",bl);
+
+    // blocked-out days
+    var dd=[];
+    DAYS.forEach(function(d){
+      var a=!!now.blockedDays[d], b=!!was.blockedDays[d];
+      if(a===b) return;
+      dd.push(a ? {m:"−",cls:"rem",text:d+" blocked out"}
+                : {m:"+",cls:"add",text:d+" reopened"});
+    });
+    g("Days",dd);
+
+    // gyms
+    var vv=[];
+    var wasV={}; was.venues.forEach(function(v){ wasV[v.id]=v; });
+    var nowV={}; now.venues.forEach(function(v){ nowV[v.id]=v; });
+    now.venues.forEach(function(v){
+      var o=wasV[v.id];
+      if(!o){ vv.push({m:"+",cls:"add",text:"Added "+v.name}); return; }
+      var ch=[];
+      if(o.name!==v.name) ch.push('"'+o.name+'" → "'+v.name+'"');
+      if(o.rate!==v.rate) ch.push("$"+o.rate+"/hr → $"+v.rate+"/hr");
+      if(o.open!==v.open||o.close!==v.close)
+        ch.push(fmt(o.open)+"–"+fmt(o.close)+" → "+fmt(v.open)+"–"+fmt(v.close));
+      var od=DAYS.filter(function(d){return o.days[d];}).join(" ");
+      var nd=DAYS.filter(function(d){return v.days[d];}).join(" ");
+      if(od!==nd) ch.push((od||"no days")+" → "+(nd||"no days"));
+      if(ch.length) vv.push({m:"~",cls:"chg",bold:v.name,text:ch.join(", ")});
+    });
+    was.venues.forEach(function(v){
+      if(!nowV[v.id]) vv.push({m:"−",cls:"rem",text:"Removed "+v.name});
+    });
+    g("Gyms",vv);
+
+    // rules
+    var rr=[];
+    var wasR={}; (was.rules||[]).forEach(function(r){ wasR[r.id]=r; });
+    var nowR={}; (now.rules||[]).forEach(function(r){ nowR[r.id]=r; });
+    (now.rules||[]).forEach(function(r){
+      var o=wasR[r.id];
+      if(!o){ rr.push({m:"+",cls:"add",text:ruleTextOf(now,r)}); return; }
+      var a=ruleTextOf(now,r), b=ruleTextOf(was,o);
+      if(a!==b) rr.push({m:"~",cls:"chg",text:b+" → "+a});
+      else if(!!r.on!==!!o.on) rr.push({m:"~",cls:"chg",text:a+(r.on?" — switched on":" — switched off")});
+    });
+    (was.rules||[]).forEach(function(r){
+      if(!nowR[r.id]) rr.push({m:"−",cls:"rem",text:"Dropped: "+ruleTextOf(was,r)});
+    });
+    g("Rules",rr);
+
+    return groups;
+  }
+
+  /* which team cards sit somewhere different from the compared plan? */
+  function movedCards(){
+    var out={};
+    if(!S.compare) return out;
+    var was=scenById(S.compare);
+    if(!was) return out;
+    var now=snapshot();
+    TEAMS.forEach(function(t){
+      var a=slotsOf(now,t.id), b=slotsOf(was.data,t.id);
+      if(a.join("|")!==b.join("|")) out[t.id]=1;
+    });
+    return out;
+  }
+  function scenById(id){
+    var f=null;
+    scens().forEach(function(s){ if(s.id===id) f=s; });
+    return f;
+  }
 
   /* ---------------- rules ---------------- */
   function rules(){ return S.rules || (S.rules=[]); }
@@ -689,7 +911,7 @@
   }
 
   /* ---------------- interaction ---------------- */
-  var picked=null, dragKind=null;
+  var picked=null, dragKind=null, MOVED={};
 
   function move(tid,from,to){
     if(from===to) return;
@@ -716,7 +938,9 @@
   function cardEl(t,bid,bad){
     var el=document.createElement("div"), lk=bid&&locked(bid,t.id);
     el.className="card d-"+t.div+(lk?" locked":"")+(bad?" err":"")+
+      (bid&&MOVED[t.id]?" moved":"")+
       (picked&&picked.tid===t.id&&picked.from===(bid||"")?" sel":"");
+    if(bid&&MOVED[t.id]) el.title=t.label+" sits somewhere different in the plan you're comparing against";
     el.draggable=true;
 
     var n=document.createElement("div"); n.className="num"; n.textContent=t.num;
@@ -930,6 +1154,7 @@
 
   function render(){
     var a=audit();
+    MOVED=movedCards();
 
     var placed=TEAMS.filter(function(t){ return count(t.id)===PER_WEEK; }).length;
     var errs=a.issues.filter(function(i){return i.sev==="bad";}).length;
@@ -1040,6 +1265,104 @@
 
     renderRules(a);
     renderVenues();
+    renderPlans();
+  }
+
+  function renderPlans(){
+    var w=document.getElementById("scenlist"); w.innerHTML="";
+    var list=scens();
+
+    list.forEach(function(s){
+      var row=document.createElement("div");
+      row.className="scen"+(S.compare===s.id?" cmp":"");
+
+      var nm=document.createElement("input");
+      nm.type="text"; nm.className="scen-name"; nm.value=s.name;
+      nm.setAttribute("aria-label","Plan name");
+      nm.addEventListener("input",function(){ s.name=nm.value; save(); });
+      nm.addEventListener("change",function(){ render(); });
+
+      var load=document.createElement("button");
+      load.className="sbtn"; load.textContent="Load";
+      load.title="Replace the current week with "+s.name;
+      load.addEventListener("click",function(){
+        S.undo=snapshot();
+        restore(s.data);
+        save(); render();
+        flash("Loaded "+s.name+". Undo load puts it back.");
+      });
+
+      var cmp=document.createElement("button");
+      cmp.className="sbtn"+(S.compare===s.id?" on":"");
+      cmp.textContent="Compare";
+      cmp.title="Show what's different between now and "+s.name;
+      cmp.addEventListener("click",function(){
+        S.compare = (S.compare===s.id) ? null : s.id;
+        save(); render();
+      });
+
+      var del=document.createElement("button");
+      del.className="rdel"; del.textContent="✕"; del.title="Delete "+s.name;
+      del.setAttribute("aria-label","Delete "+s.name);
+      del.addEventListener("click",function(){
+        S.scenarios=list.filter(function(x){ return x.id!==s.id; });
+        if(S.compare===s.id) S.compare=null;
+        save(); render(); flash(s.name+" deleted.");
+      });
+
+      row.appendChild(nm); row.appendChild(load); row.appendChild(cmp); row.appendChild(del);
+      w.appendChild(row);
+    });
+
+    document.getElementById("scencount").textContent = list.length ? list.length+" saved" : "";
+    document.getElementById("undoload").disabled = !S.undo;
+    renderDiff();
+  }
+
+  function renderDiff(){
+    var head=document.getElementById("cmphead"), body=document.getElementById("diff");
+    head.innerHTML=""; body.innerHTML="";
+    if(!S.compare) return;
+    var was=scenById(S.compare);
+    if(!was){ S.compare=null; return; }
+
+    var h=document.createElement("div"); h.className="cmp-head";
+    var lbl=document.createElement("span"); lbl.className="lbl";
+    lbl.textContent="Now vs "+was.name;
+    var stop=document.createElement("button");
+    stop.className="sbtn"; stop.textContent="Stop";
+    stop.addEventListener("click",function(){ S.compare=null; save(); render(); });
+    h.appendChild(lbl); h.appendChild(stop);
+    head.appendChild(h);
+
+    var groups=diffPlans(snapshot(), was.data);
+    body.className="diff";
+
+    if(!groups.length){
+      var same=document.createElement("div");
+      same.className="dl same";
+      var m=document.createElement("span"); m.className="m"; m.textContent="=";
+      var t=document.createElement("span"); t.textContent="Identical to "+was.name+" — nothing differs.";
+      same.appendChild(m); same.appendChild(t);
+      body.appendChild(same);
+      return;
+    }
+
+    groups.forEach(function(gr){
+      var box=document.createElement("div"); box.className="diff-group";
+      var t=document.createElement("h4"); t.textContent=gr.title;
+      box.appendChild(t);
+      gr.lines.forEach(function(l){
+        var d=document.createElement("div"); d.className="dl "+l.cls;
+        var m=document.createElement("span"); m.className="m"; m.textContent=l.m;
+        var s=document.createElement("span");
+        if(l.bold){ var b=document.createElement("b"); b.textContent=l.bold+" "; s.appendChild(b); }
+        s.appendChild(document.createTextNode(l.text));
+        d.appendChild(m); d.appendChild(s);
+        box.appendChild(d);
+      });
+      body.appendChild(box);
+    });
   }
 
   function inlineSel(opts,val,fn){
@@ -1246,6 +1569,21 @@
     render(); flash("Back to the starting schedule.");
   });
   document.getElementById("print").addEventListener("click",function(){ window.print(); });
+
+  document.getElementById("savescen").addEventListener("click",function(){
+    var s={id:"s"+(S.sseq=(S.sseq||0)+1), name:planLetter(), data:snapshot()};
+    scens().push(s);
+    save(); render();
+    flash("Saved as "+s.name+". Change things, then hit Compare on it.");
+  });
+  document.getElementById("undoload").addEventListener("click",function(){
+    if(!S.undo) return;
+    var back=S.undo;
+    S.undo=snapshot();
+    restore(back);
+    save(); render();
+    flash("Put back the week from before the load.");
+  });
 
   document.getElementById("addven").addEventListener("click",addVenue);
 
