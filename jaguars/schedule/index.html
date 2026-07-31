@@ -96,9 +96,12 @@
   .block.off{opacity:.5}
   .block-h{padding:7px 8px;border-bottom:1px solid var(--line);background:var(--panel-2);cursor:grab}
   .block-h:active{cursor:grabbing}
-  .block.v-school .block-h{background:var(--purple-soft)}
-  .block.v-ymca .block-h{background:var(--ok-soft)}
-  .block.v-cape .block-h{background:var(--gold-soft)}
+  .block.v-t0 .block-h{background:var(--purple-soft)}
+  .block.v-t1 .block-h{background:var(--ok-soft)}
+  .block.v-t2 .block-h{background:var(--gold-soft)}
+  .block.v-t3 .block-h{background:#123038}
+  .block.v-t4 .block-h{background:#161F3A}
+  .block.v-t5 .block-h{background:#331A26}
   .bh-top{display:flex;align-items:center;gap:5px}
   .grip{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:-1px;flex:none;cursor:grab}
   .time{font-family:var(--mono);font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;flex:1;min-width:0}
@@ -171,10 +174,17 @@
 
   .ven{padding:9px 11px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
   .ven:last-child{border-bottom:0}
-  .ven-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .ven-top b{font-size:12.5px;font-weight:600}
-  .ven-rate{font-family:var(--mono);font-size:10px;color:var(--ink-3);display:flex;align-items:center;gap:4px}
-  .ven-rate input{width:52px;padding:3px 5px;font-size:10.5px}
+  .ven-top{display:flex;align-items:center;gap:6px}
+  .ven-name{flex:1;min-width:0;font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:3px;padding:3px 5px}
+  .ven-name:hover{border-color:var(--line-strong)}
+  .ven-name:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px;background:var(--ground)}
+  .ven-rate{font-family:var(--mono);font-size:10px;color:var(--ink-3);display:flex;align-items:center;gap:3px;flex:none}
+  .ven-rate input{width:48px;padding:3px 5px;font-size:10.5px}
+  .tones{display:flex;gap:3px;flex:none}
+  .tone{width:14px;height:14px;padding:0;border-radius:3px;border:1px solid var(--line-strong);cursor:pointer}
+  .tone.on{border-color:var(--gold-bright);box-shadow:0 0 0 2px var(--gold-soft)}
+  .addven{padding:9px 11px;border-top:1px solid var(--line)}
+  .addven button{width:100%}
   .notes{padding:9px}
   textarea{width:100%;min-height:80px;resize:vertical;background:var(--ground);color:var(--ink);border:1px solid var(--line-strong);border-radius:3px;padding:8px 9px;font-family:var(--sans);font-size:12.5px;line-height:1.5}
   textarea:focus-visible{outline:2px solid var(--gold-bright);outline-offset:1px}
@@ -290,8 +300,9 @@
       </section>
 
       <section class="panel ven-wrap">
-        <div class="panel-h"><span>Venues &amp; hours</span></div>
+        <div class="panel-h"><span>Gyms &amp; hours</span><span id="vencount"></span></div>
         <div id="venues"></div>
+        <div class="addven"><button id="addven">+ Add a gym</button></div>
       </section>
 
       <section class="panel notes-wrap">
@@ -312,7 +323,7 @@
 
   var DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   var PER_WEEK = 2;
-  var STORE = "jaguars-scheduler-v3";
+  var STORE = "jaguars-scheduler-v4";
 
   var TEAMS = [
     {id:"g3", label:"Grade 3", num:"3", div:"elem"},
@@ -327,9 +338,9 @@
   function defaults(){
     return {
       venues:[
-        {id:"school",name:"School Gym",   rate:0,  open:17*60,close:21*60,days:{Mon:1,Wed:1},cls:"v-school"},
-        {id:"ymca",  name:"YMCA",         rate:0,  open:9*60, close:20*60,days:{Tue:1,Thu:1,Sun:1},cls:"v-ymca"},
-        {id:"cape",  name:"Cape Coral CC",rate:100,open:7*60, close:14*60,days:{Sat:1},cls:"v-cape"}
+        {id:"school",name:"School Gym",   rate:0,  open:17*60,close:21*60,days:{Mon:1,Wed:1},tone:0},
+        {id:"ymca",  name:"YMCA",         rate:0,  open:9*60, close:20*60,days:{Tue:1,Thu:1,Sun:1},tone:1},
+        {id:"cape",  name:"Cape Coral CC",rate:100,open:7*60, close:14*60,days:{Sat:1},tone:2}
       ],
       blocks:[
         {id:"b1",day:"Mon",start:17*60,dur:120,venue:"school",allow:{elem:1},           cap:2,on:1},
@@ -346,9 +357,11 @@
         {id:"r2",type:"note",text:"Keep weekends open for families on non-game weeks.",on:1},
         {id:"r3",type:"note",text:"Once a month I have a Tuesday night work meeting — need a coach on that block.",on:1}
       ],
-      locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true, seq:8, rseq:4, open:null
+      locks:{}, blockedDays:{Sun:1}, notes:"", autorun:true, seq:8, rseq:4, vseq:1, open:null
     };
   }
+
+  var TONES=["#2C2039","#16301F","#332714","#123038","#161F3A","#331A26"];
 
   var RULE_TYPES=[
     {t:"noDay",       label:"A team can't practice on a day"},
@@ -845,7 +858,7 @@
   function blockEl(b,a){
     var v=venue(b.venue), list=at(b.id), al=allowList(b);
     var el=document.createElement("div");
-    el.className="block "+v.cls+(b.on?"":" off");
+    el.className="block v-t"+(v.tone||0)+(b.on?"":" off");
 
     var h=document.createElement("div"); h.className="block-h"; h.draggable=true;
     var top=document.createElement("div"); top.className="bh-top";
@@ -1112,10 +1125,20 @@
 
   function renderVenues(){
     var w=document.getElementById("venues"); w.innerHTML="";
+    var paid=S.venues.filter(function(v){ return v.rate>0; }).length;
+    document.getElementById("vencount").textContent =
+      S.venues.length+(paid?" · "+paid+" paid":"");
     S.venues.forEach(function(v){
       var d=document.createElement("div"); d.className="ven";
       var top=document.createElement("div"); top.className="ven-top";
-      var b=document.createElement("b"); b.textContent=v.name;
+
+      var nm=document.createElement("input");
+      nm.type="text"; nm.className="ven-name"; nm.value=v.name;
+      nm.placeholder="Gym name";
+      nm.setAttribute("aria-label","Gym name");
+      nm.addEventListener("input",function(){ v.name=nm.value; save(); });
+      nm.addEventListener("change",function(){ render(); });
+
       var rate=document.createElement("span"); rate.className="ven-rate";
       var dollar=document.createElement("span"); dollar.textContent="$";
       var inp=document.createElement("input");
@@ -1124,8 +1147,26 @@
       inp.addEventListener("change",function(){ v.rate=Math.max(0,+inp.value||0); touched(); });
       var per=document.createElement("span"); per.textContent="/hr";
       rate.appendChild(dollar); rate.appendChild(inp); rate.appendChild(per);
-      top.appendChild(b); top.appendChild(rate);
+
+      var del=document.createElement("button");
+      del.className="rdel"; del.textContent="✕"; del.title="Remove "+v.name;
+      del.setAttribute("aria-label","Remove "+v.name);
+      del.addEventListener("click",function(){ removeVenue(v); });
+
+      top.appendChild(nm); top.appendChild(rate); top.appendChild(del);
       d.appendChild(top);
+
+      var tones=document.createElement("div"); tones.className="tones";
+      TONES.forEach(function(hex,i){
+        var t=document.createElement("button");
+        t.className="tone"+((v.tone||0)===i?" on":"");
+        t.style.background=hex;
+        t.title="Colour "+(i+1);
+        t.setAttribute("aria-label","Colour "+(i+1)+" for "+v.name);
+        t.addEventListener("click",function(){ v.tone=i; save(); render(); });
+        tones.appendChild(t);
+      });
+      d.appendChild(tones);
 
       var chips=document.createElement("div"); chips.className="chips";
       DAYS.forEach(function(day){
@@ -1146,6 +1187,32 @@
       d.appendChild(two);
       w.appendChild(d);
     });
+  }
+
+  function addVenue(){
+    var id="v"+(S.vseq=(S.vseq||1)+1);
+    S.venues.push({id:id, name:"New gym", rate:0, open:17*60, close:21*60,
+                   days:{Mon:1,Tue:1,Wed:1,Thu:1,Fri:1,Sat:1,Sun:1},
+                   tone:S.venues.length%TONES.length});
+    save(); render();
+    flash("Gym added. Name it, set its days and hours, then put blocks there.");
+    var boxes=document.querySelectorAll("#venues .ven-name");
+    var last=boxes[boxes.length-1];
+    if(last){ last.focus(); last.select(); }
+  }
+
+  function removeVenue(v){
+    if(S.venues.length<2){ flash("You need at least one gym."); return; }
+    var others=S.venues.filter(function(x){ return x.id!==v.id; });
+    var moved=S.blocks.filter(function(b){ return b.venue===v.id; });
+    moved.forEach(function(b){ b.venue=others[0].id; });
+    S.venues=others;
+    // any rule pointing at the deleted gym would silently mean something else
+    rules().forEach(function(r){ if(r.venue===v.id) r.venue=others[0].id; });
+    save(); touched();
+    flash(moved.length
+      ? v.name+" removed. "+moved.length+" block(s) moved to "+others[0].name+"."
+      : v.name+" removed.");
   }
 
   /* ---------------- wire ---------------- */
@@ -1179,6 +1246,8 @@
     render(); flash("Back to the starting schedule.");
   });
   document.getElementById("print").addEventListener("click",function(){ window.print(); });
+
+  document.getElementById("addven").addEventListener("click",addVenue);
 
   var addSel=document.getElementById("addrule");
   function fillAdd(){
