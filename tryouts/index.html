@@ -263,6 +263,12 @@
   select.inp option{background:#1a1030;color:#fff}
 
   /* ===== timeline ===== */
+  .tl-total{display:flex;align-items:baseline;gap:10px;margin:0 2px 18px;padding:13px 18px;border-radius:13px;
+    border:1px solid var(--line);background:linear-gradient(135deg,#1c1033,#0d0717)}
+  .tl-total-n{font-family:var(--disp);font-size:1.9rem;line-height:1;color:#fff}
+  .tl-total-n.gold{color:var(--gold-bright)}
+  .tl-total-l{font-size:.68rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mute)}
+  .tl-total-sep{width:1px;align-self:stretch;background:var(--line);margin:0 8px}
   .tl{position:relative;padding-top:2px}
   .tl-item{display:flex;gap:14px;align-items:stretch}
   .tl-rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:34px}
@@ -390,10 +396,10 @@ function seedDemo(){
   state.notes.push({id:uuid(),player_id:state.players[2].id,coach_id:state.coaches[1].id,text:'Best shooter in the gym today. Lock for the team.'});
   const SAMPLE='https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
   state.timeline=[
-    {id:uuid(),order_idx:10,time:'8:30 AM',title:'Check-in & Dynamic Warm-up',notes:'Sign in, grab your pinnie number, lead dynamic stretch + form running.',video_url:SAMPLE},
-    {id:uuid(),order_idx:20,time:'9:00 AM',title:'Ball-Handling Stations',notes:'4 stations, 3 min each: stationary combo, cone dribble, 2-ball, full-court speed.',video_url:SAMPLE},
-    {id:uuid(),order_idx:30,time:'9:30 AM',title:'Defensive Slides & Closeouts',notes:'Zig-zag slides, closeout technique, 1v1 contain drill.',video_url:''},
-    {id:uuid(),order_idx:40,time:'10:00 AM',title:'3v3 & 5v5 Live Play',notes:'Coaches score players live during game action.',video_url:SAMPLE},
+    {id:uuid(),order_idx:10,minutes:15,title:'Check-in & Dynamic Warm-up',notes:'Sign in, grab your pinnie number, lead dynamic stretch + form running.',video_url:SAMPLE},
+    {id:uuid(),order_idx:20,minutes:20,title:'Ball-Handling Stations',notes:'4 stations, 3 min each: stationary combo, cone dribble, 2-ball, full-court speed.',video_url:SAMPLE},
+    {id:uuid(),order_idx:30,minutes:15,title:'Defensive Slides & Closeouts',notes:'Zig-zag slides, closeout technique, 1v1 contain drill.',video_url:''},
+    {id:uuid(),order_idx:40,minutes:30,title:'3v3 & 5v5 Live Play',notes:'Coaches score players live during game action.',video_url:SAMPLE},
   ];
 }
 
@@ -711,11 +717,14 @@ function videoEmbed(url){
 function vTimeline(){
   const items=state.timeline.slice().sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));
   const canEdit=state.me&&!state.me.viewOnly;
+  const totalMin=items.reduce((s,it)=>s+(Number(it.minutes)||0),0);
   return `
   <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div>
     ${canEdit?`<button class="btn btn-flame btn-sm" data-act="add-drill">＋ Add Line</button>`:''}
   </div>
-  <p style="color:var(--text-mute);margin:-6px 2px 18px">The run-of-show for tryout day — every drill with a video of exactly how it's run.</p>
+  <p style="color:var(--text-mute);margin:-6px 2px 16px">The run-of-show for tryout day — every drill with a video of exactly how it's run.</p>
+  ${items.length?`<div class="tl-total"><span class="tl-total-n">${items.length}</span><span class="tl-total-l">drills</span>
+    <div class="tl-total-sep"></div><span class="tl-total-n gold">${totalMin}</span><span class="tl-total-l">total minutes</span></div>`:''}
   ${items.length? `<div class="tl">${items.map((it,i)=>tlItem(it,i,items.length,canEdit)).join('')}</div>`
     : `<div class="empty-state"><div class="ico">🎬</div><div>No drills on the timeline yet.${canEdit?' Tap <b>＋ Add Line</b> to build your tryout run-of-show.':''}</div></div>`}
   `;
@@ -727,7 +736,7 @@ function tlItem(it,i,total,canEdit){
     <div class="tl-card">
       <div class="tl-media" ${(canEdit&&!hasVid)?`data-edit-drill="${it.id}"`:''}>${videoEmbed(it.video_url)}</div>
       <div class="tl-body">
-        ${it.time?`<div class="tl-time">${esc(it.time)}</div>`:''}
+        ${it.minutes!=null&&it.minutes!==''?`<div class="tl-time">${esc(String(it.minutes))} min</div>`:''}
         <div class="tl-title">${esc(it.title||'Untitled drill')}</div>
         ${it.notes?`<div class="tl-notes">${esc(it.notes)}</div>`:''}
         ${canEdit?`<div class="tl-actions">
@@ -931,7 +940,7 @@ function drillModal(existing=null){
     <button class="sheet-x" id="mx">✕</button></div>
     <div class="sheet-b">
       <div class="grid2">
-        <div class="field"><label>Time / Slot</label><input class="inp" id="d-time" value="${esc(d.time||'')}" placeholder="9:00 AM  ·  Station 1"></div>
+        <div class="field"><label>Minutes</label><input class="inp" id="d-min" inputmode="numeric" value="${d.minutes??''}" placeholder="15"></div>
         <div class="field"><label>Drill name</label><input class="inp" id="d-title" value="${esc(d.title||'')}" placeholder="Ball-Handling Stations"></div>
       </div>
       <div class="field"><label>Description</label><textarea class="inp" id="d-notes" rows="3" placeholder="What the drill is, how it's run, what coaches watch for…">${esc(d.notes||'')}</textarea></div>
@@ -944,8 +953,9 @@ function drillModal(existing=null){
   document.getElementById('ov').onclick=e=>{if(e.target.id==='ov')close();};
   document.getElementById('mx').onclick=close;
   document.getElementById('d-save').onclick=async()=>{
+    const mv=document.getElementById('d-min').value.trim();
     const rec={
-      time:document.getElementById('d-time').value.trim()||null,
+      minutes:mv===''?null:(parseInt(mv,10)||null),
       title:document.getElementById('d-title').value.trim()||'Untitled drill',
       notes:document.getElementById('d-notes').value.trim()||null,
       video_url:document.getElementById('d-video').value.trim()||null,
