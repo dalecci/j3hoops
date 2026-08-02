@@ -261,6 +261,38 @@
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23FF8534' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
     background-repeat:no-repeat;background-position:right 13px center;padding-right:36px}
   select.inp option{background:#1a1030;color:#fff}
+
+  /* ===== timeline ===== */
+  .tl{position:relative;padding-top:2px}
+  .tl-item{display:flex;gap:14px;align-items:stretch}
+  .tl-rail{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:34px}
+  .tl-dot{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+    font-family:var(--disp);font-size:1rem;color:#fff;
+    background:linear-gradient(135deg,var(--flame),var(--flame-deep));
+    box-shadow:0 6px 14px -6px var(--flame),inset 0 1px 0 rgba(255,255,255,.25)}
+  .tl-line{flex:1;width:2px;background:linear-gradient(var(--flame-soft),var(--line));margin:5px 0;min-height:20px}
+  .tl-card{flex:1;display:grid;grid-template-columns:300px 1fr;margin-bottom:16px;
+    border:1px solid var(--line);border-radius:15px;overflow:hidden;background:var(--bg-card)}
+  .tl-media{background:#000;min-width:0}
+  .tl-vid{position:relative;width:100%;aspect-ratio:16/9;background:#000}
+  .tl-vid iframe,.tl-vid video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  .tl-vid video{object-fit:cover}
+  .tl-vid.empty{display:grid;place-items:center;cursor:pointer;color:var(--text-dim);font-weight:800;font-size:.82rem;
+    letter-spacing:.02em;border-right:1px solid var(--line);background:rgba(255,255,255,.02);transition:.14s}
+  .tl-vid.empty:hover{color:var(--flame-bright);background:var(--flame-soft)}
+  .tl-vid-link{position:absolute;inset:0;display:grid;place-items:center;color:var(--flame-bright);font-weight:800;text-decoration:none}
+  .tl-body{padding:15px 17px;display:flex;flex-direction:column;gap:6px;min-width:0}
+  .tl-time{font-size:.68rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-bright)}
+  .tl-title{font-family:var(--disp);font-size:1.35rem;letter-spacing:.02em;line-height:1.05}
+  .tl-notes{color:var(--text-soft);font-size:.9rem;line-height:1.45}
+  .tl-actions{display:flex;gap:8px;align-items:center;margin-top:auto;padding-top:12px}
+  .tl-move{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);color:var(--text-mute);font-size:.8rem;display:grid;place-items:center;transition:.12s}
+  .tl-move:hover:not(:disabled){border-color:var(--flame);color:#fff}
+  .tl-move:disabled{opacity:.28;cursor:default}
+  @media(max-width:720px){
+    .tl-card{grid-template-columns:1fr}
+    .tl-vid.empty{border-right:none;border-bottom:1px solid var(--line)}
+  }
   @media(max-width:640px){
     .hero-stats{margin-left:0;width:100%}
     .grid3{grid-template-columns:1fr 1fr}
@@ -303,19 +335,20 @@ function paw(sz,color){return `<svg viewBox="0 0 24 24" width="${sz}" height="${
   <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
 
 let DEMO=false;
-const state={coaches:[],players:[],scores:[],notes:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null};
+const state={coaches:[],players:[],scores:[],notes:[],timeline:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null};
 
 /* ---------- data load ---------- */
 async function loadAll(){
   try{
-    const [c,p,s,n]=await Promise.all([
+    const [c,p,s,n,t]=await Promise.all([
       sb.from('tryout_coaches').select('*'),
       sb.from('tryout_players').select('*'),
       sb.from('tryout_scores').select('*'),
       sb.from('tryout_notes').select('*'),
+      sb.from('tryout_timeline').select('*'),
     ]);
-    if(c.error||p.error||s.error||n.error) throw (c.error||p.error||s.error||n.error);
-    state.coaches=c.data;state.players=p.data;state.scores=s.data;state.notes=n.data;
+    if(c.error||p.error||s.error||n.error||t.error) throw (c.error||p.error||s.error||n.error||t.error);
+    state.coaches=c.data;state.players=p.data;state.scores=s.data;state.notes=n.data;state.timeline=t.data;
     if(!state.coaches.length){seedDemo();DEMO=true;}
   }catch(e){
     console.warn('Tables not live yet — running in DEMO preview.',e?.message||e);
@@ -355,6 +388,13 @@ function seedDemo(){
   });
   state.notes.push({id:uuid(),player_id:state.players[0].id,coach_id:state.coaches[0].id,text:'High motor, vocal leader. Needs to finish with left.'});
   state.notes.push({id:uuid(),player_id:state.players[2].id,coach_id:state.coaches[1].id,text:'Best shooter in the gym today. Lock for the team.'});
+  const SAMPLE='https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  state.timeline=[
+    {id:uuid(),order_idx:10,time:'8:30 AM',title:'Check-in & Dynamic Warm-up',notes:'Sign in, grab your pinnie number, lead dynamic stretch + form running.',video_url:SAMPLE},
+    {id:uuid(),order_idx:20,time:'9:00 AM',title:'Ball-Handling Stations',notes:'4 stations, 3 min each: stationary combo, cone dribble, 2-ball, full-court speed.',video_url:SAMPLE},
+    {id:uuid(),order_idx:30,time:'9:30 AM',title:'Defensive Slides & Closeouts',notes:'Zig-zag slides, closeout technique, 1v1 contain drill.',video_url:''},
+    {id:uuid(),order_idx:40,time:'10:00 AM',title:'3v3 & 5v5 Live Play',notes:'Coaches score players live during game action.',video_url:SAMPLE},
+  ];
 }
 
 /* ---------- realtime ---------- */
@@ -364,6 +404,7 @@ function subscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_scores'},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_notes'},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_coaches'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_timeline'},refresh)
     .subscribe();
 }
 let rt;function refresh(){clearTimeout(rt);rt=setTimeout(async()=>{await loadAll();render();},250);}
@@ -456,7 +497,7 @@ function topBar(){
   </div></div>`;
 }
 function tabBar(){
-  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['breakdown','Breakdown'],['roster','Roster']];
+  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['breakdown','Breakdown'],['timeline','Timeline'],['roster','Roster']];
   return `<div class="tabs"><div class="tabs-in">
     ${tabs.map(([k,l])=>`<button class="tab ${state.view===k?'on':''}" data-view="${k}">${l}${k==='roster'?`<span class="ct">${state.players.length}</span>`:''}</button>`).join('')}
   </div></div>`;
@@ -658,7 +699,48 @@ function vBreakdown(){
   `;
 }
 
-const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown};
+/* ---------- TIMELINE ---------- */
+function ytId(url){const m=String(url||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
+function videoEmbed(url){
+  if(!url||!url.trim()) return `<div class="tl-vid empty" data-addvid>▶ Add drill video</div>`;
+  const id=ytId(url);
+  if(id) return `<div class="tl-vid"><iframe src="https://www.youtube.com/embed/${id}" title="drill video" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+  if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)) return `<div class="tl-vid"><video src="${esc(url)}" controls preload="metadata" playsinline></video></div>`;
+  return `<div class="tl-vid"><a class="tl-vid-link" href="${esc(url)}" target="_blank" rel="noopener">▶ Open video</a></div>`;
+}
+function vTimeline(){
+  const items=state.timeline.slice().sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));
+  const canEdit=state.me&&!state.me.viewOnly;
+  return `
+  <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div>
+    ${canEdit?`<button class="btn btn-flame btn-sm" data-act="add-drill">＋ Add Line</button>`:''}
+  </div>
+  <p style="color:var(--text-mute);margin:-6px 2px 18px">The run-of-show for tryout day — every drill with a video of exactly how it's run.</p>
+  ${items.length? `<div class="tl">${items.map((it,i)=>tlItem(it,i,items.length,canEdit)).join('')}</div>`
+    : `<div class="empty-state"><div class="ico">🎬</div><div>No drills on the timeline yet.${canEdit?' Tap <b>＋ Add Line</b> to build your tryout run-of-show.':''}</div></div>`}
+  `;
+}
+function tlItem(it,i,total,canEdit){
+  const hasVid=it.video_url&&it.video_url.trim();
+  return `<div class="tl-item">
+    <div class="tl-rail"><div class="tl-dot">${i+1}</div>${i<total-1?'<div class="tl-line"></div>':''}</div>
+    <div class="tl-card">
+      <div class="tl-media" ${(canEdit&&!hasVid)?`data-edit-drill="${it.id}"`:''}>${videoEmbed(it.video_url)}</div>
+      <div class="tl-body">
+        ${it.time?`<div class="tl-time">${esc(it.time)}</div>`:''}
+        <div class="tl-title">${esc(it.title||'Untitled drill')}</div>
+        ${it.notes?`<div class="tl-notes">${esc(it.notes)}</div>`:''}
+        ${canEdit?`<div class="tl-actions">
+          <button class="btn btn-ghost btn-sm" data-edit-drill="${it.id}">Edit</button>
+          <button class="tl-move" data-move="up" data-id="${it.id}" ${i===0?'disabled':''} aria-label="Move up">▲</button>
+          <button class="tl-move" data-move="down" data-id="${it.id}" ${i===total-1?'disabled':''} aria-label="Move down">▼</button>
+        </div>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown,timeline:vTimeline};
 
 /* ---------- GATE / IDENTITY ---------- */
 function renderGate(){
@@ -726,6 +808,10 @@ function wire(){
   const sb2=document.querySelector('[data-act="score-back"]');if(sb2)sb2.onclick=()=>{state.scorePlayer=null;render();};
   const ap=document.querySelector('[data-act="add-player"]');if(ap)ap.onclick=()=>playerModal();
   const aw=document.querySelector('[data-act="add-walkup"]');if(aw)aw.onclick=()=>playerModal(true);
+  // timeline
+  const ad=document.querySelector('[data-act="add-drill"]');if(ad)ad.onclick=()=>drillModal();
+  document.querySelectorAll('[data-edit-drill]').forEach(el=>el.onclick=()=>drillModal(state.timeline.find(x=>x.id===el.dataset.editDrill)));
+  document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>moveDrill(b.dataset.id,b.dataset.move));
   // scoring dots
   document.querySelectorAll('.dots').forEach(d=>d.querySelectorAll('.dot10').forEach(btn=>btn.onclick=()=>{
     saveScore(d.dataset.player,d.dataset.cat,+btn.dataset.val);}));
@@ -834,6 +920,58 @@ function playerModal(isWalkup=false,existing=null){
     state.notes=state.notes.filter(n=>n.player_id!==existing.id);
     if(!DEMO)await sb.from('tryout_players').delete().eq('id',existing.id);
     close();render();};
+}
+
+/* ---------- drill (timeline) modal ---------- */
+function drillModal(existing=null){
+  const d=existing||{};
+  const mr=document.getElementById('modal-root');
+  mr.innerHTML=`<div class="ov" id="ov"><div class="sheet"><div class="sheet-h">
+    <h3>${existing?'Edit Drill':'Add Drill'}</h3>
+    <button class="sheet-x" id="mx">✕</button></div>
+    <div class="sheet-b">
+      <div class="grid2">
+        <div class="field"><label>Time / Slot</label><input class="inp" id="d-time" value="${esc(d.time||'')}" placeholder="9:00 AM  ·  Station 1"></div>
+        <div class="field"><label>Drill name</label><input class="inp" id="d-title" value="${esc(d.title||'')}" placeholder="Ball-Handling Stations"></div>
+      </div>
+      <div class="field"><label>Description</label><textarea class="inp" id="d-notes" rows="3" placeholder="What the drill is, how it's run, what coaches watch for…">${esc(d.notes||'')}</textarea></div>
+      <div class="field"><label>Video link</label><input class="inp" id="d-video" value="${esc(d.video_url||'')}" placeholder="Paste a YouTube link or an .mp4 URL">
+        <div style="font-size:.72rem;color:var(--text-dim);margin-top:6px">YouTube (watch, youtu.be, or Shorts) embeds automatically. Direct video files (.mp4/.webm/.mov) play inline.</div></div>
+      ${existing?`<button class="btn btn-ghost btn-sm" id="d-del" style="color:#ff7a7a;border-color:rgba(255,122,122,.3)">Delete drill</button>`:''}
+      <button class="btn btn-flame btn-block" id="d-save" style="margin-top:14px">${existing?'Save Changes':'Add to Timeline'}</button>
+    </div></div></div>`;
+  const close=()=>mr.innerHTML='';
+  document.getElementById('ov').onclick=e=>{if(e.target.id==='ov')close();};
+  document.getElementById('mx').onclick=close;
+  document.getElementById('d-save').onclick=async()=>{
+    const rec={
+      time:document.getElementById('d-time').value.trim()||null,
+      title:document.getElementById('d-title').value.trim()||'Untitled drill',
+      notes:document.getElementById('d-notes').value.trim()||null,
+      video_url:document.getElementById('d-video').value.trim()||null,
+    };
+    if(existing){Object.assign(existing,rec);if(!DEMO)await sb.from('tryout_timeline').update(rec).eq('id',existing.id);}
+    else{
+      const maxo=state.timeline.reduce((m,x)=>Math.max(m,x.order_idx??0),0);
+      const nd={id:uuid(),order_idx:maxo+10,...rec};state.timeline.push(nd);
+      if(!DEMO){const{data}=await sb.from('tryout_timeline').insert({order_idx:nd.order_idx,...rec}).select().single();if(data)nd.id=data.id;}
+    }
+    close();render();flag();
+  };
+  const del=document.getElementById('d-del');if(del)del.onclick=async()=>{
+    state.timeline=state.timeline.filter(x=>x.id!==existing.id);
+    if(!DEMO)await sb.from('tryout_timeline').delete().eq('id',existing.id);
+    close();render();};
+}
+async function moveDrill(id,dir){
+  const items=state.timeline.slice().sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));
+  const i=items.findIndex(x=>x.id===id);const j=dir==='up'?i-1:i+1;
+  if(j<0||j>=items.length)return;
+  const a=items[i],b=items[j];const ao=a.order_idx??i*10,bo=b.order_idx??j*10;
+  a.order_idx=bo;b.order_idx=ao;
+  render();
+  if(!DEMO){await sb.from('tryout_timeline').update({order_idx:a.order_idx}).eq('id',a.id);
+            await sb.from('tryout_timeline').update({order_idx:b.order_idx}).eq('id',b.id);}
 }
 
 /* ---------- player detail ---------- */
