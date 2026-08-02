@@ -299,6 +299,41 @@
     .tl-card{grid-template-columns:1fr}
     .tl-vid.empty{border-right:none;border-bottom:1px solid var(--line)}
   }
+
+  /* ===== drills library & playlists ===== */
+  .subnav{display:inline-flex;gap:4px;background:var(--bg-card);border:1px solid var(--line);border-radius:12px;padding:3px;margin-bottom:18px}
+  .subnav-btn{padding:9px 16px;border-radius:9px;font-size:.82rem;font-weight:800;color:var(--text-mute);transition:.14s}
+  .subnav-btn:hover{color:var(--text-soft)}
+  .subnav-btn.on{background:linear-gradient(135deg,var(--flame),var(--flame-deep));color:#fff;box-shadow:0 7px 15px -8px var(--flame)}
+  .subnav-btn .ct{margin-left:5px;opacity:.8;font-size:.72rem}
+  .lib-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:13px}
+  .lib-search{flex:1}
+  .tagfilter{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+  .tagchip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--bg-card);color:var(--text-mute);font-size:.74rem;font-weight:700;transition:.12s}
+  .tagchip:hover{border-color:var(--flame);color:#fff}
+  .tagchip.on{background:var(--flame-soft);border-color:var(--flame);color:var(--flame-bright)}
+  .drill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .drill-card{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg-card);display:flex;flex-direction:column}
+  .drill-vid{position:relative;width:100%;background:#000}
+  .drill-info{padding:13px 14px;display:flex;flex-direction:column;gap:7px;flex:1}
+  .drill-name{font-weight:800;font-size:1.02rem;line-height:1.2}
+  .drill-desc{color:var(--text-mute);font-size:.85rem;line-height:1.45}
+  .drill-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .tag{font-size:.66rem;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(227,174,51,.10);border:1px solid rgba(227,174,51,.28);color:var(--gold-bright);cursor:pointer;transition:.12s}
+  .tag:hover{background:rgba(227,174,51,.2)}
+  .drill-actions{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:6px}
+  .added{font-size:.78rem;font-weight:800;color:#7ff0b4}
+  .session-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:13px}
+  .session-card{border:1px solid var(--line);border-radius:14px;background:var(--bg-card);padding:16px;cursor:pointer;transition:.14s;display:flex;flex-direction:column;gap:7px}
+  .session-card:hover{border-color:rgba(166,107,242,.5);transform:translateY(-2px)}
+  .session-name{font-family:var(--disp);font-size:1.3rem;letter-spacing:.02em}
+  .session-meta{display:flex;align-items:center;gap:9px;margin-top:auto;padding-top:8px;font-size:.76rem;font-weight:700;color:var(--text-mute)}
+  .session-meta .gold{color:var(--gold-bright)}
+  .session-open{margin-left:auto;color:var(--flame-bright);font-weight:800}
+  .minlbl{display:inline-flex;align-items:center;gap:6px;font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute)}
+  .minin{width:64px;padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#fff;font-weight:800;font-size:.9rem;text-align:center}
+  .minin:focus{outline:none;border-color:var(--flame)}
+  .tl-move.rm:hover:not(:disabled){border-color:#ff7a7a;color:#ff7a7a}
   @media(max-width:640px){
     .hero-stats{margin-left:0;width:100%}
     .grid3{grid-template-columns:1fr 1fr}
@@ -341,20 +376,25 @@ function paw(sz,color){return `<svg viewBox="0 0 24 24" width="${sz}" height="${
   <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
 
 let DEMO=false;
-const state={coaches:[],players:[],scores:[],notes:[],timeline:[],me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null};
+const state={coaches:[],players:[],scores:[],notes:[],drills:[],playlists:[],playlistItems:[],settings:{},me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null,drillsSub:'library',drillSearch:'',drillTag:'',openPlaylist:null,plSearch:''};
 
 /* ---------- data load ---------- */
 async function loadAll(){
   try{
-    const [c,p,s,n,t]=await Promise.all([
+    const [c,p,s,n,dr,pl,pi,st]=await Promise.all([
       sb.from('tryout_coaches').select('*'),
       sb.from('tryout_players').select('*'),
       sb.from('tryout_scores').select('*'),
       sb.from('tryout_notes').select('*'),
-      sb.from('tryout_timeline').select('*'),
+      sb.from('tryout_drills').select('*'),
+      sb.from('tryout_playlists').select('*'),
+      sb.from('tryout_playlist_items').select('*'),
+      sb.from('tryout_settings').select('*'),
     ]);
-    if(c.error||p.error||s.error||n.error||t.error) throw (c.error||p.error||s.error||n.error||t.error);
-    state.coaches=c.data;state.players=p.data;state.scores=s.data;state.notes=n.data;state.timeline=t.data;
+    if(c.error||p.error||s.error||n.error||dr.error||pl.error||pi.error||st.error) throw (c.error||p.error||s.error||n.error||dr.error||pl.error||pi.error||st.error);
+    state.coaches=c.data;state.players=p.data;state.scores=s.data;state.notes=n.data;
+    state.drills=dr.data;state.playlists=pl.data;state.playlistItems=pi.data;
+    const set={};(st.data||[]).forEach(r=>set[r.key]=r.value);state.settings=set;
     if(!state.coaches.length){seedDemo();DEMO=true;}
   }catch(e){
     console.warn('Tables not live yet — running in DEMO preview.',e?.message||e);
@@ -395,12 +435,32 @@ function seedDemo(){
   state.notes.push({id:uuid(),player_id:state.players[0].id,coach_id:state.coaches[0].id,text:'High motor, vocal leader. Needs to finish with left.'});
   state.notes.push({id:uuid(),player_id:state.players[2].id,coach_id:state.coaches[1].id,text:'Best shooter in the gym today. Lock for the team.'});
   const SAMPLE='https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-  state.timeline=[
-    {id:uuid(),order_idx:10,minutes:15,title:'Check-in & Dynamic Warm-up',notes:'Sign in, grab your pinnie number, lead dynamic stretch + form running.',video_url:SAMPLE},
-    {id:uuid(),order_idx:20,minutes:20,title:'Ball-Handling Stations',notes:'4 stations, 3 min each: stationary combo, cone dribble, 2-ball, full-court speed.',video_url:SAMPLE},
-    {id:uuid(),order_idx:30,minutes:15,title:'Defensive Slides & Closeouts',notes:'Zig-zag slides, closeout technique, 1v1 contain drill.',video_url:''},
-    {id:uuid(),order_idx:40,minutes:30,title:'3v3 & 5v5 Live Play',notes:'Coaches score players live during game action.',video_url:SAMPLE},
+  const dr=(name,description,tags,video)=>({id:uuid(),name,description,tags,video_url:video});
+  state.drills=[
+    dr('Form Shooting','Close-range one-hand form shooting — follow-through and arc.',['shooting','warmup'],SAMPLE),
+    dr('Mikan Drill','Alternating layups under the rim for touch and footwork.',['finishing','bigs','warmup'],SAMPLE),
+    dr('2-Ball Dribbling','Dribble two balls (together + alternating) to build handle.',['ballhandling','warmup'],''),
+    dr('Cone Speed Dribble','Full-court speed dribble weaving cones, both hands.',['ballhandling','conditioning'],SAMPLE),
+    dr('Zig-Zag Defense','Defensive slides in a zig-zag, stay in stance, no crossing feet.',['defense','conditioning'],''),
+    dr('Closeout 1v1','Closeout from the help, contain the drive, contest the shot.',['defense'],SAMPLE),
+    dr('3-Man Weave','Continuous 3-man weave into a finish — passing on the move.',['passing','transition'],''),
+    dr('3v3 Live','Live 3v3 to read spacing, decisions, and compete.',['live','competition'],SAMPLE),
   ];
+  const findDrill=n=>state.drills.find(d=>d.name===n).id;
+  const pA={id:uuid(),name:'Tryout Day A',description:'Full evaluation session — warmup through live play.'};
+  const pB={id:uuid(),name:'Skills & Shooting',description:'Skill-development focused session.'};
+  state.playlists=[pA,pB];
+  const item=(pid,name,order,min)=>({id:uuid(),playlist_id:pid,drill_id:findDrill(name),order_idx:order,minutes:min});
+  state.playlistItems=[
+    item(pA.id,'Form Shooting',10,10),
+    item(pA.id,'2-Ball Dribbling',20,15),
+    item(pA.id,'Zig-Zag Defense',30,15),
+    item(pA.id,'3v3 Live',40,30),
+    item(pB.id,'Form Shooting',10,15),
+    item(pB.id,'Cone Speed Dribble',20,15),
+    item(pB.id,'3-Man Weave',30,15),
+  ];
+  state.settings={active_playlist:pA.id};
 }
 
 /* ---------- realtime ---------- */
@@ -410,7 +470,10 @@ function subscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_scores'},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_notes'},refresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'tryout_coaches'},refresh)
-    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_timeline'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_drills'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_playlists'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_playlist_items'},refresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'tryout_settings'},refresh)
     .subscribe();
 }
 let rt;function refresh(){clearTimeout(rt);rt=setTimeout(async()=>{await loadAll();render();},250);}
@@ -503,7 +566,7 @@ function topBar(){
   </div></div>`;
 }
 function tabBar(){
-  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['breakdown','Breakdown'],['timeline','Timeline'],['roster','Roster']];
+  const tabs=[['leaderboard','Leaderboard'],['score','Score'],['breakdown','Breakdown'],['drills','Drills'],['timeline','Timeline'],['roster','Roster']];
   return `<div class="tabs"><div class="tabs-in">
     ${tabs.map(([k,l])=>`<button class="tab ${state.view===k?'on':''}" data-view="${k}">${l}${k==='roster'?`<span class="ct">${state.players.length}</span>`:''}</button>`).join('')}
   </div></div>`;
@@ -715,19 +778,31 @@ function videoEmbed(url){
   return `<div class="tl-vid"><a class="tl-vid-link" href="${esc(url)}" target="_blank" rel="noopener">▶ Open video</a></div>`;
 }
 function vTimeline(){
-  const items=state.timeline.slice().sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));
   const canEdit=state.me&&!state.me.viewOnly;
+  const activeId=state.settings.active_playlist||'';
+  const p=state.playlists.find(x=>x.id===activeId);
+  const items=p?playlistItemsFor(p.id):[];
   const totalMin=items.reduce((s,it)=>s+(Number(it.minutes)||0),0);
   return `
-  <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div>
-    ${canEdit?`<button class="btn btn-flame btn-sm" data-act="add-drill">＋ Add Line</button>`:''}
+  <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div></div>
+  <p style="color:var(--text-mute);margin:-6px 2px 16px">Pick the training session to run — build sessions on the <b style="color:var(--gold-bright)">Drills → Playlists</b> tab.</p>
+  <div class="bd-pick" style="max-width:460px"><label>Training session</label>
+    <select class="inp" id="sessionsel" ${canEdit?'':'disabled'}>
+      <option value="">— Select a session —</option>
+      ${state.playlists.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(pl=>`<option value="${pl.id}" ${pl.id===activeId?'selected':''}>${esc(pl.name)} · ${playlistItemsFor(pl.id).length} drills</option>`).join('')}
+    </select>
   </div>
-  <p style="color:var(--text-mute);margin:-6px 2px 16px">The run-of-show for tryout day — every drill with a video of exactly how it's run.</p>
-  ${items.length?`<div class="tl-total"><span class="tl-total-n">${items.length}</span><span class="tl-total-l">drills</span>
-    <div class="tl-total-sep"></div><span class="tl-total-n gold">${totalMin}</span><span class="tl-total-l">total minutes</span></div>`:''}
-  ${items.length? `<div class="tl">${items.map((it,i)=>tlItem(it,i,items.length,canEdit)).join('')}</div>`
-    : `<div class="empty-state"><div class="ico">🎬</div><div>No drills on the timeline yet.${canEdit?' Tap <b>＋ Add Line</b> to build your tryout run-of-show.':''}</div></div>`}
+  ${!p?`<div class="empty-state"><div class="ico">🎬</div><div>${state.playlists.length?'Choose a session above to load the run-of-show.':'No sessions yet — create one on the Drills → Playlists tab.'}</div></div>`
+  :(items.length?`<div style="height:16px"></div>
+    <div class="tl-total"><span class="tl-total-n">${items.length}</span><span class="tl-total-l">drills</span>
+      <div class="tl-total-sep"></div><span class="tl-total-n gold">${totalMin}</span><span class="tl-total-l">total minutes</span></div>
+    <div class="tl">${items.map((it,i)=>tlItemFromPlaylist(it,i,items.length)).join('')}</div>`
+    :`<div class="empty-state"><div class="ico">➕</div><div>"${esc(p.name)}" has no drills yet. Add some on the Drills → Playlists tab.</div></div>`)}
   `;
+}
+function tlItemFromPlaylist(it,i,total){
+  const d=state.drills.find(x=>x.id===it.drill_id)||{};
+  return tlItem({minutes:it.minutes,title:d.name||'(drill removed)',notes:d.description,video_url:d.video_url},i,total,false);
 }
 function tlItem(it,i,total,canEdit){
   const hasVid=it.video_url&&it.video_url.trim();
@@ -749,7 +824,120 @@ function tlItem(it,i,total,canEdit){
   </div>`;
 }
 
-const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown,timeline:vTimeline};
+/* ---------- DRILLS: master library + playlists ---------- */
+function allTags(){const s=new Set();state.drills.forEach(d=>(d.tags||[]).forEach(t=>t&&s.add(t)));return [...s].sort((a,b)=>a.localeCompare(b));}
+function playlistItemsFor(pid){return state.playlistItems.filter(i=>i.playlist_id===pid).sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));}
+function playlistMinutes(pid){return playlistItemsFor(pid).reduce((s,i)=>s+(Number(i.minutes)||0),0);}
+
+function vDrills(){
+  const sub=state.drillsSub||'library';
+  return `
+  <div class="subnav">
+    <button class="subnav-btn ${sub==='library'?'on':''}" data-sub="library">Drill Library <span class="ct">${state.drills.length}</span></button>
+    <button class="subnav-btn ${sub==='playlists'?'on':''}" data-sub="playlists">Playlists <span class="ct">${state.playlists.length}</span></button>
+  </div>
+  ${sub==='library'?drillLibrary():playlistsView()}`;
+}
+function drillLibrary(){
+  const canEdit=state.me&&!state.me.viewOnly;
+  const q=(state.drillSearch||'').toLowerCase().trim();
+  const tag=state.drillTag||'';
+  let list=state.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(tag) list=list.filter(d=>(d.tags||[]).includes(tag));
+  if(q) list=list.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.description||'').toLowerCase().includes(q)||(d.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  const tags=allTags();
+  return `
+  <div class="lib-toolbar">
+    <input class="inp lib-search" id="drillsearch" placeholder="🔎  Search drills, descriptions, tags…" value="${esc(state.drillSearch||'')}">
+    ${canEdit?`<button class="btn btn-flame btn-sm" data-act="add-drill">＋ Add Drill</button>`:''}
+  </div>
+  ${tags.length?`<div class="tagfilter">
+    <button class="tagchip ${!tag?'on':''}" data-filter-tag="">All</button>
+    ${tags.map(t=>`<button class="tagchip ${tag===t?'on':''}" data-filter-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+  </div>`:''}
+  ${list.length?`<div class="drill-grid">${list.map(d=>drillCard(d,canEdit)).join('')}</div>`
+    :`<div class="empty-state"><div class="ico">🏀</div><div>No drills${q||tag?' match that filter':' in your library yet'}.${canEdit&&!q&&!tag?' Tap <b>＋ Add Drill</b> to start building it.':''}</div></div>`}
+  `;
+}
+function drillCard(d,canEdit){
+  return `<div class="drill-card">
+    <div class="drill-vid">${videoEmbed(d.video_url)}</div>
+    <div class="drill-info">
+      <div class="drill-name">${esc(d.name||'Untitled drill')}</div>
+      ${d.description?`<div class="drill-desc">${esc(d.description)}</div>`:''}
+      ${(d.tags&&d.tags.length)?`<div class="drill-tags">${d.tags.map(t=>`<span class="tag" data-filter-tag="${esc(t)}">${esc(t)}</span>`).join('')}</div>`:''}
+      ${canEdit?`<div class="drill-actions"><button class="btn btn-ghost btn-sm" data-edit-drill="${d.id}">Edit</button></div>`:''}
+    </div>
+  </div>`;
+}
+function playlistsView(){
+  const canEdit=state.me&&!state.me.viewOnly;
+  if(state.openPlaylist) return playlistEditor(state.openPlaylist,canEdit);
+  return `
+  <div class="sec-head" style="margin-top:2px"><h2 style="font-size:1.25rem">PLAYLISTS</h2><div class="rule"></div>
+    ${canEdit?`<button class="btn btn-flame btn-sm" data-act="add-playlist">＋ New Playlist</button>`:''}</div>
+  <p style="color:var(--text-mute);margin:-6px 2px 16px">Reusable training sessions built from your drill library. Pick one to run on the Timeline tab.</p>
+  ${state.playlists.length?`<div class="session-grid">${state.playlists.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(playlistCard).join('')}</div>`
+    :`<div class="empty-state"><div class="ico">🗂️</div><div>No playlists yet.${canEdit?' Tap <b>＋ New Playlist</b> to create a training session.':''}</div></div>`}
+  `;
+}
+function playlistCard(p){
+  const n=playlistItemsFor(p.id).length;
+  return `<div class="session-card" data-open-playlist="${p.id}">
+    <div class="session-name">${esc(p.name||'Untitled session')}</div>
+    ${p.description?`<div class="drill-desc">${esc(p.description)}</div>`:''}
+    <div class="session-meta"><span>${n} drill${n===1?'':'s'}</span>·<span class="gold">${playlistMinutes(p.id)} min</span><span class="session-open">Open →</span></div>
+  </div>`;
+}
+function playlistEditor(pid,canEdit){
+  const p=state.playlists.find(x=>x.id===pid);
+  if(!p){state.openPlaylist=null;return playlistsView();}
+  const items=playlistItemsFor(pid);
+  const inPl=new Set(items.map(i=>i.drill_id));
+  const q=(state.plSearch||'').toLowerCase().trim();
+  let libs=state.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(q) libs=libs.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  return `
+  <button class="btn btn-ghost btn-sm" data-act="pl-back">← All playlists</button>
+  <div class="sec-head" style="margin-top:13px"><h2 style="font-size:1.3rem">${esc(p.name)}</h2><div class="rule"></div>
+    <span class="miniprog"><b>${playlistMinutes(pid)}</b> min · ${items.length} drills</span>
+    ${canEdit?`<button class="btn btn-ghost btn-sm" data-act="edit-playlist" data-id="${p.id}">Edit</button>`:''}</div>
+  ${p.description?`<p style="color:var(--text-mute);margin:-4px 2px 14px">${esc(p.description)}</p>`:''}
+  ${items.length?`<div class="tl">${items.map((it,i)=>plEditItem(it,i,items.length,canEdit)).join('')}</div>`
+    :`<p style="color:var(--text-dim);font-style:italic;margin:6px 2px 18px">No drills yet — add from your library below.</p>`}
+  ${canEdit?`
+  <div class="sec-head" style="margin:24px 2px 12px"><h2 style="font-size:1.05rem">ADD FROM LIBRARY</h2><div class="rule"></div></div>
+  <input class="inp" id="plsearch" placeholder="🔎  Search your library…" value="${esc(state.plSearch||'')}" style="margin-bottom:13px">
+  ${libs.length?`<div class="drill-grid">${libs.map(d=>`<div class="drill-card">
+      <div class="drill-vid">${videoEmbed(d.video_url)}</div>
+      <div class="drill-info"><div class="drill-name">${esc(d.name)}</div>
+        ${(d.tags&&d.tags.length)?`<div class="drill-tags">${d.tags.slice(0,5).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+        <div class="drill-actions">${inPl.has(d.id)?`<span class="added">✓ Added</span>`:`<button class="btn btn-flame btn-sm" data-add-to-pl="${d.id}">＋ Add</button>`}</div>
+      </div></div>`).join('')}</div>`
+    :`<p style="color:var(--text-dim)">No drills in your library${q?' match that':''} — add drills on the Drill Library tab first.</p>`}`:''}
+  `;
+}
+function plEditItem(it,i,total,canEdit){
+  const d=state.drills.find(x=>x.id===it.drill_id)||{};
+  return `<div class="tl-item">
+    <div class="tl-rail"><div class="tl-dot">${i+1}</div>${i<total-1?'<div class="tl-line"></div>':''}</div>
+    <div class="tl-card">
+      <div class="tl-media">${videoEmbed(d.video_url)}</div>
+      <div class="tl-body">
+        <div class="tl-title">${esc(d.name||'(drill removed)')}</div>
+        ${d.description?`<div class="tl-notes">${esc(d.description)}</div>`:''}
+        ${canEdit?`<div class="tl-actions">
+          <label class="minlbl">Min <input class="minin" type="number" inputmode="numeric" min="0" value="${it.minutes??''}" data-item-min="${it.id}"></label>
+          <button class="tl-move" data-pl-move="up" data-id="${it.id}" ${i===0?'disabled':''}>▲</button>
+          <button class="tl-move" data-pl-move="down" data-id="${it.id}" ${i===total-1?'disabled':''}>▼</button>
+          <button class="tl-move rm" data-pl-remove="${it.id}" aria-label="Remove">✕</button>
+        </div>`:`${it.minutes!=null?`<div class="tl-time">${esc(String(it.minutes))} min</div>`:''}`}
+      </div>
+    </div>
+  </div>`;
+}
+
+const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown,drills:vDrills,timeline:vTimeline};
 
 /* ---------- GATE / IDENTITY ---------- */
 function renderGate(){
@@ -817,10 +1005,22 @@ function wire(){
   const sb2=document.querySelector('[data-act="score-back"]');if(sb2)sb2.onclick=()=>{state.scorePlayer=null;render();};
   const ap=document.querySelector('[data-act="add-player"]');if(ap)ap.onclick=()=>playerModal();
   const aw=document.querySelector('[data-act="add-walkup"]');if(aw)aw.onclick=()=>playerModal(true);
-  // timeline
+  // drills library + playlists
+  document.querySelectorAll('[data-sub]').forEach(b=>b.onclick=()=>{state.drillsSub=b.dataset.sub;state.openPlaylist=null;render();});
+  const ds=document.getElementById('drillsearch');if(ds)ds.oninput=()=>{state.drillSearch=ds.value;render();reFocus('drillsearch');};
   const ad=document.querySelector('[data-act="add-drill"]');if(ad)ad.onclick=()=>drillModal();
-  document.querySelectorAll('[data-edit-drill]').forEach(el=>el.onclick=()=>drillModal(state.timeline.find(x=>x.id===el.dataset.editDrill)));
-  document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>moveDrill(b.dataset.id,b.dataset.move));
+  document.querySelectorAll('[data-edit-drill]').forEach(el=>el.onclick=()=>drillModal(state.drills.find(x=>x.id===el.dataset.editDrill)));
+  document.querySelectorAll('[data-filter-tag]').forEach(el=>el.onclick=e=>{e.stopPropagation();state.drillsSub='library';state.drillTag=el.dataset.filterTag||'';state.drillSearch='';render();});
+  const app2=document.querySelector('[data-act="add-playlist"]');if(app2)app2.onclick=()=>playlistModal();
+  document.querySelectorAll('[data-open-playlist]').forEach(el=>el.onclick=()=>{state.openPlaylist=el.dataset.openPlaylist;state.plSearch='';render();});
+  const pb=document.querySelector('[data-act="pl-back"]');if(pb)pb.onclick=()=>{state.openPlaylist=null;render();};
+  const ep=document.querySelector('[data-act="edit-playlist"]');if(ep)ep.onclick=()=>playlistModal(state.playlists.find(x=>x.id===ep.dataset.id));
+  const ps=document.getElementById('plsearch');if(ps)ps.oninput=()=>{state.plSearch=ps.value;render();reFocus('plsearch');};
+  document.querySelectorAll('[data-add-to-pl]').forEach(b=>b.onclick=()=>addToPlaylist(state.openPlaylist,b.dataset.addToPl));
+  document.querySelectorAll('[data-pl-move]').forEach(b=>b.onclick=()=>movePlItem(b.dataset.id,b.dataset.plMove));
+  document.querySelectorAll('[data-pl-remove]').forEach(b=>b.onclick=()=>removePlItem(b.dataset.plRemove));
+  document.querySelectorAll('[data-item-min]').forEach(inp=>inp.onchange=()=>setItemMinutes(inp.dataset.itemMin,inp.value));
+  const ss=document.getElementById('sessionsel');if(ss)ss.onchange=()=>setActiveSession(ss.value);
   // scoring dots
   document.querySelectorAll('.dots').forEach(d=>d.querySelectorAll('.dot10').forEach(btn=>btn.onclick=()=>{
     saveScore(d.dataset.player,d.dataset.cat,+btn.dataset.val);}));
@@ -931,57 +1131,105 @@ function playerModal(isWalkup=false,existing=null){
     close();render();};
 }
 
-/* ---------- drill (timeline) modal ---------- */
+/* ---------- drill library CRUD ---------- */
+function parseTags(s){return [...new Set(String(s||'').split(',').map(t=>t.trim()).filter(Boolean))];}
 function drillModal(existing=null){
   const d=existing||{};
   const mr=document.getElementById('modal-root');
   mr.innerHTML=`<div class="ov" id="ov"><div class="sheet"><div class="sheet-h">
-    <h3>${existing?'Edit Drill':'Add Drill'}</h3>
-    <button class="sheet-x" id="mx">✕</button></div>
+    <h3>${existing?'Edit Drill':'Add Drill'}</h3><button class="sheet-x" id="mx">✕</button></div>
     <div class="sheet-b">
-      <div class="grid2">
-        <div class="field"><label>Minutes</label><input class="inp" id="d-min" inputmode="numeric" value="${d.minutes??''}" placeholder="15"></div>
-        <div class="field"><label>Drill name</label><input class="inp" id="d-title" value="${esc(d.title||'')}" placeholder="Ball-Handling Stations"></div>
-      </div>
-      <div class="field"><label>Description</label><textarea class="inp" id="d-notes" rows="3" placeholder="What the drill is, how it's run, what coaches watch for…">${esc(d.notes||'')}</textarea></div>
-      <div class="field"><label>Video link</label><input class="inp" id="d-video" value="${esc(d.video_url||'')}" placeholder="Paste a YouTube link or an .mp4 URL">
-        <div style="font-size:.72rem;color:var(--text-dim);margin-top:6px">YouTube (watch, youtu.be, or Shorts) embeds automatically. Direct video files (.mp4/.webm/.mov) play inline.</div></div>
+      <div class="field"><label>Drill name</label><input class="inp" id="d-name" value="${esc(d.name||'')}" placeholder="2-Ball Dribbling"></div>
+      <div class="field"><label>Description</label><textarea class="inp" id="d-desc" rows="3" placeholder="What the drill is, how it's run, what to coach…">${esc(d.description||'')}</textarea></div>
+      <div class="field"><label>Video link</label><input class="inp" id="d-video" value="${esc(d.video_url||'')}" placeholder="YouTube link or .mp4 URL">
+        <div style="font-size:.72rem;color:var(--text-dim);margin-top:6px">YouTube (watch/youtu.be/Shorts) embeds automatically; direct .mp4/.webm/.mov play inline.</div></div>
+      <div class="field"><label>Tags (comma-separated)</label><input class="inp" id="d-tags" value="${esc((d.tags||[]).join(', '))}" placeholder="shooting, warmup, bigs"></div>
       ${existing?`<button class="btn btn-ghost btn-sm" id="d-del" style="color:#ff7a7a;border-color:rgba(255,122,122,.3)">Delete drill</button>`:''}
-      <button class="btn btn-flame btn-block" id="d-save" style="margin-top:14px">${existing?'Save Changes':'Add to Timeline'}</button>
+      <button class="btn btn-flame btn-block" id="d-save" style="margin-top:14px">${existing?'Save Changes':'Add to Library'}</button>
     </div></div></div>`;
   const close=()=>mr.innerHTML='';
   document.getElementById('ov').onclick=e=>{if(e.target.id==='ov')close();};
   document.getElementById('mx').onclick=close;
   document.getElementById('d-save').onclick=async()=>{
-    const mv=document.getElementById('d-min').value.trim();
-    const rec={
-      minutes:mv===''?null:(parseInt(mv,10)||null),
-      title:document.getElementById('d-title').value.trim()||'Untitled drill',
-      notes:document.getElementById('d-notes').value.trim()||null,
+    const name=document.getElementById('d-name').value.trim();if(!name)return;
+    const rec={name,description:document.getElementById('d-desc').value.trim()||null,
       video_url:document.getElementById('d-video').value.trim()||null,
-    };
-    if(existing){Object.assign(existing,rec);if(!DEMO)await sb.from('tryout_timeline').update(rec).eq('id',existing.id);}
-    else{
-      const maxo=state.timeline.reduce((m,x)=>Math.max(m,x.order_idx??0),0);
-      const nd={id:uuid(),order_idx:maxo+10,...rec};state.timeline.push(nd);
-      if(!DEMO){const{data}=await sb.from('tryout_timeline').insert({order_idx:nd.order_idx,...rec}).select().single();if(data)nd.id=data.id;}
-    }
+      tags:parseTags(document.getElementById('d-tags').value)};
+    if(existing){Object.assign(existing,rec);if(!DEMO)await sb.from('tryout_drills').update(rec).eq('id',existing.id);}
+    else{const nd={id:uuid(),...rec};state.drills.push(nd);
+      if(!DEMO){const{data}=await sb.from('tryout_drills').insert(rec).select().single();if(data)nd.id=data.id;}}
     close();render();flag();
   };
   const del=document.getElementById('d-del');if(del)del.onclick=async()=>{
-    state.timeline=state.timeline.filter(x=>x.id!==existing.id);
-    if(!DEMO)await sb.from('tryout_timeline').delete().eq('id',existing.id);
+    state.drills=state.drills.filter(x=>x.id!==existing.id);
+    state.playlistItems=state.playlistItems.filter(i=>i.drill_id!==existing.id);
+    if(!DEMO){await sb.from('tryout_playlist_items').delete().eq('drill_id',existing.id);await sb.from('tryout_drills').delete().eq('id',existing.id);}
     close();render();};
 }
-async function moveDrill(id,dir){
-  const items=state.timeline.slice().sort((a,b)=>(a.order_idx??0)-(b.order_idx??0));
-  const i=items.findIndex(x=>x.id===id);const j=dir==='up'?i-1:i+1;
+
+/* ---------- playlist CRUD ---------- */
+function playlistModal(existing=null){
+  const p=existing||{};
+  const mr=document.getElementById('modal-root');
+  mr.innerHTML=`<div class="ov" id="ov"><div class="sheet"><div class="sheet-h">
+    <h3>${existing?'Edit Playlist':'New Playlist'}</h3><button class="sheet-x" id="mx">✕</button></div>
+    <div class="sheet-b">
+      <div class="field"><label>Session name</label><input class="inp" id="p-name" value="${esc(p.name||'')}" placeholder="Tryout Day A"></div>
+      <div class="field"><label>Description</label><textarea class="inp" id="p-desc" rows="2" placeholder="Optional — what this session focuses on">${esc(p.description||'')}</textarea></div>
+      ${existing?`<button class="btn btn-ghost btn-sm" id="p-del" style="color:#ff7a7a;border-color:rgba(255,122,122,.3)">Delete playlist</button>`:''}
+      <button class="btn btn-flame btn-block" id="p-save" style="margin-top:14px">${existing?'Save Changes':'Create Playlist'}</button>
+    </div></div></div>`;
+  const close=()=>mr.innerHTML='';
+  document.getElementById('ov').onclick=e=>{if(e.target.id==='ov')close();};
+  document.getElementById('mx').onclick=close;
+  document.getElementById('p-save').onclick=async()=>{
+    const name=document.getElementById('p-name').value.trim();if(!name)return;
+    const rec={name,description:document.getElementById('p-desc').value.trim()||null};
+    if(existing){Object.assign(existing,rec);if(!DEMO)await sb.from('tryout_playlists').update(rec).eq('id',existing.id);}
+    else{const np={id:uuid(),...rec};state.playlists.push(np);state.drillsSub='playlists';state.openPlaylist=np.id;
+      if(!DEMO){const{data}=await sb.from('tryout_playlists').insert(rec).select().single();if(data){np.id=data.id;state.openPlaylist=data.id;}}}
+    close();render();flag();
+  };
+  const del=document.getElementById('p-del');if(del)del.onclick=async()=>{
+    state.playlists=state.playlists.filter(x=>x.id!==existing.id);
+    state.playlistItems=state.playlistItems.filter(i=>i.playlist_id!==existing.id);
+    if(state.settings.active_playlist===existing.id){state.settings.active_playlist='';if(!DEMO)await sb.from('tryout_settings').upsert({key:'active_playlist',value:''});}
+    state.openPlaylist=null;
+    if(!DEMO){await sb.from('tryout_playlist_items').delete().eq('playlist_id',existing.id);await sb.from('tryout_playlists').delete().eq('id',existing.id);}
+    close();render();};
+}
+async function addToPlaylist(pid,drillId){
+  const maxo=playlistItemsFor(pid).reduce((m,x)=>Math.max(m,x.order_idx??0),0);
+  const rec={playlist_id:pid,drill_id:drillId,order_idx:maxo+10,minutes:10};
+  const ni={id:uuid(),...rec};state.playlistItems.push(ni);
+  render();flag();
+  if(!DEMO){const{data}=await sb.from('tryout_playlist_items').insert(rec).select().single();if(data)ni.id=data.id;}
+}
+async function removePlItem(itemId){
+  state.playlistItems=state.playlistItems.filter(i=>i.id!==itemId);
+  render();
+  if(!DEMO)await sb.from('tryout_playlist_items').delete().eq('id',itemId);
+}
+async function setItemMinutes(itemId,val){
+  const it=state.playlistItems.find(i=>i.id===itemId);if(!it)return;
+  it.minutes=(val===''||val==null)?null:(parseInt(val,10)||0);
+  render();
+  if(!DEMO)await sb.from('tryout_playlist_items').update({minutes:it.minutes}).eq('id',itemId);
+}
+async function movePlItem(itemId,dir){
+  const it=state.playlistItems.find(i=>i.id===itemId);if(!it)return;
+  const items=playlistItemsFor(it.playlist_id);
+  const i=items.findIndex(x=>x.id===itemId);const j=dir==='up'?i-1:i+1;
   if(j<0||j>=items.length)return;
   const a=items[i],b=items[j];const ao=a.order_idx??i*10,bo=b.order_idx??j*10;
-  a.order_idx=bo;b.order_idx=ao;
-  render();
-  if(!DEMO){await sb.from('tryout_timeline').update({order_idx:a.order_idx}).eq('id',a.id);
-            await sb.from('tryout_timeline').update({order_idx:b.order_idx}).eq('id',b.id);}
+  a.order_idx=bo;b.order_idx=ao;render();
+  if(!DEMO){await sb.from('tryout_playlist_items').update({order_idx:a.order_idx}).eq('id',a.id);
+            await sb.from('tryout_playlist_items').update({order_idx:b.order_idx}).eq('id',b.id);}
+}
+async function setActiveSession(pid){
+  state.settings.active_playlist=pid||'';
+  render();flag();
+  if(!DEMO)await sb.from('tryout_settings').upsert({key:'active_playlist',value:pid||''});
 }
 
 /* ---------- player detail ---------- */
@@ -1013,6 +1261,7 @@ function openPlayer(pid){
 
 /* ---------- utils ---------- */
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function reFocus(id){const el=document.getElementById(id);if(el){el.focus();try{const v=el.value;el.setSelectionRange(v.length,v.length);}catch(e){}}}
 function initials(n){return String(n).replace(/^coach\s+/i,'').split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase()}
 
 /* ---------- boot ---------- */
