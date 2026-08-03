@@ -120,7 +120,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v3.0 · 2026-07-07 · LIVE game + real defenders</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v3.1 · 2026-07-08 · real screens + open-man passing</div>
 
 <script type="importmap">
 {
@@ -711,32 +711,50 @@ function makeFigure(color, withBall, height) {
 
   const mkLeg = (side) => {                    // side -1 left, +1 right — feet are the read
     const leg = new THREE.Group(); leg.position.set(0.13*side, 0.92, 0);
-    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 4, 8), dark);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.078, 0.30, 6, 12), dark);
     thigh.position.y = -0.2; leg.add(thigh);
-    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.34, 4, 8), skin);
-    shin.position.y = -0.6; leg.add(shin);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.3), shoe);
-    foot.position.set(0, -0.88, 0.07); foot.castShadow = true; leg.add(foot);
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.062, 12, 10), skin);
+    knee.position.y = -0.42; leg.add(knee);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.052, 0.30, 6, 12), skin);
+    shin.position.y = -0.62; leg.add(shin);
+    const sock = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.058, 0.10, 10), shoe);
+    sock.position.y = -0.80; leg.add(sock);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.075, 0.29), shoe);
+    foot.position.set(0, -0.885, 0.07); foot.castShadow = true; leg.add(foot);
+    const toe = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), shoe);
+    toe.position.set(0, -0.9, 0.21); toe.scale.set(0.95, 0.6, 1); leg.add(toe);
     return leg;
   };
   const legL = mkLeg(-1), legR = mkLeg(1); body.add(legL); body.add(legR);
 
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.22), dark);
-  hips.position.y = 0.98; body.add(hips);
+  const hips = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), dark);
+  hips.position.y = 0.98; hips.scale.set(1.05, 0.72, 0.82); body.add(hips);
   const torsoG = new THREE.Group(); torsoG.position.y = 1.06; body.add(torsoG);
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.24), jersey);
-  chest.position.y = 0.25; chest.castShadow = true; torsoG.add(chest);
+  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.155, 0.30, 6, 14), jersey);
+  chest.position.y = 0.24; chest.scale.set(1.28, 1, 0.82); chest.castShadow = true; torsoG.add(chest);
+  const shL = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), jersey);
+  shL.position.set(-0.225, 0.42, 0); torsoG.add(shL);
+  const shR = shL.clone(); shR.position.x = 0.225; torsoG.add(shR);
   const mkArm = (side) => {
     const arm = new THREE.Group(); arm.position.set(0.245*side, 0.42, 0);
-    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.26, 4, 8), jersey);
-    up.position.y = -0.15; arm.add(up);
-    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.26, 4, 8), skin);
-    fore.position.y = -0.44; arm.add(fore);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.048, 0.22, 6, 12), skin);
+    up.position.y = -0.14; arm.add(up);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), skin);
+    elbow.position.y = -0.28; arm.add(elbow);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.22, 6, 12), skin);
+    fore.position.y = -0.42; arm.add(fore);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), skin);
+    hand.position.y = -0.56; hand.scale.set(0.8, 1.15, 0.8); arm.add(hand);
     return arm;
   };
   const armL = mkArm(-1), armR = mkArm(1); torsoG.add(armL); torsoG.add(armR);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 12), skin);
-  head.position.y = 0.62; head.castShadow = true; torsoG.add(head);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.058, 0.09, 10), skin);
+  neck.position.y = 0.51; torsoG.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.112, 18, 14), skin);
+  head.position.y = 0.63; head.scale.set(0.92, 1.05, 0.98); head.castShadow = true; torsoG.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 12),
+    new THREE.MeshStandardMaterial({ color:0x201a14, roughness:0.9 }));
+  hair.position.y = 0.665; hair.position.z = -0.012; hair.scale.set(0.94, 0.82, 0.98); torsoG.add(hair);
 
   g.userData.mat = jersey;
   g.userData.rig = { body, legL, legR, torsoG, armL, armR, height: height || 1.88, phase: Math.random()*6 };
@@ -1082,6 +1100,11 @@ function mateSpots(k){
 }
 const CONCEPTS  = ['iso','screen','catch'];           // auto-populated possession library
 const COVERAGES = ['over','under','switch','hedge'];
+const openRings = {};                                  // green ring under an OPEN teammate = pass him the ball
+for(const k of ['big','w1','w2']){
+  const r = new THREE.Mesh(new THREE.TorusGeometry(0.42,0.035,8,28), new THREE.MeshBasicMaterial({ color:0x35c46a }));
+  r.rotation.x = -Math.PI/2; r.visible = false; liveGroup.add(r); openRings[k] = r;
+}
 
 function buildLiveFigs(){
   Object.values(liveFigs).forEach(f=>liveGroup.remove(f)); liveFigs={};
@@ -1169,11 +1192,11 @@ function liveOnCatch(){
 function liveOnRelease(){
   if(liveBall!=='you') return;
   liveBall='free';
-  const sp = vel.length(); if(sp < 1.2) return;         // fumble — free physics
+  const sp = vel.length(); if(sp < 0.9) return;         // fumble — free physics
   const dir = vel.clone(); dir.y=0; if(dir.lengthSq()<0.02) return; dir.normalize();
   rimWorld(_rimW); const toRim=_rimW.clone().sub(ball.position); toRim.y=0;
   if(toRim.length()>0.1 && dir.angleTo(toRim.normalize()) < 0.28){ if(!poss.action) poss.action='shot'; return; }
-  let best=null, bestA=0.42;
+  let best=null, bestA=0.62;                            // generous assist cone — throws should connect
   for(const k of ['big','w1','w2']){
     const to = mateWorld(k,_lw).sub(ball.position); to.y=0;
     const a = dir.angleTo(to.normalize()); if(a < bestA){ bestA=a; best=k; }
@@ -1188,6 +1211,10 @@ function openness(mateK){                               // defender distance to 
 function callScreen(){
   if(!poss || poss.called || livePhase!=='read') return;
   poss.called=true; poss.screenT=0; blip(760,0.07,'square',0.16);
+  const dv = figPos('dYou');
+  const side = _pcam.x>0?-1:1;
+  poss.screenTarget = { x: dv.x + 0.6*side, z: dv.z + 0.15 };   // FIXED spot — a screen is set, it doesn't chase
+  poss.screenPt = null; poss.fightPt = null; poss.cleared = false;
   sayPlay('Screen coming — read it!', false);
 }
 function correctAnswer(){
@@ -1205,12 +1232,13 @@ function endPossession(outcome){
   const ans = correctAnswer();
   let acted = poss.action || 'none';
   if(acted==='drive' && poss.concept==='iso') acted = 'drive-'+(poss.driveSide>0?'right':'left');
-  const right = acted===ans || (ans==='drive' && acted.indexOf('drive')===0);
+  const passHitOpen = acted.indexOf('pass:')===0 && poss.passOpen;      // hitting the open man is ALWAYS right
+  const right = acted===ans || (ans==='drive' && acted.indexOf('drive')===0) || passHitOpen;
   const scored = outcome==='score' || makes>poss.makes0;
   let title = right ? (scored?'PERFECT READ':'RIGHT READ ✓') : (scored?'Made it — wrong read':'WRONG READ ✗');
   const answerTxt = { 'drive-left':'drive LEFT','drive-right':'drive RIGHT','drive':'DRIVE it','shot':'SHOOT it','pass:big':'hit the ROLLER' }[ans] || ans;
   sayRun(reveal(), title);
-  setTimeout(()=>{ if(liveActive) sayRun('Answer: '+answerTxt, scored?'BUCKET!':''); }, 1300);
+  setTimeout(()=>{ if(liveActive) sayRun(passHitOpen ? 'Open man — always right' : 'Answer: '+answerTxt, scored?'BUCKET!':''); }, 1300);
   livePhase='result'; liveT=0;
 }
 
@@ -1235,8 +1263,8 @@ function updateLive(dt){
       if(flight.mode==='toYou'){ held = grips[0]; liveOnCatch(); }   // generous auto-catch
       else {
         holderK = flight.targetK; liveBall='npc';
-        const open = openness(flight.targetK) > 2.2;
-        endPossession(open ? 'goodpass' : 'coveredpass');
+        poss.passOpen = openness(flight.targetK) > 2.0;
+        endPossession(poss.passOpen ? 'goodpass' : 'coveredpass');
       }
       flight=null;
     }
@@ -1274,19 +1302,25 @@ function updateLive(dt){
   // screen sequence
   if(poss && poss.called && !poss.done){
     poss.screenT += dt;
-    const dv = figPos('dYou');
-    if(!poss.screenSet){
-      const side = youX>0?-1:1;                          // screen on your middle shoulder
-      const sx = dv.x + 0.55*side, sz = dv.z + 0.15;
+    if(!poss.screenSet && poss.screenTarget){
+      const sx = poss.screenTarget.x, sz = poss.screenTarget.z;
       const sp2 = seek('big', sx, sz, spd.sprint, dt);
       walkAnim(liveFigs.big, sp2, t);
-      if(Math.hypot(figPos('big').x-sx, figPos('big').z-sz)<0.25){
+      if(Math.hypot(figPos('big').x-sx, figPos('big').z-sz)<0.22){
         poss.screenSet=true; poss.screenT=0; blip(700,0.06,'square',0.14);
+        poss.screenPt = { x: figPos('big').x, z: figPos('big').z };       // planted here
         setStance(liveFigs.big, {lead:0, crouch:0.6, arms:0.2});
+        // where the on-ball defender must fight to: over = ball side, under = rim side
+        const dy = { x: youX-poss.screenPt.x, z: youZ-poss.screenPt.z }, Ly = Math.hypot(dy.x,dy.z)||1;
+        const dr = { x: 0-poss.screenPt.x, z: HOOP_Z-poss.screenPt.z }, Lr = Math.hypot(dr.x,dr.z)||1;
+        poss.fightPt = poss.coverage==='over'
+          ? { x: poss.screenPt.x + dy.x/Ly*0.95, z: poss.screenPt.z + dy.z/Ly*0.95 }
+          : { x: poss.screenPt.x + dr.x/Lr*0.95, z: poss.screenPt.z + dr.z/Lr*0.95 };
         if(poss.coverage==='switch'){ assign.dYou='big'; assign.dBig='you'; sayPlay('SWITCH — read it!', false); }
       }
-    } else if(!poss.rolled && poss.screenT>0.7){
+    } else if(!poss.rolled && poss.screenSet && poss.screenT>0.9){
       poss.rolled=true;                                   // big rolls to the rim
+      setStance(liveFigs.big, {lead:0, crouch:0.2, arms:0});
     }
   }
   if(poss && poss.rolled){
@@ -1311,13 +1345,11 @@ function updateLive(dt){
       }
       // hedge: the big's defender jumps out at you
       if(poss && poss.screenSet && poss.coverage==='hedge' && dk==='dBig' ){ /* handled below via assign */ }
-      // over/under detour while fighting the screen
-      if(poss && poss.screenSet && (poss.coverage==='over'||poss.coverage==='under') && dk==='dYou'){
-        const b=figPos('big');
-        if(f.position.distanceTo(b)<1.2){
-          const off = poss.coverage==='over' ? 0.8 : -0.8;
-          tx = b.x; tz = b.z + off;
-        }
+      // fight over/under the SET screen via a fixed clear-point (never chase the roller)
+      if(poss && poss.screenSet && !poss.cleared && poss.fightPt &&
+         (poss.coverage==='over'||poss.coverage==='under') && dk==='dYou'){
+        tx = poss.fightPt.x; tz = poss.fightPt.z;
+        if(Math.hypot(f.position.x-tx, f.position.z-tz) < 0.3) poss.cleared = true;
       }
     } else {
       const m = figPos(mk);                      // help position: sink between man, rim, and ball
@@ -1328,6 +1360,14 @@ function updateLive(dt){
       }
     }
     const sp4 = seek(dk, tx, tz, speed, dt);
+    // a SET screen is a wall — defenders cannot run through the screener's body
+    if(poss && poss.screenSet && poss.screenPt){
+      const bp = figPos('big');
+      if(Math.hypot(bp.x-poss.screenPt.x, bp.z-poss.screenPt.z) < 0.6){   // still planted
+        const ddx = f.position.x-bp.x, ddz = f.position.z-bp.z, dd = Math.hypot(ddx,ddz);
+        if(dd < 0.52 && dd > 0.001){ f.position.x = bp.x + ddx/dd*0.52; f.position.z = bp.z + ddz/dd*0.52; }
+      }
+    }
     if(guardingYou){
       faceTowards(dk, youX, youZ);
       const lead = poss && poss.concept==='iso' ? (poss.force==='left'?-1:1) : 0;
@@ -1341,6 +1381,13 @@ function updateLive(dt){
   }
   // teammates hold spacing (except big when screening/rolling)
   for(const mk of ['w1','w2']){ setStance(liveFigs[mk], {lead:0, crouch:0.15, arms:0}); }
+  // open-man rings: green pulse under any teammate whose defender lost him
+  const showOpen = livePhase==='read' && liveBall==='you';
+  for(const k of ['big','w1','w2']){ const r=openRings[k]; if(!r) continue;
+    const open = showOpen && openness(k) > 2.2;
+    r.visible = open;
+    if(open){ const m=figPos(k); r.position.set(m.x, 0.04, m.z); r.scale.setScalar((1+Math.sin(t*5)*0.1)/courtScale); }
+  }
 }
 function pollLiveButton(){
   const s = renderer.xr.getSession(); if(!s || !liveActive) return;
