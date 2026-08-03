@@ -120,7 +120,7 @@
     <div id="status">Checking your headset…</div>
   </div>
   <div class="hint">Passthrough is on by default so you can see your real room — give yourself space to swing.</div>
-  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v2.2 · 2026-07-02 · hoop on baseline, reg size</div>
+  <div style="position:fixed;bottom:10px;right:12px;z-index:6;color:#3f4c70;font-size:11px;letter-spacing:.04em;">build v3.0 · 2026-07-07 · LIVE game + real defenders</div>
 
 <script type="importmap">
 {
@@ -494,10 +494,15 @@ for (let i=0; i<2; i++) {
   const grab = () => {
     try {
       if (held || menuOpen || drillActive) return;
-      held = handTracked[i] ? palmAnchor[i] : grip;   // anchor to palm when using hands
+      const anchor = handTracked[i] ? palmAnchor[i] : grip;
+      if (typeof liveActive !== 'undefined' && liveActive) {          // live game: must actually reach the ball
+        if (!liveCanGrab(anchor)) return;
+      }
+      held = anchor;
       history[i].length = 0;
       dbgHeld = true; drawScore();
       ensureAudio();
+      if (typeof liveActive !== 'undefined' && liveActive) liveOnCatch();
     } catch (e) { logOnce('grab', e); }
   };
   const release = () => {
@@ -519,6 +524,7 @@ for (let i=0; i<2; i++) {
       lastShot = vel.length();
       dbgHeld = false; drawScore();
       prevY = ball.position.y;
+      if (typeof liveActive !== 'undefined' && liveActive) liveOnRelease();
     } catch (e) { logOnce('release', e); }
   };
   ctrl.addEventListener('squeezestart', grab);
@@ -692,20 +698,81 @@ const POS = {
 const passFrom = new THREE.Vector3(POS.post.x + 0.26, 1.05, POS.post.z + 0.10);
 const passTo   = new THREE.Vector3(POS.roll.x, 1.15, POS.roll.z);
 
-function makeFigure(color, withBall) {
+// ---------- articulated humanoid: readable feet, stance, lean ----------
+const SKIN = 0xc99b72, SHORTS = 0x1b2233;
+function makeFigure(color, withBall, height) {
+  const H = (height || 1.88) / 1.88;          // scale factor vs base 1.88m player
   const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, roughness:0.6 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.9, 6, 12), mat);
-  body.position.y = 0.85; body.castShadow = true; g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), mat);
-  head.position.y = 1.55; head.castShadow = true; g.add(head);
-  g.userData.mat = mat;
+  const jersey = new THREE.MeshStandardMaterial({ color, roughness:0.65 });
+  const skin = new THREE.MeshStandardMaterial({ color:SKIN, roughness:0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color:SHORTS, roughness:0.8 });
+  const shoe = new THREE.MeshStandardMaterial({ color:0xf2f2f2, roughness:0.55 });
+  const body = new THREE.Group(); g.add(body); body.scale.setScalar(H);
+
+  const mkLeg = (side) => {                    // side -1 left, +1 right — feet are the read
+    const leg = new THREE.Group(); leg.position.set(0.13*side, 0.92, 0);
+    const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.34, 4, 8), dark);
+    thigh.position.y = -0.2; leg.add(thigh);
+    const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.34, 4, 8), skin);
+    shin.position.y = -0.6; leg.add(shin);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.3), shoe);
+    foot.position.set(0, -0.88, 0.07); foot.castShadow = true; leg.add(foot);
+    return leg;
+  };
+  const legL = mkLeg(-1), legR = mkLeg(1); body.add(legL); body.add(legR);
+
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.22), dark);
+  hips.position.y = 0.98; body.add(hips);
+  const torsoG = new THREE.Group(); torsoG.position.y = 1.06; body.add(torsoG);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 0.24), jersey);
+  chest.position.y = 0.25; chest.castShadow = true; torsoG.add(chest);
+  const mkArm = (side) => {
+    const arm = new THREE.Group(); arm.position.set(0.245*side, 0.42, 0);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.26, 4, 8), jersey);
+    up.position.y = -0.15; arm.add(up);
+    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.26, 4, 8), skin);
+    fore.position.y = -0.44; arm.add(fore);
+    return arm;
+  };
+  const armL = mkArm(-1), armR = mkArm(1); torsoG.add(armL); torsoG.add(armR);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 12), skin);
+  head.position.y = 0.62; head.castShadow = true; torsoG.add(head);
+
+  g.userData.mat = jersey;
+  g.userData.rig = { body, legL, legR, torsoG, armL, armR, height: height || 1.88, phase: Math.random()*6 };
+  setStance(g, { lead: 0, crouch: 0, lean: 0, arms: 0 });
   if (withBall) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12),
       new THREE.MeshStandardMaterial({ color:0xd9712b, roughness:0.85 }));
     b.position.set(0.26, 1.05, 0.10); g.add(b); g.userData.ball = b;
   }
   return g;
+}
+// stance: lead −1 = LEFT foot forward, +1 = RIGHT foot forward, 0 square.
+// crouch 0..1 defensive sit; lean −1..1 torso shade left/right; arms 0..1 wide.
+function setStance(fig, s) {
+  const r = fig.userData.rig; if (!r) return;
+  const lead = s.lead || 0, crouch = s.crouch || 0, lean = s.lean || 0, arms = s.arms || 0;
+  r.legL.position.z = lead < 0 ? 0.22*(-lead) : 0;   // stagger the lead foot forward
+  r.legR.position.z = lead > 0 ? 0.22*lead : 0;
+  r.legL.position.x = -0.13 - 0.09*crouch;           // widen base when sitting down
+  r.legR.position.x =  0.13 + 0.09*crouch;
+  r.body.position.y = -0.16*crouch;                  // sink the hips
+  r.legL.rotation.x = r.legR.rotation.x = -0.28*crouch;
+  r.torsoG.rotation.x = 0.30*crouch;                 // chest over knees
+  r.torsoG.rotation.z = -0.32*lean;                  // shade lean
+  r.armL.rotation.z =  0.5 + 1.5*arms;               // arms out wide on defense
+  r.armR.rotation.z = -0.5 - 1.5*arms;
+}
+function walkAnim(fig, speed, t) {                   // leg swing while moving
+  const r = fig.userData.rig; if (!r) return;
+  const w = Math.min(speed/2.5, 1);
+  if (w < 0.05) return;
+  const ph = t*7 + r.phase;
+  r.legL.rotation.x = Math.sin(ph) * 0.55 * w;
+  r.legR.rotation.x = Math.sin(ph + Math.PI) * 0.55 * w;
+  r.armL.rotation.x = Math.sin(ph + Math.PI) * 0.4 * w;
+  r.armR.rotation.x = Math.sin(ph) * 0.4 * w;
 }
 const figPost = makeFigure(0x2f6df6, true);  figPost.position.copy(POS.post);     drill.add(figPost);
 const figWing = makeFigure(0x2f6df6, false); figWing.position.copy(POS.wing);     drill.add(figWing);
@@ -948,7 +1015,7 @@ function buildLoadedPlay(d){
 }
 function placeStep(si){ (loaded.players||[]).forEach(p=>{ if(p.id===loaded.role)return; const c=coordP(p.id,si);
   if(c&&loadedFigs[p.id]) loadedFigs[p.id].position.set(c.x,0,c.z); }); }
-function applyFigureScale(s){ Object.values(loadedFigs).forEach(f=>f.scale.set(1, 1/s, 1)); // full HEIGHT, but thickness scales with the court so they slim down at 30%
+function applyFigureScale(s){ [ ...Object.values(loadedFigs), ...Object.values(typeof liveFigs!=='undefined'?liveFigs:{}) ].forEach(f=>f.scale.set(1, 1/s, 1)); // full HEIGHT, thickness scales with court
   const b=playGroup.userData.ball; if(b) b.scale.setScalar(1/s);   // ball stays round & full size
   loadedWalls.forEach(w=>w.scale.setScalar(1/s));
   traineePath.scale.set(1, 1/s, 1); }   // keep arrows at chest height (constant Y) while spacing scales
@@ -994,6 +1061,298 @@ function nextRep(){                      // between reps: reroll a new random va
   toStart();
 }
 function stopLoadedPlay(){ loadedActive=false; randomTag=null; playGroup.visible=false; namePanel.visible=false; ball.visible=true; scoreboard.visible=true; }
+
+// ================== LIVE GAME — read & react vs AI defense ==================
+const liveGroup = new THREE.Group(); liveGroup.visible = false; arena.add(liveGroup);
+let liveActive = false, liveSpotPref = null;          // null = random spot each possession
+let liveFigs = {}, livePhase = 'idle', liveT = 0, shotClock = 0, liveBall = 'none';
+let poss = null, flight = null, assign = {}, holderK = null;
+const _lw = new THREE.Vector3(), _lw2 = new THREE.Vector3(), _rimW = new THREE.Vector3();
+
+const L_SPOTS = { top:{x:0,z:5.2}, lwing:{x:-5.0,z:1.5}, rwing:{x:5.0,z:1.5},
+                  lcorner:{x:-6.3,z:-3.2}, rcorner:{x:6.3,z:-3.2} };
+const L_SPOT_KEYS = Object.keys(L_SPOTS);
+const L_NAMES = { top:'Top', lwing:'Left Wing', rwing:'Right Wing', lcorner:'Left Corner', rcorner:'Right Corner' };
+function mateSpots(k){
+  if(k==='top')     return { big:{x: 1.8,z: 0.3}, w1:{x:-5.4,z: 0.8}, w2:{x: 5.4,z: 0.8} };
+  if(k==='lwing')   return { big:{x:-1.6,z: 0.5}, w1:{x: 0.6,z: 5.4}, w2:{x: 5.6,z: 0.6} };
+  if(k==='rwing')   return { big:{x: 1.6,z: 0.5}, w1:{x: 0.6,z: 5.4}, w2:{x:-5.6,z: 0.6} };
+  if(k==='lcorner') return { big:{x:-2.2,z:-0.4}, w1:{x:-4.8,z: 2.4}, w2:{x: 3.6,z: 4.0} };
+  return                   { big:{x: 2.2,z:-0.4}, w1:{x: 4.8,z: 2.4}, w2:{x:-3.6,z: 4.0} };
+}
+const CONCEPTS  = ['iso','screen','catch'];           // auto-populated possession library
+const COVERAGES = ['over','under','switch','hedge'];
+
+function buildLiveFigs(){
+  Object.values(liveFigs).forEach(f=>liveGroup.remove(f)); liveFigs={};
+  const mk = (key,color,h)=>{ const f=makeFigure(color,false,h); liveGroup.add(f); liveFigs[key]=f; return f; };
+  mk('big', 0x2f6df6, 2.03); mk('w1', 0x2f6df6, 1.84); mk('w2', 0x2f6df6, 1.80);
+  mk('dYou',0xe2473a, 1.86); mk('dBig',0xe2473a, 2.06); mk('dW1',0xe2473a, 1.84); mk('dW2',0xe2473a, 1.80);
+  applyFigureScale(courtScale);
+}
+function figPos(k){ return liveFigs[k].position; }
+function place(k, p){ liveFigs[k].position.set(p.x, 0, p.z); }
+function seek(k, tx, tz, speed, dt){                    // defender/NPC movement with cap
+  const f = liveFigs[k]; const dx = tx - f.position.x, dz = tz - f.position.z;
+  const d = Math.hypot(dx, dz); if(d < 0.02) return 0;
+  const step = Math.min(speed * dt, d);
+  f.position.x += dx/d*step; f.position.z += dz/d*step;
+  f.rotation.y = Math.atan2(dx, dz);
+  return step/dt;
+}
+function faceTowards(k, tx, tz){ const f=liveFigs[k]; f.rotation.y = Math.atan2(tx-f.position.x, tz-f.position.z); }
+
+// possession setup — concept + spot + coverage rolled fresh each rep
+function newPossession(){
+  const spotKey = liveSpotPref || L_SPOT_KEYS[Math.floor(Math.random()*L_SPOT_KEYS.length)];
+  const concept = CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)];
+  poss = {
+    spotKey, concept,
+    force: Math.random()<0.5 ? 'left' : 'right',      // iso: direction he gives you
+    closeout: Math.random()<0.5 ? 'hard' : 'short',   // catch: closeout type
+    coverage: COVERAGES[Math.floor(Math.random()*COVERAGES.length)],
+    called:false, screenSet:false, rolled:false, action:null, driveSide:0,
+    makes0: makes, catchPt:null, done:false, screenT:0
+  };
+  assign = { dYou:'you', dBig:'big', dW1:'w1', dW2:'w2' };
+  const ys = L_SPOTS[spotKey], ms = mateSpots(spotKey);
+  place('big', ms.big); place('w1', ms.w1); place('w2', ms.w2);
+  // defenders goal-side of their man
+  for(const [dk, mk] of [['dBig','big'],['dW1','w1'],['dW2','w2']]){
+    const m = ms[mk]; const dx = 0 - m.x, dz = HOOP_Z - m.z, L = Math.hypot(dx,dz)||1;
+    place(dk, { x:m.x + dx/L*0.9, z:m.z + dz/L*0.9 });
+  }
+  // your defender: catch concept starts him sagged off; otherwise on the line
+  const dx = 0 - ys.x, dz = HOOP_Z - ys.z, L = Math.hypot(dx,dz)||1;
+  const sag = poss.concept==='catch' ? 3.0 : 1.05;
+  place('dYou', { x: ys.x + dx/L*sag, z: ys.z + dz/L*sag });
+  holderK = 'big'; liveBall = 'npc'; flight = null;
+  livePhase = 'setup'; liveT = 0;
+  sayPlay('Go to: ' + L_NAMES[spotKey], false);
+}
+function startLive(spotKey){
+  stopDrill(); stopLoadedPlay();
+  liveSpotPref = spotKey || null;
+  buildLiveFigs();
+  liveGroup.visible = true; liveActive = true;
+  ball.visible = true; scoreboard.visible = true;
+  newPossession();
+}
+function stopLive(){ liveActive=false; liveGroup.visible=false; namePanel.visible=false; liveBall='none'; }
+
+// ---- ball helpers ----
+function mateWorld(k, out){ liveFigs[k].getWorldPosition(out); return out; }
+function rimWorld(out){ out.set(0, RIM_Y, HOOP_Z); return arena.localToWorld(out); }
+function startFlight(mode, targetK){
+  flight = { mode, targetK, t:0, from: ball.position.clone() };
+  const to = mode==='toYou' ? camera.getWorldPosition(_lw) : mateWorld(targetK,_lw);
+  flight.dur = Math.max(0.45, ball.position.distanceTo(to) * 0.07);
+  liveBall = mode; ball.visible = true;
+}
+function liveCanGrab(anchor){
+  if(liveBall==='toYou' || liveBall==='free'){
+    anchor.getWorldPosition(_lw2);
+    return _lw2.distanceTo(ball.position) < 0.55;
+  }
+  return false;
+}
+function liveOnCatch(){
+  if(liveBall!=='toYou' && liveBall!=='free') return;
+  liveBall='you'; flight=null; blip(680,0.05,'square',0.14);
+  if(livePhase==='waitCatch'){
+    livePhase='read'; shotClock=12; liveT=0;
+    camera.getWorldPosition(_lw); arena.worldToLocal(_lw); poss.catchPt={x:_lw.x, z:_lw.z};
+    if(poss.concept==='screen') sayPlay('READ — press A/X for a screen', false);
+    else sayPlay('READ & ATTACK', false);
+  }
+}
+function liveOnRelease(){
+  if(liveBall!=='you') return;
+  liveBall='free';
+  const sp = vel.length(); if(sp < 1.2) return;         // fumble — free physics
+  const dir = vel.clone(); dir.y=0; if(dir.lengthSq()<0.02) return; dir.normalize();
+  rimWorld(_rimW); const toRim=_rimW.clone().sub(ball.position); toRim.y=0;
+  if(toRim.length()>0.1 && dir.angleTo(toRim.normalize()) < 0.28){ if(!poss.action) poss.action='shot'; return; }
+  let best=null, bestA=0.42;
+  for(const k of ['big','w1','w2']){
+    const to = mateWorld(k,_lw).sub(ball.position); to.y=0;
+    const a = dir.angleTo(to.normalize()); if(a < bestA){ bestA=a; best=k; }
+  }
+  if(best){ poss.action = 'pass:'+best; startFlight('toMate', best); }
+  else if(!poss.action) poss.action='shot';
+}
+function openness(mateK){                               // defender distance to his mate (arena-local)
+  const dk = Object.keys(assign).find(d=>assign[d]===mateK); if(!dk) return 9;
+  return figPos(dk).distanceTo(figPos(mateK));
+}
+function callScreen(){
+  if(!poss || poss.called || livePhase!=='read') return;
+  poss.called=true; poss.screenT=0; blip(760,0.07,'square',0.16);
+  sayPlay('Screen coming — read it!', false);
+}
+function correctAnswer(){
+  if(poss.concept==='iso')   return 'drive-'+poss.force;
+  if(poss.concept==='catch') return poss.closeout==='hard' ? 'drive' : 'shot';
+  return { over:'drive', under:'shot', switch:'drive', hedge:'pass:big' }[poss.coverage];
+}
+function reveal(){
+  if(poss.concept==='iso')   return 'He forced you '+poss.force.toUpperCase();
+  if(poss.concept==='catch') return 'Closeout was '+(poss.closeout==='hard'?'HARD':'SHORT');
+  return 'Coverage: '+poss.coverage.toUpperCase();
+}
+function endPossession(outcome){
+  if(poss.done) return; poss.done=true;
+  const ans = correctAnswer();
+  let acted = poss.action || 'none';
+  if(acted==='drive' && poss.concept==='iso') acted = 'drive-'+(poss.driveSide>0?'right':'left');
+  const right = acted===ans || (ans==='drive' && acted.indexOf('drive')===0);
+  const scored = outcome==='score' || makes>poss.makes0;
+  let title = right ? (scored?'PERFECT READ':'RIGHT READ ✓') : (scored?'Made it — wrong read':'WRONG READ ✗');
+  const answerTxt = { 'drive-left':'drive LEFT','drive-right':'drive RIGHT','drive':'DRIVE it','shot':'SHOOT it','pass:big':'hit the ROLLER' }[ans] || ans;
+  sayRun(reveal(), title);
+  setTimeout(()=>{ if(liveActive) sayRun('Answer: '+answerTxt, scored?'BUCKET!':''); }, 1300);
+  livePhase='result'; liveT=0;
+}
+
+function updateLive(dt){
+  if(!liveActive || paused) return;
+  camera.getWorldPosition(_pcam); arena.worldToLocal(_pcam);
+  const t = clock.elapsedTime;
+
+  // guided ball flights + npc-held ball
+  if(liveBall==='npc' && holderK){
+    mateWorld(holderK,_lw);
+    ball.position.set(_lw.x, _lw.y+1.15, _lw.z); vel.set(0,0,0); prevY=ball.position.y;
+  } else if((liveBall==='toYou'||liveBall==='toMate') && flight){
+    flight.t += dt/flight.dur; const k=Math.min(flight.t,1);
+    const to = flight.mode==='toYou'
+      ? camera.getWorldPosition(_lw).add(new THREE.Vector3(0,-0.18,0))
+      : mateWorld(flight.targetK,_lw).setY(mateWorld(flight.targetK,_lw2).y+1.15);
+    ball.position.lerpVectors(flight.from, to, k);
+    ball.position.y += Math.sin(k*Math.PI)*0.55;
+    vel.set(0,0,0); prevY = ball.position.y;
+    if(k>=1){
+      if(flight.mode==='toYou'){ held = grips[0]; liveOnCatch(); }   // generous auto-catch
+      else {
+        holderK = flight.targetK; liveBall='npc';
+        const open = openness(flight.targetK) > 2.2;
+        endPossession(open ? 'goodpass' : 'coveredpass');
+      }
+      flight=null;
+    }
+  }
+
+  // phases
+  liveT += dt;
+  if(livePhase==='setup'){
+    if(liveT>1.4){ livePhase='waitCatch'; startFlight('toYou'); sayPlay('CATCH!', true); }
+  } else if(livePhase==='read'){
+    shotClock -= dt;
+    if(shotClock<=0 && !poss.done){ poss.action=poss.action||'none'; endPossession('clock'); }
+    // drive detection
+    if(liveBall==='you' && poss.catchPt && !poss.action){
+      const dxp=_pcam.x-poss.catchPt.x, dzp=_pcam.z-poss.catchPt.z;
+      if(Math.hypot(dxp,dzp)>1.9 && dzp<-1.0){
+        poss.action='drive';
+        const f = { x: 0-poss.catchPt.x, z: HOOP_Z-poss.catchPt.z }; const L=Math.hypot(f.x,f.z)||1;
+        const rx=-f.z/L, rz=f.x/L;                       // right-hand vector facing the rim
+        poss.driveSide = (dxp*rx + dzp*rz) > 0 ? 1 : -1;
+      }
+    }
+    // free ball died on the floor = possession over
+    if(liveBall==='free' && ball.position.y<0.3 && vel.length()<1.4 && !poss.done){
+      endPossession(makes>poss.makes0?'score':'miss');
+    }
+    if(makes>poss.makes0 && !poss.done) endPossession('score');
+  } else if(livePhase==='result'){
+    if(liveT>3.0) newPossession();
+  }
+
+  // ---------- defense AI ----------
+  const youX=_pcam.x, youZ=_pcam.z;
+  const spd = { on:3.4, off:2.9, sprint:4.4 };
+  // screen sequence
+  if(poss && poss.called && !poss.done){
+    poss.screenT += dt;
+    const dv = figPos('dYou');
+    if(!poss.screenSet){
+      const side = youX>0?-1:1;                          // screen on your middle shoulder
+      const sx = dv.x + 0.55*side, sz = dv.z + 0.15;
+      const sp2 = seek('big', sx, sz, spd.sprint, dt);
+      walkAnim(liveFigs.big, sp2, t);
+      if(Math.hypot(figPos('big').x-sx, figPos('big').z-sz)<0.25){
+        poss.screenSet=true; poss.screenT=0; blip(700,0.06,'square',0.14);
+        setStance(liveFigs.big, {lead:0, crouch:0.6, arms:0.2});
+        if(poss.coverage==='switch'){ assign.dYou='big'; assign.dBig='you'; sayPlay('SWITCH — read it!', false); }
+      }
+    } else if(!poss.rolled && poss.screenT>0.7){
+      poss.rolled=true;                                   // big rolls to the rim
+    }
+  }
+  if(poss && poss.rolled){
+    const sp3 = seek('big', poss.catchPt? poss.catchPt.x*0.25 : 0, -3.4, 3.2, dt);
+    walkAnim(liveFigs.big, sp3, t);
+  }
+  // each defender
+  for(const dk of ['dYou','dBig','dW1','dW2']){
+    const mk = assign[dk]; const f = liveFigs[dk];
+    let tx, tz, speed = spd.off, guardingYou = (mk==='you');
+    if(guardingYou){
+      const fx = 0-youX, fz = HOOP_Z-youZ, L=Math.hypot(fx,fz)||1;
+      let gap = 1.05;
+      if(poss && poss.concept==='catch' && livePhase==='read' && liveBall!=='npc'){
+        gap = poss.closeout==='hard' ? 0.8 : 1.8; speed = poss.closeout==='hard'? spd.sprint : spd.on;
+      } else speed = spd.on;
+      tx = youX + fx/L*gap; tz = youZ + fz/L*gap;
+      if(poss && poss.concept==='iso'){                   // overplay: take away one side, give the other
+        const rx=-fz/L, rz=fx/L;                          // your right-hand direction
+        const shade = poss.force==='left' ? 1 : -1;       // forcing left = sit on your right hand
+        tx += rx*0.5*shade; tz += rz*0.5*shade;
+      }
+      // hedge: the big's defender jumps out at you
+      if(poss && poss.screenSet && poss.coverage==='hedge' && dk==='dBig' ){ /* handled below via assign */ }
+      // over/under detour while fighting the screen
+      if(poss && poss.screenSet && (poss.coverage==='over'||poss.coverage==='under') && dk==='dYou'){
+        const b=figPos('big');
+        if(f.position.distanceTo(b)<1.2){
+          const off = poss.coverage==='over' ? 0.8 : -0.8;
+          tx = b.x; tz = b.z + off;
+        }
+      }
+    } else {
+      const m = figPos(mk);                      // help position: sink between man, rim, and ball
+      tx = m.x + (0-m.x)*0.22 + (youX-m.x)*0.10;
+      tz = m.z + (HOOP_Z-m.z)*0.22 + (youZ-m.z)*0.10;
+      if(poss && poss.screenSet && poss.coverage==='hedge' && dk==='dBig' && poss.screenT<1.4){
+        tx = youX + (0-youX)*0.15; tz = youZ + (HOOP_Z-youZ)*0.15; speed = spd.sprint;  // jump out, then recover
+      }
+    }
+    const sp4 = seek(dk, tx, tz, speed, dt);
+    if(guardingYou){
+      faceTowards(dk, youX, youZ);
+      const lead = poss && poss.concept==='iso' ? (poss.force==='left'?-1:1) : 0;
+      setStance(f, { lead, crouch:0.85, lean: lead*0.6, arms:0.75 });
+      walkAnim(f, sp4, t);
+    } else {
+      faceTowards(dk, ball.position.x, ball.position.z);
+      setStance(f, { lead:0, crouch:0.55, arms:0.45 });
+      walkAnim(f, sp4, t);
+    }
+  }
+  // teammates hold spacing (except big when screening/rolling)
+  for(const mk of ['w1','w2']){ setStance(liveFigs[mk], {lead:0, crouch:0.15, arms:0}); }
+}
+function pollLiveButton(){
+  const s = renderer.xr.getSession(); if(!s || !liveActive) return;
+  let pressed=false;
+  for(const src of s.inputSources){ const gp=src.gamepad; if(gp && gp.buttons[4] && gp.buttons[4].pressed) pressed=true; }
+  if(pressed && !pollLiveButton.prev) callScreen();
+  pollLiveButton.prev = pressed;
+}
+window.__live = { start:startLive, stop:stopLive, get phase(){return livePhase;}, get poss(){return poss;}, get ballState(){return liveBall;}, catchNow:liveOnCatch, callScreen,
+  tick:(dt)=>updateLive(dt||0.016), release:liveOnRelease,
+  figs:()=>Object.fromEntries(Object.entries(liveFigs).map(([k,f])=>[k,{x:+f.position.x.toFixed(2),z:+f.position.z.toFixed(2)}])) };
+// ================== end LIVE GAME ==================
 function playerBallPos(id, ease){ if(id===loaded.role) return _pcam; const f=loadedFigs[id]; return f&&f.position; }
 function updateLoadedPlay(dt){
   if(!loadedActive || paused || !loaded) return;
@@ -1121,11 +1480,18 @@ function makeButton(label, action, y) {
 function clearButtons(){ buttonMeshes.forEach(m=>menuGroup.remove(m)); buttonMeshes.length = 0; }
 function buildMainButtons(){
   clearButtons();
-  const items = [ ['Resume','resume'], ['Plays ▸  (run one)','plays'], ['Random ▸  (quiz)','random'], ['Stop Play','stopplay'],
+  const items = [ ['Resume','resume'], ['LIVE Game ▸ (read & react)','live'],
+    ['Plays ▸  (run one)','plays'], ['Random ▸  (quiz)','random'], ['Stop Play','stopplay'],
     ['Start / Stop Drill','drill'], ['Passthrough on/off','passthrough'], ['Court: wood/lines/off','court'],
     ['Court size: 100/60/30%','scale'],
     ['Recenter Court','recenter'], ['Exit to Start','exit'] ];
-  let y = 0.58; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.135; });
+  let y = 0.62; items.forEach(([label,act])=>{ makeButton(label, act, y); y -= 0.125; });
+}
+function buildLiveButtons(){
+  clearButtons();
+  let y = 0.55; makeButton('‹ Back', 'back', y); y -= 0.16;
+  makeButton('Start — Random spot', 'livestart:', y); y -= 0.16;
+  for(const k of L_SPOT_KEYS){ makeButton('Spot: '+L_NAMES[k], 'livestart:'+k, y); y -= 0.16; }
 }
 function buildPlayButtons(){
   clearButtons();
@@ -1177,12 +1543,14 @@ function recenterCourt() {
 }
 function doAction(a) {
   if (a === 'resume') closeMenu();
+  else if (a === 'live') { buildLiveButtons(); }
+  else if (a.indexOf('livestart:') === 0) { startLive(a.slice(10) || null); closeMenu(); }
   else if (a === 'plays') { openPlayPicker(); }
   else if (a === 'random') { openTagPicker(); }
   else if (a.indexOf('tag:') === 0) { startRandom(a.slice(4)); closeMenu(); }
   else if (a === 'back') { buildMainButtons(); }
   else if (a.indexOf('play:') === 0) { const rec = cloudPlays.find(p=>p.id===a.slice(5)); if (rec) { startLoadedPlay(rec.data); closeMenu(); } }
-  else if (a === 'stopplay') { stopLoadedPlay(); closeMenu(); }
+  else if (a === 'stopplay') { stopLoadedPlay(); stopLive(); closeMenu(); }
   else if (a === 'drill') { drillActive ? stopDrill() : startDrill(); closeMenu(); }
   else if (a === 'passthrough') { if (xrMode === 'immersive-ar') setPassthrough(!passthroughOn); closeMenu(); }
   else if (a === 'court') { cycleCourt(); closeMenu(); }
@@ -1216,7 +1584,7 @@ function pollMenuButton() {
   let pressed = false;
   for (const src of s.inputSources) {
     const gp = src.gamepad; if (!gp) continue;
-    if ((gp.buttons[5] && gp.buttons[5].pressed) || (gp.buttons[4] && gp.buttons[4].pressed)) pressed = true;
+    if (gp.buttons[5] && gp.buttons[5].pressed) pressed = true;   // B/Y only — A/X = call screen in live mode
   }
   if (pressed && !menuBtnPrev) { menuOpen ? closeMenu() : openMenu(); }
   menuBtnPrev = pressed;
@@ -1235,6 +1603,8 @@ renderer.setAnimationLoop(() => {
   try { step(dt); }               catch (e) { logOnce('step', e); }
   try { updateDrill(dt); }        catch (e) { logOnce('drill', e); }
   try { updateLoadedPlay(dt); }   catch (e) { logOnce('play', e); }
+  try { updateLive(dt); }         catch (e) { logOnce('livegame', e); }
+  try { pollLiveButton(); }       catch (e) { logOnce('livebtn', e); }
   try { if (menuOpen) updateHover(); } catch (e) { logOnce('hover', e); }
   if (flash > 0) { flash -= dt; if (flash <= 0) drawScore(); }
   renderer.render(scene, camera);
