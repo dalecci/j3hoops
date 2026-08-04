@@ -289,6 +289,11 @@
   .tl-line{flex:1;width:2px;background:linear-gradient(var(--flame-soft),var(--line));margin:5px 0;min-height:20px}
   .tl-card{flex:1;display:grid;grid-template-columns:300px 1fr;margin-bottom:16px;
     border:1px solid var(--line);border-radius:15px;overflow:hidden;background:var(--bg-card)}
+  /* compact row when a drill has no video yet */
+  .tl-card.novid{grid-template-columns:1fr;margin-bottom:9px}
+  .tl-card.novid .tl-body{padding:11px 15px;gap:3px}
+  .tl-card.novid .tl-title{font-size:1.1rem}
+  .tl-card.novid .tl-notes{font-size:.85rem}
   .tl-media{background:#000;min-width:0}
   .tl-vid{position:relative;width:100%;aspect-ratio:16/9;background:#000}
   .tl-vid iframe,.tl-vid video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
@@ -834,8 +839,8 @@ function tlItem(it,i,total,canEdit){
   const hasVid=it.video_url&&it.video_url.trim();
   return `<div class="tl-item">
     <div class="tl-rail"><div class="tl-dot">${i+1}</div>${i<total-1?'<div class="tl-line"></div>':''}</div>
-    <div class="tl-card">
-      <div class="tl-media" ${(canEdit&&!hasVid)?`data-edit-drill="${it.id}"`:''}>${videoEmbed(it.video_url)}</div>
+    <div class="tl-card${hasVid?'':' novid'}">
+      ${(hasVid||canEdit)?`<div class="tl-media" ${(canEdit&&!hasVid)?`data-edit-drill="${it.id}"`:''}>${videoEmbed(it.video_url)}</div>`:''}
       <div class="tl-body">
         ${it.minutes!=null&&it.minutes!==''?`<div class="tl-time">${esc(String(it.minutes))} min</div>`:''}
         <div class="tl-title">${esc(it.title||'Untitled drill')}</div>
