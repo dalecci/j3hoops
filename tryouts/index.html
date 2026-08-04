@@ -231,6 +231,16 @@
     font-weight:700;padding:6px;letter-spacing:.04em}
 
   /* ===== leaderboard toolbar / toggle ===== */
+  /* grade filter */
+  .gradebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 2px 14px}
+  .gradebar-lbl{font-size:.66rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mute);margin-right:2px}
+  .gchip{min-width:34px;padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:var(--bg-card);
+    color:var(--text-mute);font-size:.82rem;font-weight:800;transition:.12s;font-variant-numeric:tabular-nums}
+  .gchip:hover{border-color:var(--flame);color:#fff}
+  .gchip.on{background:linear-gradient(135deg,var(--flame),var(--flame-deep));border-color:transparent;color:#fff;box-shadow:0 6px 14px -8px var(--flame)}
+  .gradebar-count{margin-left:6px;font-size:.72rem;font-weight:700;color:var(--gold-bright)}
+  .gradetag{display:inline-block;font-size:.56rem;font-weight:900;letter-spacing:.06em;color:var(--gold-bright);
+    border:1px solid rgba(227,174,51,.4);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle}
   .lb-toolbar{display:flex;align-items:center;gap:14px;margin:0 2px 13px;flex-wrap:wrap}
   .seg{display:inline-flex;background:var(--bg-card);border:1px solid var(--line);border-radius:12px;padding:3px}
   .seg-btn{padding:9px 17px;border-radius:9px;font-size:.8rem;font-weight:800;color:var(--text-mute);transition:.14s;letter-spacing:.02em}
@@ -376,7 +386,19 @@ function paw(sz,color){return `<svg viewBox="0 0 24 24" width="${sz}" height="${
   <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
 
 let DEMO=false;
-const state={coaches:[],players:[],scores:[],notes:[],drills:[],playlists:[],playlistItems:[],settings:{},me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null,drillsSub:'library',drillSearch:'',drillTag:'',openPlaylist:null,plSearch:''};
+const state={coaches:[],players:[],scores:[],notes:[],drills:[],playlists:[],playlistItems:[],settings:{},me:null,view:'leaderboard',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null,drillsSub:'library',drillSearch:'',drillTag:'',openPlaylist:null,plSearch:'',grades:[]};
+const GRADES=[3,4,5,6,7,8,9,10];
+function inGrade(p){return !state.grades.length || state.grades.includes(p.grade);}
+function visiblePlayers(){return state.players.filter(inGrade);}
+function gradeBar(){
+  const sel=state.grades, shown=visiblePlayers().length;
+  return `<div class="gradebar">
+    <span class="gradebar-lbl">Grade</span>
+    <button class="gchip ${!sel.length?'on':''}" data-grade="all">All</button>
+    ${GRADES.map(g=>`<button class="gchip ${sel.includes(g)?'on':''}" data-grade="${g}">${g}</button>`).join('')}
+    ${sel.length?`<span class="gradebar-count">${shown} of ${state.players.length} shown</span>`:''}
+  </div>`;
+}
 
 /* ---------- data load ---------- */
 async function loadAll(){
@@ -418,7 +440,7 @@ function seedDemo(){
     ['Herbert Leitner',10,'walkup',`5'0"`,5.0,10,0,4,[4,4,5,4,4,5,4,6]],
   ];
   state.players=roster.map(([name,number,status,height,sprint,age,aau,rec])=>({
-    id:uuid(),name,number,status,height,sprint,age,aau_years:aau,rec_years:rec,created_at:name}));
+    id:uuid(),name,number,status,height,sprint,age,aau_years:aau,rec_years:rec,grade:Math.max(3,Math.min(10,age-6)),created_at:name}));
   state.scores=[];state.notes=[];
   state.players.forEach((pl,pi)=>{
     const baselines=roster[pi][8];
@@ -518,7 +540,7 @@ function fmtScore(v){return v==null?'—':(Math.round(v*10)/10).toFixed(1).repla
 /* ---------- rank rows ---------- */
 function rankedRows(){
   const mine=lbMineMode();
-  const rows=state.players.map(p=>{
+  const rows=state.players.filter(inGrade).map(p=>{
     const r={p,ovr:mine?myOverall(p.id):overall(p.id),scored:coachesScored(p.id)};
     CATS.forEach(c=>r[c.key]=mine?myCatVal(p.id,c.key):catAvg(p.id,c.key));
     MEAS.forEach(m=>r[m.key]=p[m.key]??null);
@@ -603,6 +625,7 @@ function vLeaderboard(){
     </div>
     <span class="lb-hint">${lbMineMode()?'<b>Tap any score cell</b> to set your rating':'Averages across all coaches · tap a header to rank'}</span>
   </div>`:''}
+  ${gradeBar()}
   <div class="lb-wrap"><div class="lb-scroll"><table class="lb">
     <thead><tr>
       ${th('number','#',{l:true})}
@@ -624,7 +647,7 @@ function lbRow(r,i){
     <td><div class="pl" style="cursor:default;gap:0"><span class="rankbadge ${medal}">${rk?(i+1):''}</span></div></td>
     <td><div class="pl" data-player="${r.p.id}">
       <div class="jersey ${r.p.status==='walkup'?'wk':''}">${num??'–'}</div>
-      <div><div class="pl-name">${esc(r.p.name)}${r.p.status==='walkup'?'<span class="wkpill">WALK-UP</span>':''}</div>
+      <div><div class="pl-name">${esc(r.p.name)}${r.p.grade?`<span class="gradetag">G${r.p.grade}</span>`:''}${r.p.status==='walkup'?'<span class="wkpill">WALK-UP</span>':''}</div>
         <div class="pl-meta">${r.scored} coach${r.scored===1?'':'es'} scored</div></div>
     </div></td>
     ${CATS.map(c=>{const v=r[c.key];
@@ -645,7 +668,8 @@ function vRoster(){
     <button class="btn btn-ghost btn-sm" data-act="add-walkup">＋ Walk-up</button>
     <button class="btn btn-flame btn-sm" data-act="add-player">＋ Add Player</button>
   </div>
-  ${state.players.length? `<div class="roster-grid">${state.players.slice().sort((a,b)=>(a.number??999)-(b.number??999)).map(rosterCard).join('')}</div>`
+  ${state.players.length?gradeBar():''}
+  ${state.players.length? `<div class="roster-grid">${visiblePlayers().sort((a,b)=>(a.number??999)-(b.number??999)).map(rosterCard).join('')}</div>`
     : `<div class="empty-state"><div class="ico">🏀</div><div>No players yet. Add your registered roster, then add walk-ups on tryout day.</div></div>`}
   `;
 }
@@ -655,7 +679,7 @@ function rosterCard(p){
   return `<div class="pcard" data-player="${p.id}">
     <div class="pcard-top">
       <div class="jersey ${p.status==='walkup'?'wk':''}">${p.number??'–'}</div>
-      <div><div class="pcard-name">${esc(p.name)}${p.status==='walkup'?'<span class="wkpill">WALK-UP</span>':''}</div>
+      <div><div class="pcard-name">${esc(p.name)}${p.grade?`<span class="gradetag">G${p.grade}</span>`:''}${p.status==='walkup'?'<span class="wkpill">WALK-UP</span>':''}</div>
         <div class="pl-meta">Overall ${fmtScore(overall(p.id))}</div></div>
     </div>
     <div class="pcard-meas">
@@ -676,11 +700,12 @@ function vScore(){
   if(!state.scorePlayer){
     return `<div class="sec-head"><h2>SCORE A PLAYER</h2><div class="rule"></div></div>
       <p style="color:var(--text-mute);margin:-6px 2px 16px">Pick a player to evaluate. Your scores save instantly and feed the leaderboard averages.</p>
-      <div class="roster-grid">${state.players.slice().sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>{
+      ${gradeBar()}
+      <div class="roster-grid">${visiblePlayers().sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>{
         const mine=state.scores.filter(s=>s.player_id===p.id&&s.coach_id===state.me.id).length;
         return `<div class="pcard" data-score="${p.id}">
           <div class="pcard-top"><div class="jersey ${p.status==='walkup'?'wk':''}">${p.number??'–'}</div>
-            <div><div class="pcard-name">${esc(p.name)}</div>
+            <div><div class="pcard-name">${esc(p.name)}${p.grade?`<span class="gradetag">G${p.grade}</span>`:''}</div>
             <div class="pl-meta">${mine?`<span style="color:#7ff0b4">You scored ${mine}/${CATS.length}</span>`:'Not scored by you yet'}</div></div></div>
         </div>`}).join('')}</div>`;
   }
@@ -994,6 +1019,13 @@ function wire(){
     render();});
   // board mode toggle
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{state.lbMode=b.dataset.mode;render();});
+  // grade filter chips
+  document.querySelectorAll('[data-grade]').forEach(b=>b.onclick=()=>{
+    const g=b.dataset.grade;
+    if(g==='all'){state.grades=[];}
+    else{const n=+g,i=state.grades.indexOf(n);if(i>=0)state.grades.splice(i,1);else state.grades.push(n);}
+    render();
+  });
   // inline editable score cells
   document.querySelectorAll('[data-edit]').forEach(c=>c.onclick=e=>{e.stopPropagation();openRatePopover(c,c.dataset.pid,c.dataset.cat);});
   // breakdown player selector
@@ -1090,7 +1122,11 @@ function playerModal(isWalkup=false,existing=null){
     <button class="sheet-x" id="mx">✕</button></div>
     <div class="sheet-b">
       <div class="field"><label>Name</label><input class="inp" id="f-name" value="${esc(p.name||'')}" placeholder="First Last"></div>
-      <div class="grid2">
+      <div class="grid3">
+        <div class="field"><label>Grade</label><select class="inp" id="f-grade">
+          <option value="">—</option>
+          ${GRADES.map(g=>`<option value="${g}" ${p.grade===g?'selected':''}>${g}</option>`).join('')}
+        </select></div>
         <div class="field"><label>Jersey #</label><input class="inp" id="f-number" inputmode="numeric" value="${p.number??nextNumber()}"></div>
         <div class="field"><label>Height</label><input class="inp" id="f-height" value="${esc(p.height||'')}" placeholder="5'4&quot;"></div>
       </div>
@@ -1110,7 +1146,8 @@ function playerModal(isWalkup=false,existing=null){
   document.getElementById('f-save').onclick=async()=>{
     const name=document.getElementById('f-name').value.trim();if(!name)return;
     const rec={
-      name,number:numf(document.getElementById('f-number').value),
+      name,grade:numf(document.getElementById('f-grade').value),
+      number:numf(document.getElementById('f-number').value),
       height:document.getElementById('f-height').value.trim()||null,
       sprint:numf(document.getElementById('f-sprint').value),
       age:numf(document.getElementById('f-age').value),
