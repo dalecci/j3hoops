@@ -391,7 +391,7 @@ function paw(sz,color){return `<svg viewBox="0 0 24 24" width="${sz}" height="${
   <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
 
 let DEMO=false;
-const state={coaches:[],players:[],scores:[],notes:[],drills:[],playlists:[],playlistItems:[],settings:{},me:null,view:'timeline',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null,drillsSub:'library',drillSearch:'',drillTag:'',openPlaylist:null,plSearch:'',grades:[]};
+const state={coaches:[],players:[],scores:[],notes:[],drills:[],playlists:[],playlistItems:[],settings:{},me:null,scoringCoach:null,view:'timeline',sort:{key:'ovr',dir:-1},lbMode:'avg',breakdownPlayer:null,drillsSub:'library',drillSearch:'',drillTag:'',openPlaylist:null,plSearch:'',grades:[]};
 const GRADES=[3,4,5,6,7,8,9,10];
 const TEAM_CODE='4545';
 const UNLOCK_KEY='jagtryouts_unlocked_v1';
@@ -523,8 +523,8 @@ function coachesScored(playerId){
   return new Set(state.scores.filter(s=>s.player_id===playerId).map(s=>s.coach_id)).size;
 }
 function myCatVal(playerId,catKey){
-  if(!state.me||state.me.viewOnly) return null;
-  const s=state.scores.find(x=>x.player_id===playerId&&x.coach_id===state.me.id&&x.category===catKey);
+  if(!state.me||state.me.viewOnly||!meId()) return null;
+  const s=state.scores.find(x=>x.player_id===playerId&&x.coach_id===meId()&&x.category===catKey);
   return s?s.value:null;
 }
 function myOverall(playerId){
@@ -532,7 +532,8 @@ function myOverall(playerId){
   if(!vals.length) return null;
   return vals.reduce((a,b)=>a+b,0)/vals.length;
 }
-function lbMineMode(){return false;} /* no coach identity in this version — team averages only */
+function meId(){return state.me&&state.me.team?state.scoringCoach:(state.me&&state.me.id);}
+function lbMineMode(){return state.lbMode==='mine'&&!!meId();}
 function scoreColor(v){
   if(v==null) return 'transparent';
   const h=(Math.max(1,Math.min(10,v))-1)/9*128; // red->green
@@ -590,13 +591,14 @@ function topBar(){
     <a class="mark" href="#"><div class="mark-badge">${paw(22)}</div>
       <div class="mark-txt"><b>JAGUARS</b><span>Tryout Evaluations</span></div></a>
     <div class="bar-spacer"></div>
+    ${meId()?`<div class="coachpill"><span class="dot"></span>${esc((state.coaches.find(c=>c.id===meId())||{}).name||'Coach')}<button data-act="whoami">change</button></div>`:''}
     <div class="coachpill"><span class="dot"></span>
       ${esc(me.name)}
       <button data-act="logout">lock</button></div>
   </div></div>`;
 }
 function tabBar(){
-  const tabs=[['timeline','Practice Timeline'],['leaderboard','Players Stats'],['roster','Roster']];
+  const tabs=[['timeline','Practice Timeline'],['leaderboard','Players Stats'],['score','Score'],['breakdown','Breakdown'],['drills','Drills'],['roster','Roster']];
   return `<div class="tabs"><div class="tabs-in">
     ${tabs.map(([k,l])=>`<button class="tab ${state.view===k?'on':''}" data-view="${k}">${l}${k==='roster'?`<span class="ct">${state.players.length}</span>`:''}</button>`).join('')}
   </div></div>`;
@@ -627,7 +629,11 @@ function vLeaderboard(){
     </div>
   </div>
   <div class="lb-toolbar">
-    <span class="lb-hint">Averages across all coaches · tap a header to rank</span>
+    ${meId()?`<div class="seg">
+      <button class="seg-btn ${state.lbMode==='avg'?'on':''}" data-mode="avg">Team Avg</button>
+      <button class="seg-btn ${state.lbMode==='mine'?'on':''}" data-mode="mine">My Ratings</button>
+    </div>`:''}
+    <span class="lb-hint">${lbMineMode()?'<b>Tap any score cell</b> to set your rating':'Averages across all coaches · tap a header to rank'}</span>
   </div>
   ${gradeBar()}
   <div class="lb-wrap"><div class="lb-scroll"><table class="lb">
@@ -701,12 +707,21 @@ function vScore(){
   if(state.me.viewOnly){
     return `<div class="empty-state"><div class="ico">👀</div><div>You're in view-only mode. Tap <b>switch</b> in the top corner and sign in as a coach to score players.</div></div>`;
   }
+  if(!meId()){
+    return `<div class="sec-head"><h2>WHO&rsquo;S SCORING?</h2><div class="rule"></div></div>
+      <p style="color:var(--text-mute);margin:-6px 2px 18px">Pick your name so your ratings save to you. Everyone shares one team code &mdash; this just tags who scored.</p>
+      <div class="coachlist" style="max-width:430px">
+        ${state.coaches.map(c=>`<button class="coachbtn" data-scoreas="${c.id}">
+          <span class="av">${initials(c.name)}</span>
+          <span><b>${esc(c.name)}</b><small>Score as this coach</small></span></button>`).join('')}
+      </div>`;
+  }
   if(!state.scorePlayer){
     return `<div class="sec-head"><h2>SCORE A PLAYER</h2><div class="rule"></div></div>
       <p style="color:var(--text-mute);margin:-6px 2px 16px">Pick a player to evaluate. Your scores save instantly and feed the leaderboard averages.</p>
       ${gradeBar()}
       <div class="roster-grid">${visiblePlayers().sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>{
-        const mine=state.scores.filter(s=>s.player_id===p.id&&s.coach_id===state.me.id).length;
+        const mine=state.scores.filter(s=>s.player_id===p.id&&s.coach_id===meId()).length;
         return `<div class="pcard" data-score="${p.id}">
           <div class="pcard-top"><div class="jersey ${p.status==='walkup'?'wk':''}">${p.number??'–'}</div>
             <div><div class="pcard-name">${esc(p.name)}${p.grade?`<span class="gradetag">G${p.grade}</span>`:''}</div>
@@ -718,7 +733,7 @@ function vScore(){
 function scoreDetail(pid){
   const p=state.players.find(x=>x.id===pid);
   if(!p) return '';
-  const myNote=state.notes.find(n=>n.player_id===pid&&n.coach_id===state.me.id);
+  const myNote=state.notes.find(n=>n.player_id===pid&&n.coach_id===meId());
   return `
   <button class="btn btn-ghost btn-sm" data-act="score-back" style="margin-bottom:14px">← All players</button>
   <div class="score-hd">
@@ -729,7 +744,7 @@ function scoreDetail(pid){
       </div></div>
   </div>
   ${CATS.map(cat=>{
-    const mine=state.scores.find(s=>s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat.key);
+    const mine=state.scores.find(s=>s.player_id===pid&&s.coach_id===meId()&&s.category===cat.key);
     const team=catAvg(pid,cat.key);
     const v=mine?mine.value:null;
     return `<div class="scat">
@@ -967,7 +982,7 @@ function plEditItem(it,i,total,canEdit){
 }
 
 const views={leaderboard:vLeaderboard,roster:vRoster,score:vScore,breakdown:vBreakdown,drills:vDrills,timeline:vTimeline};
-const ALLOWED=['leaderboard','timeline','roster'];
+const ALLOWED=['leaderboard','timeline','roster','score','breakdown','drills'];
 
 /* ---------- GATE / IDENTITY ---------- */
 function renderGate(){
@@ -1003,6 +1018,7 @@ function lockOut(){
 /* ====================================================== WIRE ====================================================== */
 function wire(){
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{state.view=b.dataset.view;state.scorePlayer=state.view==='score'?state.scorePlayer:null;render();});
+  const wa=document.querySelector('[data-act="whoami"]');if(wa)wa.onclick=()=>{state.scoringCoach=null;state.scorePlayer=null;state.view='score';render();};
   const lo=document.querySelector('[data-act="logout"]');if(lo)lo.onclick=()=>{state.scorePlayer=null;lockOut();};
   // sort
   document.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{
@@ -1011,6 +1027,7 @@ function wire(){
     else state.sort={key:k,dir:(k==='name'?1:-1)};
     render();});
   // board mode toggle
+  document.querySelectorAll('[data-scoreas]').forEach(b=>b.onclick=()=>{state.scoringCoach=b.dataset.scoreas;render();});
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{state.lbMode=b.dataset.mode;render();});
   // grade filter chips
   document.querySelectorAll('[data-grade]').forEach(b=>b.onclick=()=>{
@@ -1057,18 +1074,18 @@ function wire(){
 function flag(){const f=document.getElementById('saveflag');f.classList.add('show');clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1100);}
 async function saveScore(pid,cat,val){
   if(val==null){ // clear my rating
-    state.scores=state.scores.filter(s=>!(s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat));
+    state.scores=state.scores.filter(s=>!(s.player_id===pid&&s.coach_id===meId()&&s.category===cat));
   } else {
-    let row=state.scores.find(s=>s.player_id===pid&&s.coach_id===state.me.id&&s.category===cat);
-    if(row)row.value=val; else state.scores.push({id:uuid(),player_id:pid,coach_id:state.me.id,category:cat,value:val});
+    let row=state.scores.find(s=>s.player_id===pid&&s.coach_id===meId()&&s.category===cat);
+    if(row)row.value=val; else state.scores.push({id:uuid(),player_id:pid,coach_id:meId(),category:cat,value:val});
   }
   flag();
   // re-render current context
   if(state.view==='score'&&state.scorePlayer){document.getElementById('main').innerHTML=scoreDetail(state.scorePlayer);wire();}
   else{render();}
   if(!DEMO){
-    if(val==null) await sb.from('tryout_scores').delete().match({player_id:pid,coach_id:state.me.id,category:cat});
-    else await sb.from('tryout_scores').upsert({player_id:pid,coach_id:state.me.id,category:cat,value:val},{onConflict:'player_id,coach_id,category'});
+    if(val==null) await sb.from('tryout_scores').delete().match({player_id:pid,coach_id:meId(),category:cat});
+    else await sb.from('tryout_scores').upsert({player_id:pid,coach_id:meId(),category:cat,value:val},{onConflict:'player_id,coach_id,category'});
   }
 }
 
@@ -1096,10 +1113,10 @@ function openRatePopover(anchor,pid,cat){
   setTimeout(()=>document.addEventListener('click',popOutside,true),0);
 }
 async function saveNote(pid,text){
-  let row=state.notes.find(n=>n.player_id===pid&&n.coach_id===state.me.id);
-  if(row)row.text=text; else{row={id:uuid(),player_id:pid,coach_id:state.me.id,text};state.notes.push(row);}
+  let row=state.notes.find(n=>n.player_id===pid&&n.coach_id===meId());
+  if(row)row.text=text; else{row={id:uuid(),player_id:pid,coach_id:meId(),text};state.notes.push(row);}
   flag();
-  if(!DEMO){await sb.from('tryout_notes').upsert({player_id:pid,coach_id:state.me.id,text},{onConflict:'player_id,coach_id'});}
+  if(!DEMO){await sb.from('tryout_notes').upsert({player_id:pid,coach_id:meId(),text},{onConflict:'player_id,coach_id'});}
 }
 function nextNumber(){
   const used=new Set(state.players.map(p=>p.number).filter(n=>n!=null));
