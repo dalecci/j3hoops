@@ -354,6 +354,46 @@
     .grid3{grid-template-columns:1fr 1fr}
     .mark-txt span{display:none}
   }
+
+  /* ===== printable practice plan (no video) ===== */
+  .printhead{display:none}
+  @media print{
+    @page{margin:13mm}
+    html,body{background:#fff !important;color:#111 !important}
+    body{font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.4}
+    .bar,.tabs,.demo-ribbon,.save-flag,.sec-head,.bd-pick,.lb-toolbar,.gradebar,
+    .noprint,.empty-state,#modal-root,.tl-total,.tl-media,.tl-vid,.tl-actions{display:none !important}
+    main{max-width:none !important;margin:0 !important;padding:0 !important}
+    .printhead{display:block !important;margin:0 0 16px}
+    .ph-row{display:flex;align-items:flex-end;gap:14px;border-bottom:2.5pt solid #4a2670;padding-bottom:9px}
+    .ph-paw{color:#4a2670 !important;flex-shrink:0}
+    .ph-kick{font-family:Helvetica,Arial,sans-serif;font-size:7.5pt;font-weight:700;letter-spacing:.18em;
+      text-transform:uppercase;color:#6b6478 !important}
+    .ph-title{font-family:Helvetica,Arial,sans-serif;font-size:20pt;font-weight:800;color:#1a1030 !important;line-height:1.05}
+    .ph-min{margin-left:auto;text-align:right;line-height:1}
+    .ph-min b{font-family:Helvetica,Arial,sans-serif;font-size:24pt;font-weight:800;color:#4a2670 !important;display:block}
+    .ph-min span{font-family:Helvetica,Arial,sans-serif;font-size:7pt;font-weight:700;letter-spacing:.16em;
+      text-transform:uppercase;color:#6b6478 !important}
+    .ph-meta{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;color:#555 !important;margin-top:7px}
+    .tl{display:block !important}
+    .tl-item{break-inside:avoid;page-break-inside:avoid;gap:9px !important;margin-bottom:2px}
+    .tl-rail{width:24px !important}
+    .tl-dot{width:22px !important;height:22px !important;font-family:Helvetica,Arial,sans-serif;font-size:10pt !important;
+      background:#4a2670 !important;color:#fff !important;box-shadow:none !important;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .tl-line{background:#c9c2d6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .tl-card{grid-template-columns:1fr !important;background:#fff !important;border:0.7pt solid #b9b2c6 !important;
+      border-radius:5px !important;box-shadow:none !important;margin-bottom:8px !important;break-inside:avoid;page-break-inside:avoid}
+    .tl-body{padding:8px 12px !important;gap:2px !important}
+    .tl-time{font-family:Helvetica,Arial,sans-serif;font-size:8pt !important;font-weight:700;letter-spacing:.1em;
+      color:#8a6410 !important}
+    .tl-title{font-family:Helvetica,Arial,sans-serif;font-size:12.5pt !important;font-weight:800;color:#151020 !important}
+    .tl-notes{font-size:9.8pt !important;color:#2f2b38 !important;white-space:pre-line}
+    .printfoot{display:block !important;margin-top:12px;padding-top:8px;border-top:0.7pt solid #b9b2c6;
+      font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#6b6478 !important;display:flex;justify-content:space-between}
+  }
+  .printfoot{display:none}
+
 </style>
 </head>
 <body>
@@ -808,6 +848,7 @@ function videoEmbed(url){
   if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)) return `<div class="tl-vid"><video src="${esc(url)}" controls preload="metadata" playsinline></video></div>`;
   return `<div class="tl-vid"><a class="tl-vid-link" href="${esc(url)}" target="_blank" rel="noopener">▶ Open video</a></div>`;
 }
+function printDate(){try{return new Date().toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});}catch(e){return '';}}
 function vTimeline(){
   const canEdit=state.me&&!state.me.viewOnly;
   const activeId=state.settings.active_playlist||'';
@@ -815,8 +856,8 @@ function vTimeline(){
   const items=p?playlistItemsFor(p.id):[];
   const totalMin=items.reduce((s,it)=>s+(Number(it.minutes)||0),0);
   return `
-  <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div></div>
-  <p style="color:var(--text-mute);margin:-6px 2px 16px">Pick the training session to run — build sessions on the <b style="color:var(--gold-bright)">Drills → Playlists</b> tab.</p>
+  <div class="sec-head"><h2>TRYOUT TIMELINE</h2><div class="rule"></div>${p?`<button class="btn btn-ghost btn-sm" data-act="print-timeline">🖨 Print / PDF</button>`:''}</div>
+  <p class="noprint" style="color:var(--text-mute);margin:-6px 2px 16px">Pick the training session to run — build sessions on the <b style="color:var(--gold-bright)">Drills → Playlists</b> tab.</p>
   <div class="bd-pick" style="max-width:460px"><label>Training session</label>
     <select class="inp" id="sessionsel" ${canEdit?'':'disabled'}>
       <option value="">— Select a session —</option>
@@ -827,7 +868,9 @@ function vTimeline(){
   :(items.length?`<div style="height:16px"></div>
     <div class="tl-total"><span class="tl-total-n">${items.length}</span><span class="tl-total-l">drills</span>
       <div class="tl-total-sep"></div><span class="tl-total-n gold">${totalMin}</span><span class="tl-total-l">total minutes</span></div>
-    <div class="tl">${items.map((it,i)=>tlItemFromPlaylist(it,i,items.length)).join('')}</div>`
+    <div class="printhead"><div class="ph-row"><svg class="ph-paw" width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg><div><div class="ph-kick">Jaguars Basketball &middot; SW Florida</div><div class="ph-title">${esc(p.name)}</div></div><div class="ph-min"><b>${totalMin}</b><span>Minutes</span></div></div><div class="ph-meta">${items.length} segments${p.description?` &middot; ${esc(p.description)}`:''} &middot; ${printDate()}</div></div>
+    <div class="tl">${items.map((it,i)=>tlItemFromPlaylist(it,i,items.length)).join('')}</div>
+    <div class="printfoot"><span>Jaguars Basketball &middot; Practice Plan</span><span>${totalMin} minutes total</span></div>`
     :`<div class="empty-state"><div class="ico">➕</div><div>"${esc(p.name)}" has no drills yet. Add some on the Drills → Playlists tab.</div></div>`)}
   `;
 }
@@ -1059,6 +1102,7 @@ function wire(){
   document.querySelectorAll('[data-pl-move]').forEach(b=>b.onclick=()=>movePlItem(b.dataset.id,b.dataset.plMove));
   document.querySelectorAll('[data-pl-remove]').forEach(b=>b.onclick=()=>removePlItem(b.dataset.plRemove));
   document.querySelectorAll('[data-item-min]').forEach(inp=>inp.onchange=()=>setItemMinutes(inp.dataset.itemMin,inp.value));
+  const pt=document.querySelector('[data-act="print-timeline"]');if(pt)pt.onclick=()=>window.print();
   const ss=document.getElementById('sessionsel');if(ss)ss.onchange=()=>setActiveSession(ss.value);
   // scoring dots
   document.querySelectorAll('.dots').forEach(d=>d.querySelectorAll('.dot10').forEach(btn=>btn.onclick=()=>{
