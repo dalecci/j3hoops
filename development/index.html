@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0A0612"/>
+<title>Jaguars · Player Development</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0612; --card:#140B20; --card2:#251539; --head:#1a1030;
+    --pur:#8B43E0; --pur-br:#A66BF2; --pur-dp:#5B21B6; --pur-soft:rgba(139,67,224,.12);
+    --gold:#E3AE33; --gold-br:#F4C84B;
+    --tx:#fff; --tx-s:rgba(255,255,255,.78); --tx-m:rgba(255,255,255,.55); --tx-d:rgba(255,255,255,.32);
+    --line:rgba(255,255,255,.10); --line-s:rgba(255,255,255,.055);
+    --disp:'Anton',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--bg)}
+  body{font-family:var(--sans);color:var(--tx);line-height:1.5;min-height:100vh;overflow-x:hidden;
+    background:radial-gradient(1200px 700px at 80% -10%,rgba(139,67,224,.18),transparent 60%),
+               radial-gradient(900px 600px at -10% 10%,rgba(227,174,51,.08),transparent 55%),var(--bg);
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit}
+
+  .bar{position:sticky;top:0;z-index:80;background:rgba(10,6,18,.82);backdrop-filter:blur(16px) saturate(150%);
+    -webkit-backdrop-filter:blur(16px) saturate(150%);border-bottom:1px solid var(--line)}
+  .bar-in{max-width:var(--maxw);margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:14px}
+  .mark{display:flex;align-items:center;gap:11px;min-width:0}
+  .mark-badge{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--pur),var(--pur-dp));box-shadow:0 8px 18px -7px var(--pur)}
+  .mark-txt b{font-family:var(--disp);font-size:1.02rem;letter-spacing:.06em;display:block;line-height:1}
+  .mark-txt span{font-size:.7rem;color:var(--gold-br);letter-spacing:.02em}
+  .spacer{flex:1}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);font-size:.76rem;font-weight:700;white-space:nowrap}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:#39d98a;box-shadow:0 0 8px #39d98a}
+
+  .tabs{position:sticky;top:61px;z-index:70;background:rgba(10,6,18,.74);backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line-s)}
+  .tabs-in{max-width:var(--maxw);margin:0 auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
+  .tab{padding:13px 15px;font-size:.8rem;font-weight:800;letter-spacing:.04em;color:var(--tx-m);
+    white-space:nowrap;border-bottom:2.5px solid transparent;text-transform:uppercase;transition:.15s}
+  .tab:hover{color:var(--tx-s)} .tab.on{color:var(--tx);border-bottom-color:var(--pur)}
+  main{max-width:var(--maxw);margin:0 auto;padding:22px 16px 80px}
+
+  .sec{display:flex;align-items:center;gap:12px;margin:2px 2px 16px;flex-wrap:wrap}
+  .sec h2{font-family:var(--disp);font-size:1.5rem;letter-spacing:.03em}
+  .sec .rule{flex:1;height:1px;background:var(--line);min-width:20px}
+  .lead{color:var(--tx-m);margin:-8px 2px 16px;font-size:.9rem}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:10px;
+    font-weight:800;font-size:.83rem;transition:.15s;white-space:nowrap}
+  .btn-p{background:linear-gradient(135deg,var(--pur),var(--pur-dp));color:#fff;box-shadow:0 10px 22px -10px var(--pur)}
+  .btn-p:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-g{border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--tx-s)}
+  .btn-g:hover{border-color:var(--pur);color:var(--pur-br)}
+  .btn-s{padding:7px 12px;font-size:.75rem;border-radius:8px}
+  .btn-block{width:100%}
+  .btn-dz{color:#ff7a7a;border-color:rgba(255,122,122,.3)}
+
+  .gradebar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 2px 16px}
+  .gl{font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--tx-m)}
+  .gchip{min-width:34px;padding:7px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+    color:var(--tx-m);font-size:.8rem;font-weight:800;transition:.12s}
+  .gchip:hover{border-color:var(--pur);color:#fff}
+  .gchip.on{background:linear-gradient(135deg,var(--pur),var(--pur-dp));border-color:transparent;color:#fff}
+
+  /* ==== player card ==== */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+  .pcard{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;transition:.16s;
+    border:1px solid var(--line);background:linear-gradient(160deg,#1d1030,#100a1b)}
+  .pcard:hover{transform:translateY(-3px);border-color:rgba(166,107,242,.55)}
+  .pcard.t-elite{border-color:rgba(244,200,75,.5);background:linear-gradient(160deg,#2a1e12,#120c1c)}
+  .pcard-top{display:flex;align-items:center;gap:12px;padding:14px 15px 10px}
+  .jersey{width:52px;height:52px;border-radius:12px;flex-shrink:0;display:grid;place-items:center;
+    font-family:var(--disp);font-size:1.5rem;background:var(--card2);border:1px solid var(--line)}
+  .pname{font-weight:800;font-size:1.05rem;line-height:1.15}
+  .pmeta{font-size:.7rem;color:var(--tx-d);font-weight:600;margin-top:2px}
+  .ovr{margin-left:auto;text-align:center;line-height:1}
+  .ovr b{font-family:var(--disp);font-size:2.5rem;display:block}
+  .ovr span{font-size:.58rem;font-weight:900;letter-spacing:.18em;color:var(--tx-d)}
+  .bars{padding:4px 15px 14px;display:grid;gap:7px}
+  .brow{display:grid;grid-template-columns:76px 1fr 34px;align-items:center;gap:9px}
+  .blab{font-size:.66rem;font-weight:700;color:var(--tx-m);text-transform:uppercase;letter-spacing:.04em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btrack{height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .bfill{height:100%;border-radius:99px;transition:width .5s ease}
+  .bval{font-family:var(--disp);font-size:.95rem;text-align:right}
+  .delta{font-size:.62rem;font-weight:800;margin-left:3px}
+  .up{color:#5ee6a0} .down{color:#ff8080} .flat{color:var(--tx-d)}
+  .prov{position:absolute;top:12px;right:12px;font-size:.54rem;font-weight:900;letter-spacing:.1em;
+    color:var(--gold-br);border:1px solid rgba(227,174,51,.45);border-radius:5px;padding:2px 6px;background:rgba(0,0,0,.35)}
+
+  /* ==== tables / grids ==== */
+  .wrap{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  th{position:sticky;top:0;background:var(--head);font-size:.63rem;font-weight:800;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--tx-m);padding:11px 8px;text-align:center;white-space:nowrap;
+    border-bottom:1px solid var(--line);z-index:2}
+  th.l{text-align:left;padding-left:14px}
+  td{padding:0;text-align:center;border-bottom:1px solid var(--line-s)}
+  tbody tr:hover{background:rgba(255,255,255,.025)}
+  tbody tr:last-child td{border-bottom:none}
+  .cell{padding:9px 8px;font-weight:700;font-size:.9rem}
+  .cell.l{text-align:left;padding-left:14px}
+  .nin{width:66px;padding:7px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:#fff;font-weight:800;font-size:.88rem;text-align:center}
+  .nin:focus{outline:none;border-color:var(--pur);background:var(--pur-soft)}
+  .nin.filled{border-color:rgba(94,230,160,.4)}
+
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:.64rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--tx-m);margin-bottom:5px}
+  .inp{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:#fff;font-size:.92rem;font-weight:600}
+  .inp:focus{outline:none;border-color:var(--pur);background:var(--pur-soft)}
+  .inp::placeholder{color:var(--tx-d)}
+  select.inp{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:34px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23A66BF2' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center}
+  select.inp option{background:var(--head);color:#fff}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+  .ov{position:fixed;inset:0;z-index:200;background:rgba(4,2,9,.75);backdrop-filter:blur(6px);
+    display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px 14px;overflow-y:auto}
+  .sheet{width:100%;max-width:620px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 40px 90px -30px #000;animation:rise .2s ease}
+  .sheet.wide{max-width:900px}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .sh-h{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .sh-h h3{font-family:var(--disp);font-size:1.3rem;letter-spacing:.02em;flex:1}
+  .sh-x{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);color:var(--tx-m);font-size:1.1rem;display:grid;place-items:center}
+  .sh-x:hover{border-color:var(--pur);color:#fff}
+  .sh-b{padding:18px}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:7px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line-s);color:var(--tx-s)}
+  .chip b{color:var(--gold-br)}
+  .tag{font-size:.64rem;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(227,174,51,.10);
+    border:1px solid rgba(227,174,51,.28);color:var(--gold-br)}
+  .empty{text-align:center;padding:54px 20px;color:var(--tx-m)}
+  .empty .ico{font-size:2.3rem;margin-bottom:10px}
+  .flag{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:150;background:#0d2a1c;
+    border:1px solid #1f6b45;color:#7ff0b4;font-weight:800;font-size:.8rem;padding:9px 18px;border-radius:999px;
+    opacity:0;transition:.25s;pointer-events:none}
+  .flag.show{opacity:1}
+  .ribbon{position:fixed;bottom:0;left:0;right:0;z-index:60;background:rgba(227,174,51,.12);
+    border-top:1px solid rgba(227,174,51,.3);color:var(--gold-br);text-align:center;font-size:.72rem;
+    font-weight:700;padding:6px}
+  .note{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:var(--card);margin-bottom:10px}
+  .note-h{font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pur-br);margin-bottom:5px}
+  .spark{display:flex;align-items:flex-end;gap:3px;height:38px}
+  .spark i{flex:1;background:linear-gradient(180deg,var(--pur-br),var(--pur-dp));border-radius:2px 2px 0 0;min-height:2px}
+  @media(max-width:640px){.g3{grid-template-columns:1fr 1fr}.mark-txt span{display:none}}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Loading…</div></div>
+<div id="modal"></div>
+<div id="flag" class="flag">✓ Saved</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SB_URL='https://vlcpgwxeybpzwidjackz.supabase.co';
+const SB_KEY='sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const sb=createClient(SB_URL,SB_KEY);
+const uuid=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16)});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const GRADES=[3,4,5,6,7,8,9,10];
+
+let DEMO=false;
+const S={players:[],drills:[],coachScores:[],coaches:[],
+  attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],
+  groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
+  view:'cards',grades:[],adminTab:'attributes',testSession:null,openPlayer:null,openGame:null,assignFilter:''};
+
+/* ================= data ================= */
+async function loadAll(){
+  const q=(t,sel='*')=>sb.from(t).select(sel);
+  try{
+    const r=await Promise.all([
+      q('tryout_players'),q('tryout_drills'),q('tryout_scores'),q('tryout_coaches'),
+      q('pd_attributes'),q('pd_tests'),q('pd_test_weights'),q('pd_norms'),q('pd_results'),
+      q('pd_snapshots'),q('pd_groups'),q('pd_group_members'),q('pd_assignments'),
+      q('pd_item_state'),q('pd_games'),q('pd_stats'),q('pd_settings')]);
+    const bad=r.find(x=>x.error); if(bad) throw bad.error;
+    [S.players,S.drills,S.coachScores,S.coaches,S.attrs,S.tests,S.weights,S.norms,S.results,
+     S.snaps,S.groups,S.members,S.assigns,S.itemState,S.games,S.stats]=r.slice(0,16).map(x=>x.data||[]);
+    const set={}; (r[16].data||[]).forEach(x=>set[x.key]=x.value); S.settings=set;
+    if(!S.attrs.length) throw new Error('not seeded');
+    DEMO=false;
+  }catch(e){ console.warn('Player-development tables not ready — DEMO mode.',e?.message||e); DEMO=true; seedDemo(); }
+}
+function seedDemo(){
+  S.attrs=[['shooting','Shooting',1.2,.30],['finishing','Finishing',1.0,.45],['handle','Ball Handling',1.1,.40],
+    ['passing','Passing',1.0,.60],['defense','Defense',1.1,.65],['rebound','Rebounding',.9,.50],
+    ['athletic','Athleticism',1.0,0],['iq','Basketball IQ',1.2,1],['coach','Coachability',.8,1]]
+    .map(([key,label,weight,cw],i)=>({id:uuid(),key,label,weight,coach_weight:cw,sort_idx:i,is_active:true}));
+  S.tests=[['height','Height','in',0],['vertical','Max Vertical','in',0],['sprint','3/4 Court Sprint','sec',1],
+    ['agility','Lane Agility','sec',1],['spot_shooting','Spot Shooting (of 25)','count',0],
+    ['free_throws','Free Throws (of 10)','count',0],['layups','60s Layups','count',0],
+    ['cone_dribble','Cone Dribble Course','sec',1],['two_ball','30s Two-Ball (errors)','count',1],
+    ['passing_acc','30s Passing Accuracy','count',0]]
+    .map(([key,label,unit,lb],i)=>({id:uuid(),key,label,unit,lower_is_better:!!lb,sort_idx:i,is_active:true}));
+  S.weights=[['spot_shooting','shooting',.45],['free_throws','shooting',.25],['layups','finishing',.55],
+    ['cone_dribble','handle',.35],['two_ball','handle',.25],['passing_acc','passing',.40],
+    ['agility','defense',.35],['vertical','rebound',.30],['height','rebound',.20],
+    ['sprint','athletic',.40],['vertical','athletic',.30],['agility','athletic',.30]]
+    .map(([test_key,attribute_key,weight])=>({id:uuid(),test_key,attribute_key,weight}));
+  const names=[['Marcus Bell',7,3],['Jayden Francis',5,12],['Cairo Rios',6,7],['Dominick Santo',8,23],
+    ['Reed Heuglin',7,8],['Brantley Wozney',5,5],['Nathan Scars',8,21],['Jacob Skocik',6,14]];
+  S.players=names.map(([name,grade,number])=>({id:uuid(),name,grade,number,status:'registered'}));
+  S.results=[];
+  const base={height:[52,66],vertical:[10,22],sprint:[3.9,5.4],agility:[10.5,14],spot_shooting:[6,20],
+    free_throws:[2,9],layups:[12,30],cone_dribble:[12,20],two_ball:[0,9],passing_acc:[10,26]};
+  S.players.forEach((p,pi)=>S.tests.forEach((t,ti)=>{
+    const [lo,hi]=base[t.key]; const f=((pi*7+ti*13)%10)/10;
+    const v=lo+(hi-lo)*f; S.results.push({id:uuid(),player_id:p.id,test_key:t.key,
+      value:Math.round(v*10)/10,tested_at:'2026-08-01'});
+  }));
+  S.coaches=[{id:uuid(),name:'Coach Dale'}];
+  S.coachScores=[]; S.players.forEach((p,pi)=>S.attrs.forEach((a,ai)=>{
+    S.coachScores.push({id:uuid(),player_id:p.id,coach_id:S.coaches[0].id,category:a.key,value:4+((pi*3+ai)%6)});}));
+  S.drills=[{id:uuid(),name:'Form Shooting',description:'Close-range one-hand form.',tags:['shooting'],kind:'drill',video_url:''},
+    {id:uuid(),name:'Cone Dribble Series',description:'Weave both hands.',tags:['handle'],kind:'drill',video_url:''},
+    {id:uuid(),name:'Closeout Breakdown',description:'Film breakdown of closeouts.',tags:['defense'],kind:'breakdown',video_url:''}];
+  S.groups=[{id:uuid(),name:'Guards',color:'#8B43E0'},{id:uuid(),name:'Bigs',color:'#E3AE33'}];
+  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];
+  S.settings={scale:{mid:70,spread:10,floor:35,cap:99,k:10},provisional_min_inputs:2};
+}
+function subscribe(){ if(DEMO)return;
+  const ch=sb.channel('pd');
+  ['pd_results','pd_attributes','pd_tests','pd_test_weights','pd_assignments','pd_item_state',
+   'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','tryout_players','tryout_drills']
+   .forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},refresh));
+  ch.subscribe();
+}
+let rt;function refresh(){clearTimeout(rt);rt=setTimeout(async()=>{await loadAll();render();},350);}
+function flag(m){const f=$('flag');f.textContent=m||'✓ Saved';f.classList.add('show');clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1200);}
+async function put(table,row,conflict){ if(DEMO)return row;
+  const q=sb.from(table); const {data,error}= conflict
+    ? await q.upsert(row,{onConflict:conflict}).select().single()
+    : await q.insert(row).select().single();
+  if(error){console.error(table,error);return null;} return data; }
+async function patch(table,id,row){ if(DEMO)return; const {error}=await sb.from(table).update(row).eq('id',id); if(error)console.error(error); }
+async function del(table,id){ if(DEMO)return; const {error}=await sb.from(table).delete().eq('id',id); if(error)console.error(error); }
+
+/* ================= rating engine ================= */
+const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
+const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
+const activeTests=()=>S.tests.filter(t=>t.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
+const visPlayers=()=>S.players.filter(p=>!S.grades.length||S.grades.includes(p.grade));
+
+function latestResult(pid,tk){
+  const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
+    .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));
+  return rs.length?rs[0]:null;
+}
+function priorResult(pid,tk){
+  const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
+    .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));
+  return rs.length>1?rs[1]:null;
+}
+function cohort(tk,grade){
+  const vals=S.players.filter(p=>p.grade===grade).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value);
+  if(!vals.length) return {n:0,mean:0,sd:0};
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
+  return {n:vals.length,mean,sd};
+}
+/* whole-program spread for a test (fallback when a grade cohort is too small to be meaningful) */
+function poolStats(tk){
+  const vals=S.players.map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value);
+  if(!vals.length)return {n:0,mean:0,sd:0};
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
+  return {n:vals.length,mean,sd};
+}
+/* raw test value -> 0..99.
+   Grade cohort is the target, but with <4 tested it's statistically meaningless
+   (with n=2 every z is +/-0.707 regardless of the actual score), so we shrink it
+   toward a baseline: an admin-entered norm if one exists, else the whole-program spread. */
+function testRating(tk,grade,value){
+  const t=S.tests.find(x=>x.key===tk); if(!t||value==null||isNaN(value))return null;
+  const sc=SC(), flip=t.lower_is_better?-1:1;
+  const c=cohort(tk,grade), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
+  let zBase=0;
+  if(nm&&+nm.sd>0) zBase=((value-+nm.mean)/+nm.sd)*flip;
+  else if(pool.n>2&&pool.sd>0) zBase=((value-pool.mean)/pool.sd)*flip;
+  const zGrade=(c.n>3&&c.sd>0)?((value-c.mean)/c.sd)*flip:null;
+  const k=+sc.k||10, n=c.n;
+  const z = zGrade==null ? zBase : zGrade*(n/(n+k))+zBase*(k/(n+k));
+  return Math.max(sc.floor,Math.min(sc.cap,Math.round(sc.mid+sc.spread*z)));
+}
+/* what a rating is currently being measured against — shown in the player breakdown */
+function basisFor(tk,grade){
+  const c=cohort(tk,grade), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
+  if(c.n>3) return 'grade '+grade+' ('+c.n+' tested)';
+  if(nm) return 'grade '+grade+' norm';
+  if(pool.n>2) return 'whole program ('+pool.n+' tested)';
+  return 'not enough data';
+}
+const coachTo100=s=>Math.round(40+(s-1)*(60/9));
+function coachAvg(pid,attrKey){
+  const v=S.coachScores.filter(s=>s.player_id===pid&&s.category===attrKey).map(s=>+s.value);
+  return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
+}
+/* attribute = weighted blend of its tests + the coach's eye */
+function attrRating(pid,attrKey){
+  const p=S.players.find(x=>x.id===pid); if(!p)return {rating:null,inputs:0};
+  const a=S.attrs.find(x=>x.key===attrKey); if(!a)return {rating:null,inputs:0};
+  let num=0,den=0,inputs=0,parts=[];
+  S.weights.filter(w=>w.attribute_key===attrKey).forEach(w=>{
+    const r=latestResult(pid,w.test_key); if(!r)return;
+    const rt=testRating(w.test_key,p.grade,+r.value); if(rt==null)return;
+    num+=rt*+w.weight; den+=+w.weight; inputs++;
+    parts.push({kind:'test',key:w.test_key,rating:rt,weight:+w.weight,raw:+r.value});
+  });
+  const cw=+a.coach_weight||0;
+  if(cw>0){ const cs=coachAvg(pid,attrKey);
+    if(cs!=null){ const rt=coachTo100(cs); num+=rt*cw; den+=cw; inputs++;
+      parts.push({kind:'coach',rating:rt,weight:cw,raw:Math.round(cs*10)/10}); } }
+  return den>0?{rating:Math.round(num/den),inputs,parts}:{rating:null,inputs:0,parts};
+}
+function playerRatings(pid){
+  const out={}; activeAttrs().forEach(a=>out[a.key]=attrRating(pid,a.key)); return out;
+}
+function ovrOf(pid){
+  const r=playerRatings(pid); let num=0,den=0,have=0;
+  activeAttrs().forEach(a=>{ const x=r[a.key]; if(x.rating==null)return;
+    num+=x.rating*(+a.weight||1); den+=(+a.weight||1); have++; });
+  const total=activeAttrs().length;
+  return {ovr:den>0?Math.round(num/den):null,coverage:total?have/total:0,ratings:r};
+}
+function lastSnap(pid){
+  const s=S.snaps.filter(x=>x.player_id===pid).sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));
+  return s.length?s[0]:null;
+}
+function deltaFor(pid,key,cur){
+  const s=lastSnap(pid); if(!s||cur==null)return null;
+  const prev=key==='ovr'?s.ovr:(s.attributes_json||{})[key];
+  if(prev==null)return null; const d=Math.round(cur-prev); return d;
+}
+function ratingColor(v){
+  if(v==null)return 'rgba(255,255,255,.2)';
+  if(v>=90)return '#F4C84B'; if(v>=80)return '#A66BF2';
+  if(v>=70)return '#5ee6a0'; if(v>=60)return '#e3c33a'; return '#ff8f6b';
+}
+const dEl=d=>d==null?'':`<span class="delta ${d>0?'up':d<0?'down':'flat'}">${d>0?'▲'+d:d<0?'▼'+Math.abs(d):'–'}</span>`;
+
+/* ================= render ================= */
+function render(){
+  $('app').innerHTML=`
+   <div class="bar"><div class="bar-in">
+     <div class="mark"><div class="mark-badge">${paw(21)}</div>
+       <div class="mark-txt"><b>JAGUARS</b><span>Player Development</span></div></div>
+     <div class="spacer"></div>
+     <div class="pill"><span class="dot"></span>${S.players.length} players</div>
+   </div></div>
+   <div class="tabs"><div class="tabs-in">
+     ${[['cards','Player Cards'],['testing','Testing'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['admin','Admin']]
+       .map(([k,l])=>`<button class="tab ${S.view===k?'on':''}" data-v="${k}">${l}</button>`).join('')}
+   </div></div>
+   <main>${(VIEWS[S.view]||(()=>''))()}</main>
+   ${DEMO?'<div class="ribbon">◆ PREVIEW — sample data. Run the pd_ schema in Supabase to go live.</div>':''}`;
+  wire();
+}
+function paw(sz){return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="#F4C84B"><ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
+function gradeBar(){
+  return `<div class="gradebar"><span class="gl">Grade</span>
+    <button class="gchip ${!S.grades.length?'on':''}" data-g="all">All</button>
+    ${GRADES.map(g=>`<button class="gchip ${S.grades.includes(g)?'on':''}" data-g="${g}">${g}</button>`).join('')}</div>`;
+}
+
+/* ---- Cards ---- */
+function vCards(){
+  const rows=visPlayers().map(p=>({p,...ovrOf(p.id)}))
+    .sort((a,b)=>(b.ovr??-1)-(a.ovr??-1));
+  return `<div class="sec"><h2>PLAYER CARDS</h2><div class="rule"></div>
+      <button class="btn btn-g btn-s" data-act="snap">📌 Save Checkpoint</button></div>
+    <p class="lead">Ratings are <b>0–100, relative to grade level</b>. Tap a card for the full breakdown.</p>
+    ${gradeBar()}
+    ${rows.length?`<div class="cards">${rows.map(cardHTML).join('')}</div>`
+      :`<div class="empty"><div class="ico">🏀</div><div>No players yet — add them in the Tryouts app roster.</div></div>`}`;
+}
+function cardHTML({p,ovr,coverage,ratings}){
+  const min=+S.settings.provisional_min_inputs||2;
+  const inputs=Object.values(ratings).reduce((s,r)=>s+r.inputs,0);
+  const prov=inputs<min*2||coverage<.5;
+  const top=activeAttrs().slice(0,6);
+  return `<div class="pcard ${ovr>=90?'t-elite':''}" data-p="${p.id}">
+    ${prov?'<span class="prov">PROVISIONAL</span>':''}
+    <div class="pcard-top">
+      <div class="jersey">${p.number??'–'}</div>
+      <div style="min-width:0"><div class="pname">${esc(p.name)}</div>
+        <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(p.height):''}</div></div>
+      <div class="ovr"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b><span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
+    </div>
+    <div class="bars">${top.map(a=>{const r=ratings[a.key];const v=r.rating;
+      return `<div class="brow"><span class="blab">${esc(a.label)}</span>
+        <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
+        <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
+  </div>`;
+}
+
+/* ---- Testing ---- */
+function vTesting(){
+  const ts=activeTests(), ps=visPlayers().sort((a,b)=>(a.number??999)-(b.number??999));
+  return `<div class="sec"><h2>BASELINE TESTING</h2><div class="rule"></div>
+      <button class="btn btn-g btn-s" data-act="new-test">＋ New Test</button></div>
+    <p class="lead">Enter results and ratings recompute instantly. Blank = not tested. Re-test later to see growth.</p>
+    ${gradeBar()}
+    ${!ps.length?`<div class="empty"><div class="ico">📋</div><div>No players in this grade filter.</div></div>`:
+    `<div class="wrap"><div class="scroll"><table>
+      <thead><tr><th class="l">Player</th>
+        ${ts.map(t=>`<th title="${esc(t.instructions||'')}">${esc(t.label)}<br><span style="color:var(--tx-d);font-size:.9em">${t.lower_is_better?'▼ lower':'▲ higher'}</span></th>`).join('')}
+      </tr></thead><tbody>
+      ${ps.map(p=>`<tr><td><div class="cell l">
+          <b>${esc(p.name)}</b> <span style="color:var(--tx-d);font-size:.8em">G${p.grade??'–'}</span></div></td>
+        ${ts.map(t=>{const r=latestResult(p.id,t.key);
+          return `<td><input class="nin ${r?'filled':''}" inputmode="decimal" value="${r?r.value:''}"
+            data-res="${p.id}" data-tk="${t.key}" placeholder="–"></td>`}).join('')}
+      </tr>`).join('')}
+      </tbody></table></div></div>
+    <p class="lead" style="margin-top:12px">Tests measured today. Ratings compare each player to others <b>in the same grade</b>, blended toward the grade average until enough kids are tested.</p>`}`;
+}
+
+/* ---- Assign ---- */
+function vAssign(){
+  const q=(S.assignFilter||'').toLowerCase();
+  let lib=S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(q)lib=lib.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  return `<div class="sec"><h2>ASSIGN VIDEOS &amp; DRILLS</h2><div class="rule"></div>
+      <button class="btn btn-g btn-s" data-act="new-group">＋ Group</button>
+      <button class="btn btn-p btn-s" data-act="new-drill">＋ Video / Drill</button></div>
+    <p class="lead">Assign any video, breakdown or drill to <b>one kid, several kids, a group, or a whole grade</b>.</p>
+    <div class="row" style="margin-bottom:14px">
+      <input class="inp" id="afilter" placeholder="🔎 Search library…" value="${esc(S.assignFilter||'')}" style="max-width:340px">
+      ${S.groups.map(g=>`<span class="chip" style="border-color:${g.color}55"><b style="color:${g.color}">${esc(g.name)}</b> ${S.members.filter(m=>m.group_id===g.id).length}</span>`).join('')}
+    </div>
+    ${lib.length?`<div class="wrap"><div class="scroll"><table>
+      <thead><tr><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
+      ${lib.map(d=>{const as=S.assigns.filter(a=>a.drill_id===d.id);
+        return `<tr><td><div class="cell l"><b>${esc(d.name)}</b>
+            ${d.description?`<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:340px">${esc(String(d.description).slice(0,90))}${String(d.description).length>90?'…':''}</div>`:''}</div></td>
+          <td><div class="cell"><span class="chip">${esc(d.kind||'drill')}</span></div></td>
+          <td><div class="cell">${(d.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
+          <td><div class="cell">${as.length?as.map(a=>`<span class="chip">${scopeLabel(a)}</span>`).join(' '):'<span style="color:var(--tx-d)">not assigned</span>'}</div></td>
+          <td><div class="cell"><button class="btn btn-g btn-s" data-assign="${d.id}">Assign →</button></div></td></tr>`}).join('')}
+      </tbody></table></div></div>`
+      :`<div class="empty"><div class="ico">🎬</div><div>No videos or drills yet. Tap <b>＋ Video / Drill</b>.</div></div>`}`;
+}
+function scopeLabel(a){
+  if(a.scope==='all')return 'Everyone';
+  if(a.scope==='grade')return 'Grade '+a.scope_value;
+  if(a.scope==='group'){const g=S.groups.find(x=>x.id===a.scope_value);return g?g.name:'Group';}
+  const p=S.players.find(x=>x.id===a.scope_value);return p?p.name:'Player';
+}
+
+/* ---- Game stats ---- */
+function vStats(){
+  const gs=S.games.slice().sort((a,b)=>String(b.game_date).localeCompare(String(a.game_date)));
+  return `<div class="sec"><h2>GAME STATS</h2><div class="rule"></div>
+      <button class="btn btn-p btn-s" data-act="new-game">＋ New Game</button></div>
+    <p class="lead">Box scores feed season averages and progress reports.</p>
+    ${gs.length?`<div class="wrap"><div class="scroll"><table>
+      <thead><tr><th class="l">Game</th><th>Date</th><th>Players logged</th><th></th></tr></thead><tbody>
+      ${gs.map(g=>`<tr><td><div class="cell l"><b>${esc(g.opponent||'Game')}</b>${g.result?` <span class="chip">${esc(g.result)}</span>`:''}</div></td>
+        <td><div class="cell">${esc(g.game_date||'')}</div></td>
+        <td><div class="cell">${S.stats.filter(s=>s.game_id===g.id).length}</div></td>
+        <td><div class="cell"><button class="btn btn-g btn-s" data-game="${g.id}">Box score →</button></div></td></tr>`).join('')}
+      </tbody></table></div></div>`
+      :`<div class="empty"><div class="ico">📊</div><div>No games yet. Add one to start logging box scores.</div></div>`}
+    ${S.stats.length?seasonAvgTable():''}`;
+}
+function seasonAvgTable(){
+  const rows=visPlayers().map(p=>{
+    const ln=S.stats.filter(s=>s.player_id===p.id); if(!ln.length)return null;
+    const g=ln.length,sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
+    return {p,g,pts:sum('pts')/g,reb:(sum('oreb')+sum('dreb'))/g,ast:sum('ast')/g,
+      stl:sum('stl')/g,blk:sum('blk')/g,tov:sum('tov')/g,
+      fg:sum('fga')?100*sum('fgm')/sum('fga'):null};
+  }).filter(Boolean).sort((a,b)=>b.pts-a.pts);
+  if(!rows.length)return '';
+  const f=v=>v==null?'–':(Math.round(v*10)/10).toFixed(1);
+  return `<div class="sec" style="margin-top:26px"><h2 style="font-size:1.15rem">SEASON AVERAGES</h2><div class="rule"></div></div>
+   <div class="wrap"><div class="scroll"><table>
+    <thead><tr><th class="l">Player</th><th>GP</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>TOV</th><th>FG%</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td><div class="cell l"><b>${esc(r.p.name)}</b></div></td>
+      <td><div class="cell">${r.g}</div></td><td><div class="cell" style="color:var(--gold-br)">${f(r.pts)}</div></td>
+      <td><div class="cell">${f(r.reb)}</div></td><td><div class="cell">${f(r.ast)}</div></td>
+      <td><div class="cell">${f(r.stl)}</div></td><td><div class="cell">${f(r.blk)}</div></td>
+      <td><div class="cell">${f(r.tov)}</div></td><td><div class="cell">${r.fg==null?'–':f(r.fg)+'%'}</div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+/* ---- Reports ---- */
+function vReports(){
+  const ps=visPlayers().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  return `<div class="sec"><h2>PROGRESS REPORTS</h2><div class="rule"></div></div>
+    <p class="lead">Growth since the last checkpoint — ratings, raw test improvement, and what to work on next.</p>
+    ${gradeBar()}
+    ${ps.length?ps.map(p=>reportCard(p)).join(''):`<div class="empty"><div class="ico">📈</div><div>No players.</div></div>`}`;
+}
+function reportCard(p){
+  const {ovr,ratings}=ovrOf(p.id);
+  const snap=lastSnap(p.id);
+  const gains=[];
+  activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
+    if(cur&&pr){const d=+cur.value-+pr.value;const better=t.lower_is_better?d<0:d>0;
+      if(d!==0)gains.push({t,from:+pr.value,to:+cur.value,better});}});
+  const prio=weakest(p.id,ratings);
+  return `<div class="note">
+    <div class="row" style="justify-content:space-between">
+      <div><b style="font-size:1.05rem">${esc(p.name)}</b>
+        <span class="chip" style="margin-left:6px">Grade ${p.grade??'–'}</span></div>
+      <div style="text-align:right;line-height:1"><b style="font-family:var(--disp);font-size:1.7rem;color:${ratingColor(ovr)}">${ovr??'–'}</b>
+        <span style="font-size:.6rem;letter-spacing:.15em;color:var(--tx-d)">OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
+    </div>
+    ${gains.length?`<div style="margin-top:10px"><div class="note-h">Raw improvement</div>
+      ${gains.map(g=>`<span class="chip" style="margin:2px 4px 2px 0">${esc(g.t.label)} <b style="color:${g.better?'#5ee6a0':'#ff8f6b'}">${g.from} → ${g.to}</b></span>`).join('')}</div>`
+      :`<div style="margin-top:8px;color:var(--tx-d);font-size:.84rem">Only one test on file — re-test to show growth.</div>`}
+    ${prio?`<div style="margin-top:11px"><div class="note-h">Development priority</div>
+      <div style="color:var(--tx-s)"><b style="color:var(--pur-br)">${esc(prio.label)}</b> — ${prio.rating} vs their ${prio.avg} average.
+      ${prio.drills.length?`Suggested: ${prio.drills.map(d=>`<span class="tag">${esc(d.name)}</span>`).join(' ')}`:`<span style="color:var(--tx-d)">Tag drills with "${esc(prio.key)}" to get suggestions.</span>`}</div></div>`:''}
+    ${!snap?`<div style="margin-top:9px;color:var(--tx-d);font-size:.8rem">No checkpoint saved yet — save one on Player Cards to start tracking deltas.</div>`:''}
+  </div>`;
+}
+/* biggest gap vs the player's own average -> the thing to coach next */
+function weakest(pid,ratings){
+  const vals=activeAttrs().map(a=>({a,r:ratings[a.key]?.rating})).filter(x=>x.r!=null);
+  if(vals.length<3)return null;
+  const avg=Math.round(vals.reduce((s,x)=>s+x.r,0)/vals.length);
+  const low=vals.slice().sort((x,y)=>x.r-y.r)[0];
+  const drills=S.drills.filter(d=>(d.tags||[]).some(t=>t.toLowerCase()===low.a.key.toLowerCase()
+    ||t.toLowerCase()===low.a.label.toLowerCase())).slice(0,3);
+  return {key:low.a.key,label:low.a.label,rating:low.r,avg,drills};
+}
+
+/* ---- Admin ---- */
+function vAdmin(){
+  const t=S.adminTab;
+  const tabs=[['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['scale','Scale']];
+  return `<div class="sec"><h2>ADMIN</h2><div class="rule"></div></div>
+    <p class="lead">Full control. Everything here is editable at any time — nothing resets your data.</p>
+    <div class="row" style="margin-bottom:16px">${tabs.map(([k,l])=>
+      `<button class="btn ${t===k?'btn-p':'btn-g'} btn-s" data-atab="${k}">${l}</button>`).join('')}</div>
+    ${t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():adminScale()}`;
+}
+function adminAttrs(){
+  return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-attr">＋ Add Attribute</button></div>
+   <div class="wrap"><div class="scroll"><table>
+    <thead><tr><th class="l">Attribute</th><th>Key</th><th>OVR weight</th><th>Coach weight</th><th>Active</th><th></th></tr></thead>
+    <tbody>${S.attrs.sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0)).map(a=>`<tr>
+      <td><div class="cell l"><b>${esc(a.label)}</b></div></td>
+      <td><div class="cell" style="color:var(--tx-d)">${esc(a.key)}</div></td>
+      <td><div class="cell">${a.weight}</div></td>
+      <td><div class="cell">${a.coach_weight??0}</div></td>
+      <td><div class="cell">${a.is_active===false?'<span style="color:var(--tx-d)">off</span>':'<span style="color:#5ee6a0">on</span>'}</div></td>
+      <td><div class="cell"><button class="btn btn-g btn-s" data-eattr="${a.id}">Edit</button></div></td></tr>`).join('')}
+    </tbody></table></div></div>
+    <p class="lead" style="margin-top:11px"><b>OVR weight</b> = how much it counts toward the overall. <b>Coach weight</b> = how much the coach's 1–10 score counts vs the tests.</p>`;
+}
+function adminTests(){
+  return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-test">＋ Add Test</button></div>
+   <div class="wrap"><div class="scroll"><table>
+    <thead><tr><th class="l">Test</th><th>Key</th><th>Unit</th><th>Better</th><th>Feeds</th><th></th></tr></thead>
+    <tbody>${activeTests().concat(S.tests.filter(t=>t.is_active===false)).map(t=>`<tr>
+      <td><div class="cell l"><b>${esc(t.label)}</b>${t.instructions?`<div style="color:var(--tx-d);font-size:.78em;font-weight:500;max-width:320px">${esc(t.instructions)}</div>`:''}</div></td>
+      <td><div class="cell" style="color:var(--tx-d)">${esc(t.key)}</div></td>
+      <td><div class="cell">${esc(t.unit||'')}</div></td>
+      <td><div class="cell">${t.lower_is_better?'▼ lower':'▲ higher'}</div></td>
+      <td><div class="cell">${S.weights.filter(w=>w.test_key===t.key).map(w=>`<span class="tag">${esc(attrLabel(w.attribute_key))} ${w.weight}</span>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
+      <td><div class="cell"><button class="btn btn-g btn-s" data-etest="${t.id}">Edit</button></div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+const attrLabel=k=>{const a=S.attrs.find(x=>x.key===k);return a?a.label:k;};
+function adminWeights(){
+  return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-weight">＋ Link Test → Attribute</button></div>
+   <div class="wrap"><div class="scroll"><table>
+    <thead><tr><th class="l">Test</th><th>feeds</th><th class="l">Attribute</th><th>Weight</th><th></th></tr></thead>
+    <tbody>${S.weights.map(w=>`<tr>
+      <td><div class="cell l"><b>${esc(testLabel(w.test_key))}</b></div></td>
+      <td><div class="cell" style="color:var(--tx-d)">→</div></td>
+      <td><div class="cell l">${esc(attrLabel(w.attribute_key))}</div></td>
+      <td><div class="cell"><input class="nin" value="${w.weight}" data-wid="${w.id}" inputmode="decimal"></div></td>
+      <td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-dweight="${w.id}">✕</button></div></td></tr>`).join('')}
+    </tbody></table></div></div>
+    <p class="lead" style="margin-top:11px">Change a weight and every rating recomputes. Nothing is destroyed — raw test results are stored separately.</p>`;
+}
+const testLabel=k=>{const t=S.tests.find(x=>x.key===k);return t?t.label:k;};
+function adminGroups(){
+  return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-group">＋ New Group</button></div>
+   ${S.groups.length?`<div class="cards">${S.groups.map(g=>{
+     const mem=S.members.filter(m=>m.group_id===g.id);
+     return `<div class="note"><div class="row" style="justify-content:space-between">
+       <b style="color:${g.color}">${esc(g.name)}</b>
+       <button class="btn btn-g btn-s" data-egroup="${g.id}">Members (${mem.length})</button></div>
+       <div style="margin-top:8px">${mem.map(m=>{const p=S.players.find(x=>x.id===m.player_id);
+         return p?`<span class="chip" style="margin:2px 4px 2px 0">${esc(p.name)}</span>`:''}).join('')||'<span style="color:var(--tx-d);font-size:.84rem">No members yet</span>'}</div>
+       </div>`}).join('')}</div>`:`<div class="empty"><div class="ico">👥</div><div>No groups yet.</div></div>`}`;
+}
+function adminScale(){
+  const sc=SC();
+  return `<div class="note" style="max-width:520px">
+    <div class="note-h">Rating scale</div>
+    <div class="g3">
+      <div class="field"><label>Average (z=0)</label><input class="inp" id="sc-mid" value="${sc.mid}" inputmode="numeric"></div>
+      <div class="field"><label>Points per SD</label><input class="inp" id="sc-spread" value="${sc.spread}" inputmode="numeric"></div>
+      <div class="field"><label>Shrinkage k</label><input class="inp" id="sc-k" value="${sc.k}" inputmode="numeric"></div>
+    </div>
+    <div class="g2">
+      <div class="field"><label>Floor</label><input class="inp" id="sc-floor" value="${sc.floor}" inputmode="numeric"></div>
+      <div class="field"><label>Cap</label><input class="inp" id="sc-cap" value="${sc.cap}" inputmode="numeric"></div>
+    </div>
+    <button class="btn btn-p btn-block" data-act="save-scale">Save scale</button>
+    <p class="lead" style="margin:12px 0 0">An average player for their grade rates <b>${sc.mid}</b>. Each standard deviation above adds <b>${sc.spread}</b>.
+    <b>k</b> controls how much small groups are pulled toward the grade average — higher k = more conservative until you've tested more kids.</p>
+  </div>`;
+}
+const VIEWS={cards:vCards,testing:vTesting,assign:vAssign,stats:vStats,reports:vReports,admin:vAdmin};
+
+/* ================= modals ================= */
+function modal(title,body,wide){
+  $('modal').innerHTML=`<div class="ov" id="ov"><div class="sheet ${wide?'wide':''}">
+    <div class="sh-h"><h3>${title}</h3><button class="sh-x" id="mx">✕</button></div>
+    <div class="sh-b">${body}</div></div></div>`;
+  $('ov').onclick=e=>{if(e.target.id==='ov')closeModal();};
+  $('mx').onclick=closeModal;
+}
+const closeModal=()=>$('modal').innerHTML='';
+
+function playerModal(pid){
+  const p=S.players.find(x=>x.id===pid); if(!p)return;
+  const {ovr,ratings}=ovrOf(pid);
+  const body=`
+   <div class="row" style="justify-content:space-between;margin-bottom:14px">
+     <div class="row"><div class="jersey">${p.number??'–'}</div>
+       <div><div style="font-weight:800;font-size:1.1rem">${esc(p.name)}</div>
+         <div class="pmeta">Grade ${p.grade??'–'}</div></div></div>
+     <div style="text-align:right;line-height:1"><b style="font-family:var(--disp);font-size:2.6rem;color:${ratingColor(ovr)}">${ovr??'–'}</b>
+       <div style="font-size:.6rem;letter-spacing:.16em;color:var(--tx-d)">OVR${dEl(deltaFor(pid,'ovr',ovr))}</div></div>
+   </div>
+   <div class="wrap"><div class="scroll"><table>
+     <thead><tr><th class="l">Attribute</th><th>Rating</th><th>Δ</th><th class="l">Built from</th><th class="l">Compared to</th></tr></thead>
+     <tbody>${activeAttrs().map(a=>{const r=ratings[a.key];
+       return `<tr><td><div class="cell l"><b>${esc(a.label)}</b></div></td>
+        <td><div class="cell" style="font-family:var(--disp);font-size:1.15rem;color:${ratingColor(r.rating)}">${r.rating??'–'}</div></td>
+        <td><div class="cell">${dEl(deltaFor(pid,a.key,r.rating))||'<span style="color:var(--tx-d)">–</span>'}</div></td>
+        <td><div class="cell l" style="font-weight:500;font-size:.8rem;color:var(--tx-m)">${
+          (r.parts||[]).map(x=>x.kind==='coach'?`coach ${x.raw}/10 → ${x.rating}`:`${esc(testLabel(x.key))} ${x.raw} → ${x.rating}`).join(' · ')||'no data'}</div></td>
+        <td><div class="cell l" style="font-weight:500;font-size:.78rem;color:var(--tx-d)">${
+          [...new Set((r.parts||[]).filter(x=>x.kind==='test').map(x=>basisFor(x.key,p.grade)))].join(', ')||'–'}</div></td></tr>`}).join('')}
+     </tbody></table></div></div>
+   <div style="margin-top:14px"><div class="note-h">Assigned work</div>
+     ${assignedFor(pid).map(d=>`<span class="chip" style="margin:3px 5px 3px 0">${esc(d.name)}</span>`).join('')||'<span style="color:var(--tx-d);font-size:.85rem">Nothing assigned yet.</span>'}</div>`;
+  modal(esc(p.name),body,true);
+}
+function assignedFor(pid){
+  const p=S.players.find(x=>x.id===pid); if(!p)return [];
+  const gids=S.members.filter(m=>m.player_id===pid).map(m=>m.group_id);
+  const ids=new Set(S.assigns.filter(a=>a.scope==='all'
+    ||(a.scope==='grade'&&+a.scope_value===+p.grade)
+    ||(a.scope==='group'&&gids.includes(a.scope_value))
+    ||(a.scope==='player'&&a.scope_value===pid)).map(a=>a.drill_id));
+  return S.drills.filter(d=>ids.has(d.id));
+}
+
+function assignModal(drillId){
+  const d=S.drills.find(x=>x.id===drillId); if(!d)return;
+  const cur=S.assigns.filter(a=>a.drill_id===drillId);
+  modal('Assign · '+esc(d.name),`
+    <div class="field"><label>Assign to</label>
+      <select class="inp" id="as-scope">
+        <option value="player">Specific players</option>
+        <option value="group">A group</option>
+        <option value="grade">A whole grade</option>
+        <option value="all">Everyone</option>
+      </select></div>
+    <div id="as-target"></div>
+    <div class="g2"><div class="field"><label>Reps target</label><input class="inp" id="as-reps" inputmode="numeric" placeholder="e.g. 50"></div>
+      <div class="field"><label>Due date</label><input class="inp" id="as-due" type="date"></div></div>
+    <button class="btn btn-p btn-block" id="as-save">Assign</button>
+    ${cur.length?`<div style="margin-top:16px"><div class="note-h">Currently assigned to</div>
+      ${cur.map(a=>`<span class="chip" style="margin:3px 5px 3px 0">${scopeLabel(a)}
+        <button data-unassign="${a.id}" style="color:#ff7a7a;font-weight:900;margin-left:4px">✕</button></span>`).join('')}</div>`:''}`);
+  const tgt=()=>{const v=$('as-scope').value;
+    $('as-target').innerHTML = v==='player'
+      ? `<div class="field"><label>Players (tap to toggle)</label><div id="as-players" class="row">
+          ${S.players.sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>`<button class="gchip" data-pick="${p.id}">${p.number??'–'} ${esc(p.name.split(' ')[0])}</button>`).join('')}</div></div>`
+      : v==='group'
+      ? `<div class="field"><label>Group</label><select class="inp" id="as-val">${S.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select></div>`
+      : v==='grade'
+      ? `<div class="field"><label>Grade</label><select class="inp" id="as-val">${GRADES.map(g=>`<option value="${g}">Grade ${g}</option>`).join('')}</select></div>`
+      : `<p class="lead">Assigned to every player in the program.</p>`;
+    document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>b.classList.toggle('on'));
+  };
+  $('as-scope').onchange=tgt; tgt();
+  document.querySelectorAll('[data-unassign]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.unassign; S.assigns=S.assigns.filter(a=>a.id!==id); await del('pd_assignments',id); closeModal(); render(); flag('Removed');});
+  $('as-save').onclick=async()=>{
+    const scope=$('as-scope').value;
+    const reps=parseInt($('as-reps').value)||null, due=$('as-due').value||null;
+    const mk=async v=>{const row={drill_id:drillId,scope,scope_value:v,reps_target:reps,due_date:due};
+      const saved=await put('pd_assignments',row); S.assigns.push(saved||{id:uuid(),...row});};
+    if(scope==='player'){const picks=[...document.querySelectorAll('[data-pick].on')].map(b=>b.dataset.pick);
+      if(!picks.length)return; for(const p of picks) await mk(p);}
+    else if(scope==='all') await mk(null);
+    else await mk($('as-val').value);
+    closeModal(); render(); flag('Assigned');
+  };
+}
+
+function drillModal(){
+  modal('New Video / Drill',`
+    <div class="field"><label>Name</label><input class="inp" id="d-name" placeholder="Closeout Breakdown"></div>
+    <div class="g2">
+      <div class="field"><label>Kind</label><select class="inp" id="d-kind">
+        <option value="drill">Drill</option><option value="breakdown">Breakdown video</option><option value="film">Game film</option></select></div>
+      <div class="field"><label>Tags (comma separated)</label><input class="inp" id="d-tags" placeholder="defense, closeout"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea class="inp" id="d-desc" rows="3" placeholder="How it's run, what to look for…"></textarea></div>
+    <div class="field"><label>Video link</label><input class="inp" id="d-video" placeholder="YouTube or .mp4 URL"></div>
+    <button class="btn btn-p btn-block" id="d-save">Add to library</button>`);
+  $('d-save').onclick=async()=>{
+    const name=$('d-name').value.trim(); if(!name)return;
+    const row={name,kind:$('d-kind').value,description:$('d-desc').value.trim()||null,
+      video_url:$('d-video').value.trim()||null,
+      tags:$('d-tags').value.split(',').map(t=>t.trim()).filter(Boolean)};
+    const saved=await put('tryout_drills',row); S.drills.push(saved||{id:uuid(),...row});
+    closeModal(); render(); flag('Added');};
+}
+function groupModal(gid){
+  const g=gid?S.groups.find(x=>x.id===gid):null;
+  if(!g){ modal('New Group',`
+      <div class="field"><label>Name</label><input class="inp" id="g-name" placeholder="Guards"></div>
+      <div class="field"><label>Color</label><input class="inp" id="g-color" value="#8B43E0"></div>
+      <button class="btn btn-p btn-block" id="g-save">Create</button>`);
+    $('g-save').onclick=async()=>{const name=$('g-name').value.trim(); if(!name)return;
+      const row={name,color:$('g-color').value.trim()||'#8B43E0'};
+      const saved=await put('pd_groups',row); S.groups.push(saved||{id:uuid(),...row});
+      closeModal(); render(); flag('Created');}; return; }
+  const mem=new Set(S.members.filter(m=>m.group_id===gid).map(m=>m.player_id));
+  modal('Members · '+esc(g.name),`<div class="row">
+      ${S.players.sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>
+        `<button class="gchip ${mem.has(p.id)?'on':''}" data-mem="${p.id}">${p.number??'–'} ${esc(p.name.split(' ')[0])}</button>`).join('')}
+    </div><button class="btn btn-p btn-block" id="g-savem" style="margin-top:14px">Save members</button>`);
+  document.querySelectorAll('[data-mem]').forEach(b=>b.onclick=()=>b.classList.toggle('on'));
+  $('g-savem').onclick=async()=>{
+    const want=new Set([...document.querySelectorAll('[data-mem].on')].map(b=>b.dataset.mem));
+    for(const pid of want) if(!mem.has(pid)){const row={group_id:gid,player_id:pid};
+      const s=await put('pd_group_members',row); S.members.push(s||{id:uuid(),...row});}
+    for(const m of S.members.filter(m=>m.group_id===gid)) if(!want.has(m.player_id)){
+      await del('pd_group_members',m.id); S.members=S.members.filter(x=>x.id!==m.id);}
+    closeModal(); render(); flag('Saved');};
+}
+function attrModal(id){
+  const a=id?S.attrs.find(x=>x.id===id):null;
+  modal(a?'Edit Attribute':'New Attribute',`
+    <div class="g2"><div class="field"><label>Label</label><input class="inp" id="a-label" value="${a?esc(a.label):''}" placeholder="Shooting"></div>
+      <div class="field"><label>Key (no spaces)</label><input class="inp" id="a-key" value="${a?esc(a.key):''}" ${a?'disabled':''} placeholder="shooting"></div></div>
+    <div class="g3"><div class="field"><label>OVR weight</label><input class="inp" id="a-w" value="${a?a.weight:1}" inputmode="decimal"></div>
+      <div class="field"><label>Coach weight</label><input class="inp" id="a-cw" value="${a?(a.coach_weight??0):0}" inputmode="decimal"></div>
+      <div class="field"><label>Order</label><input class="inp" id="a-o" value="${a?(a.sort_idx??0):S.attrs.length}" inputmode="numeric"></div></div>
+    <div class="field"><label>Active</label><select class="inp" id="a-act"><option value="1" ${a&&a.is_active===false?'':'selected'}>On</option><option value="0" ${a&&a.is_active===false?'selected':''}>Off</option></select></div>
+    ${a?`<button class="btn btn-g btn-s btn-dz" id="a-del">Delete attribute</button>`:''}
+    <button class="btn btn-p btn-block" id="a-save" style="margin-top:12px">${a?'Save':'Add'}</button>`);
+  $('a-save').onclick=async()=>{
+    const label=$('a-label').value.trim(), key=($('a-key').value||label.toLowerCase().replace(/\W+/g,'_')).trim();
+    if(!label||!key)return;
+    const row={label,weight:+$('a-w').value||1,coach_weight:+$('a-cw').value||0,
+      sort_idx:+$('a-o').value||0,is_active:$('a-act').value==='1'};
+    if(a){Object.assign(a,row); await patch('pd_attributes',a.id,row);}
+    else{const full={key,...row}; const s=await put('pd_attributes',full); S.attrs.push(s||{id:uuid(),...full});}
+    closeModal(); render(); flag('Saved');};
+  const dl=$('a-del'); if(dl)dl.onclick=async()=>{S.attrs=S.attrs.filter(x=>x.id!==a.id); await del('pd_attributes',a.id); closeModal(); render();};
+}
+function testModal(id){
+  const t=id?S.tests.find(x=>x.id===id):null;
+  modal(t?'Edit Test':'New Test',`
+    <div class="g2"><div class="field"><label>Label</label><input class="inp" id="t-label" value="${t?esc(t.label):''}" placeholder="Max Vertical"></div>
+      <div class="field"><label>Key</label><input class="inp" id="t-key" value="${t?esc(t.key):''}" ${t?'disabled':''} placeholder="vertical"></div></div>
+    <div class="g3"><div class="field"><label>Unit</label><select class="inp" id="t-unit">
+        ${['count','sec','in','lbs','pct'].map(u=>`<option ${t&&t.unit===u?'selected':''}>${u}</option>`).join('')}</select></div>
+      <div class="field"><label>Better is</label><select class="inp" id="t-lb">
+        <option value="0" ${t&&t.lower_is_better?'':'selected'}>Higher ▲</option>
+        <option value="1" ${t&&t.lower_is_better?'selected':''}>Lower ▼</option></select></div>
+      <div class="field"><label>Order</label><input class="inp" id="t-o" value="${t?(t.sort_idx??0):S.tests.length}" inputmode="numeric"></div></div>
+    <div class="field"><label>How to run it</label><textarea class="inp" id="t-ins" rows="2">${t?esc(t.instructions||''):''}</textarea></div>
+    ${t?`<button class="btn btn-g btn-s btn-dz" id="t-del">Delete test</button>`:''}
+    <button class="btn btn-p btn-block" id="t-save" style="margin-top:12px">${t?'Save':'Add'}</button>`);
+  $('t-save').onclick=async()=>{
+    const label=$('t-label').value.trim(), key=($('t-key').value||label.toLowerCase().replace(/\W+/g,'_')).trim();
+    if(!label||!key)return;
+    const row={label,unit:$('t-unit').value,lower_is_better:$('t-lb').value==='1',
+      instructions:$('t-ins').value.trim()||null,sort_idx:+$('t-o').value||0};
+    if(t){Object.assign(t,row); await patch('pd_tests',t.id,row);}
+    else{const full={key,is_active:true,...row}; const s=await put('pd_tests',full); S.tests.push(s||{id:uuid(),...full});}
+    closeModal(); render(); flag('Saved');};
+  const dl=$('t-del'); if(dl)dl.onclick=async()=>{S.tests=S.tests.filter(x=>x.id!==t.id); await del('pd_tests',t.id); closeModal(); render();};
+}
+function weightModal(){
+  modal('Link Test → Attribute',`
+    <div class="field"><label>Test</label><select class="inp" id="w-t">${activeTests().map(t=>`<option value="${t.key}">${esc(t.label)}</option>`).join('')}</select></div>
+    <div class="field"><label>Feeds attribute</label><select class="inp" id="w-a">${activeAttrs().map(a=>`<option value="${a.key}">${esc(a.label)}</option>`).join('')}</select></div>
+    <div class="field"><label>Weight</label><input class="inp" id="w-w" value="0.3" inputmode="decimal"></div>
+    <button class="btn btn-p btn-block" id="w-save">Link</button>`);
+  $('w-save').onclick=async()=>{
+    const row={test_key:$('w-t').value,attribute_key:$('w-a').value,weight:+$('w-w').value||0.3};
+    const s=await put('pd_test_weights',row,'test_key,attribute_key');
+    const ex=S.weights.find(w=>w.test_key===row.test_key&&w.attribute_key===row.attribute_key);
+    if(ex)Object.assign(ex,row); else S.weights.push(s||{id:uuid(),...row});
+    closeModal(); render(); flag('Linked');};
+}
+function gameModal(gid){
+  if(!gid){ modal('New Game',`
+      <div class="g2"><div class="field"><label>Opponent</label><input class="inp" id="gm-opp" placeholder="Fort Myers Elite"></div>
+        <div class="field"><label>Date</label><input class="inp" id="gm-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div></div>
+      <div class="field"><label>Result (optional)</label><input class="inp" id="gm-res" placeholder="W 48-41"></div>
+      <button class="btn btn-p btn-block" id="gm-save">Create game</button>`);
+    $('gm-save').onclick=async()=>{const row={opponent:$('gm-opp').value.trim()||'Game',
+        game_date:$('gm-date').value||null,result:$('gm-res').value.trim()||null};
+      const s=await put('pd_games',row); const g=s||{id:uuid(),...row}; S.games.push(g);
+      closeModal(); render(); boxModal(g.id);}; return; }
+  boxModal(gid);
+}
+const BOX=['min','pts','fgm','fga','tpm','tpa','ftm','fta','oreb','dreb','ast','stl','blk','tov','pf','pm'];
+function boxModal(gid){
+  const g=S.games.find(x=>x.id===gid); if(!g)return;
+  modal('Box score · '+esc(g.opponent||'Game'),`
+    <div class="wrap"><div class="scroll"><table>
+      <thead><tr><th class="l">Player</th>${BOX.map(k=>`<th>${k.toUpperCase()}</th>`).join('')}</tr></thead>
+      <tbody>${S.players.sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>{
+        const st=S.stats.find(s=>s.game_id===gid&&s.player_id===p.id)||{};
+        return `<tr><td><div class="cell l"><b>${esc(p.name)}</b></div></td>
+          ${BOX.map(k=>`<td><input class="nin" style="width:52px" inputmode="numeric" value="${st[k]??''}" data-box="${p.id}" data-k="${k}" data-g="${gid}"></td>`).join('')}
+        </tr>`}).join('')}</tbody></table></div></div>
+    <p class="lead" style="margin-top:10px">Saves as you type.</p>`,true);
+  document.querySelectorAll('[data-box]').forEach(inp=>inp.onchange=async()=>{
+    const pid=inp.dataset.box,k=inp.dataset.k,v=inp.value===''?null:+inp.value;
+    let st=S.stats.find(s=>s.game_id===gid&&s.player_id===pid);
+    if(!st){st={id:uuid(),game_id:gid,player_id:pid};S.stats.push(st);}
+    st[k]=v;
+    const row={game_id:gid,player_id:pid}; BOX.forEach(kk=>{ if(st[kk]!=null) row[kk]=st[kk]; });
+    const saved=await put('pd_stats',row,'game_id,player_id'); if(saved)st.id=saved.id;
+    flag('Saved');});
+}
+
+/* ================= wire ================= */
+function wire(){
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{S.view=b.dataset.v;render();});
+  document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{
+    const g=b.dataset.g;
+    if(g==='all')S.grades=[]; else{const n=+g,i=S.grades.indexOf(n);i>=0?S.grades.splice(i,1):S.grades.push(n);}
+    render();});
+  document.querySelectorAll('[data-p]').forEach(el=>el.onclick=()=>playerModal(el.dataset.p));
+  document.querySelectorAll('[data-atab]').forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.atab;render();});
+  document.querySelectorAll('[data-assign]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assign));
+  document.querySelectorAll('[data-eattr]').forEach(b=>b.onclick=()=>attrModal(b.dataset.eattr));
+  document.querySelectorAll('[data-etest]').forEach(b=>b.onclick=()=>testModal(b.dataset.etest));
+  document.querySelectorAll('[data-egroup]').forEach(b=>b.onclick=()=>groupModal(b.dataset.egroup));
+  document.querySelectorAll('[data-game]').forEach(b=>b.onclick=()=>gameModal(b.dataset.game));
+  document.querySelectorAll('[data-dweight]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.dweight; S.weights=S.weights.filter(w=>w.id!==id); await del('pd_test_weights',id); render(); flag('Removed');});
+  document.querySelectorAll('[data-wid]').forEach(inp=>inp.onchange=async()=>{
+    const w=S.weights.find(x=>x.id===inp.dataset.wid); if(!w)return;
+    w.weight=+inp.value||0; await patch('pd_test_weights',w.id,{weight:w.weight}); render(); flag('Updated');});
+  // test result entry
+  document.querySelectorAll('[data-res]').forEach(inp=>inp.onchange=async()=>{
+    const pid=inp.dataset.res,tk=inp.dataset.tk,raw=inp.value.trim();
+    const ex=latestResult(pid,tk);
+    if(raw===''){ if(ex){S.results=S.results.filter(r=>r.id!==ex.id); await del('pd_results',ex.id);} render(); flag('Cleared'); return; }
+    const value=parseFloat(raw); if(isNaN(value))return;
+    const today=new Date().toISOString().slice(0,10);
+    if(ex&&ex.tested_at===today){ ex.value=value; await patch('pd_results',ex.id,{value}); }
+    else{ const row={player_id:pid,test_key:tk,value,tested_at:today};
+      const s=await put('pd_results',row); S.results.push(s||{id:uuid(),...row}); }
+    render(); flag('Saved');});
+  const af=$('afilter'); if(af)af.oninput=()=>{S.assignFilter=af.value;render();
+    const e=$('afilter'); if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}};
+  const acts={
+    'new-attr':()=>attrModal(),'new-test':()=>testModal(),'new-weight':()=>weightModal(),
+    'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
+    'snap':saveCheckpoint,'save-scale':saveScale};
+  document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
+}
+async function saveCheckpoint(){
+  const today=new Date().toISOString().slice(0,10);
+  for(const p of S.players){
+    const {ovr,ratings}=ovrOf(p.id); if(ovr==null)continue;
+    const aj={}; Object.keys(ratings).forEach(k=>{if(ratings[k].rating!=null)aj[k]=ratings[k].rating;});
+    const row={player_id:p.id,as_of:today,ovr,attributes_json:aj,trigger:'manual'};
+    const s=await put('pd_snapshots',row); S.snaps.push(s||{id:uuid(),...row});
+  }
+  render(); flag('Checkpoint saved');
+}
+async function saveScale(){
+  const v={mid:+$('sc-mid').value||70,spread:+$('sc-spread').value||10,
+    floor:+$('sc-floor').value||35,cap:+$('sc-cap').value||99,k:+$('sc-k').value||10};
+  S.settings.scale=v; await put('pd_settings',{key:'scale',value:v},'key');
+  render(); flag('Scale saved');
+}
+
+await loadAll(); subscribe(); render();
+</script>
+</body>
+</html>
