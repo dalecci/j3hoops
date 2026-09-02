@@ -718,7 +718,7 @@ function adminPlayers(){
       '<td><div class="cell">'+(pl.number==null?'–':pl.number)+'</div></td>'+
       '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
       '<td><div class="cell">'+(pl.height?esc(String(pl.height)):'–')+'</div></td>'+
-      '<td><div class="cell">'+(ac?'<span class="tag" style="font-family:monospace">'+esc(ac.code)+'</span>':'<span style="color:var(--tx-d)">none</span>')+'</div></td>'+
+      '<td><div class="cell"><span class="tag" style="font-family:monospace">'+esc(codeFor(pl.id))+'</span></div></td>'+
       '<td><div class="cell"><button class="btn btn-g btn-s" data-eplayer="'+pl.id+'">Edit</button></div></td></tr>';}).join('')+
     '</tbody></table></div></div>'
     :'<div class="empty"><div class="ico">🏀</div><div>No players yet. Tap <b>＋ Add Player</b>.</div></div>')+
@@ -765,18 +765,30 @@ function bulkPlayerModal(){
 
 /* ---- Admin: parent access codes ---- */
 function randCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let o='';for(let i=0;i<4;i++)o+=A[Math.floor(Math.random()*A.length)];return 'JAG-'+o;}
+/* A stable code derived from the player id, so parent codes work even before
+   the pd_access table exists. An explicitly issued pd_access row always wins. */
+function derivedCode(pid){
+  const s=String(pid||''); let h=2166136261;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let n=Math.abs(h),o='';
+  for(let i=0;i<4;i++){o+=A[n%A.length];n=Math.floor(n/A.length);}
+  return 'JAG-'+o;
+}
+function codeFor(pid){const ac=S.access.find(x=>x.player_id===pid&&!x.revoked_at);return ac?ac.code:derivedCode(pid);}
 function adminAccess(){
-  if(!CODES_OK) return setupNotice('parent access code');
   const ps=S.players.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="codes-all">⚡ Generate codes for everyone</button></div>'+
-    '<p class="lead">Give a family their code and they open <b>j3hoops.com/parent</b> to see their athlete.</p>'+
+  const head = (CODES_OK?'<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="codes-all">⚡ Regenerate all codes</button></div>':'')
+    + '<p class="lead">Give a family their code and they open <b>j3hoops.com/parent</b> to see their athlete.'
+    + (CODES_OK?'':' <b style="color:var(--gold-br)">These codes work right now</b> — each one is generated from the player, so it stays the same. Create the pd_access table if you want to be able to change them.')
+    + '</p>';
+  return head+
     (ps.length?'<div class="wrap"><div class="scroll"><table>'+
     '<thead><tr><th class="l">Player</th><th>Grade</th><th>Parent code</th><th></th></tr></thead><tbody>'+
     ps.map(pl=>{const ac=S.access.find(a=>a.player_id===pl.id&&!a.revoked_at);
       return '<tr><td><div class="cell l"><b>'+esc(pl.name)+'</b></div></td>'+
         '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
-        '<td><div class="cell" style="font-family:monospace;font-size:1rem;color:var(--gold-br)">'+(ac?esc(ac.code):'—')+'</div></td>'+
-        '<td><div class="cell"><button class="btn btn-g btn-s" data-code="'+pl.id+'">'+(ac?'Regenerate':'Generate')+'</button></div></td></tr>';}).join('')+
+        '<td><div class="cell" style="font-family:monospace;font-size:1.05rem;color:var(--gold-br)">'+esc(codeFor(pl.id))+'</div></td>'+
+        '<td><div class="cell">'+(CODES_OK?'<button class="btn btn-g btn-s" data-code="'+pl.id+'">'+(ac?'Regenerate':'Generate')+'</button>':'<span style="color:var(--tx-d);font-size:.78rem">auto</span>')+'</div></td></tr>';}).join('')+
     '</tbody></table></div></div>':'<div class="empty"><div class="ico">🔑</div><div>Add players first.</div></div>');
 }
 async function makeCode(pid){
