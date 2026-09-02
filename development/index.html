@@ -183,6 +183,41 @@
   .spark{display:flex;align-items:flex-end;gap:3px;height:38px}
   .spark i{flex:1;background:linear-gradient(180deg,var(--pur-br),var(--pur-dp));border-radius:2px 2px 0 0;min-height:2px}
   @media(max-width:640px){.g3{grid-template-columns:1fr 1fr}.mark-txt span{display:none}}
+
+  /* ===== printable team progress report ===== */
+  .printhead,.printfoot{display:none}
+  @media print{
+    @page{margin:12mm;size:landscape}
+    html,body{background:#fff !important;color:#111 !important}
+    body{font-family:Georgia,serif;font-size:10pt}
+    .bar,.tabs,.ribbon,.flag,.noprint,#modal,.sec .btn,.gradebar{display:none !important}
+    main{max-width:none !important;margin:0 !important;padding:0 !important}
+    .printhead{display:block !important;margin:0 0 14px}
+    .ph-row{display:flex;align-items:flex-end;gap:14px;border-bottom:2.5pt solid #4a2670;padding-bottom:9px}
+    .ph-paw{color:#4a2670 !important;flex-shrink:0}
+    .ph-kick{font-family:Helvetica,Arial,sans-serif;font-size:7.5pt;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6b6478 !important}
+    .ph-title{font-family:Helvetica,Arial,sans-serif;font-size:19pt;font-weight:800;color:#1a1030 !important;line-height:1.05}
+    .ph-min{margin-left:auto;text-align:right;line-height:1}
+    .ph-min b{font-family:Helvetica,Arial,sans-serif;font-size:22pt;font-weight:800;color:#4a2670 !important;display:block}
+    .ph-min span{font-family:Helvetica,Arial,sans-serif;font-size:7pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#6b6478 !important}
+    .ph-meta{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;color:#555 !important;margin-top:7px}
+    .wrap{border:0.7pt solid #b9b2c6 !important;border-radius:5px;background:#fff !important}
+    table{width:100%}
+    th{background:#efeaf7 !important;color:#3a3348 !important;border-bottom:0.7pt solid #b9b2c6 !important;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:7.5pt}
+    td{border-bottom:0.5pt solid #ddd7e6 !important}
+    tbody tr{break-inside:avoid;page-break-inside:avoid}
+    .cell{color:#1d1a25 !important;font-size:9.5pt}
+    .btrack{background:#ddd7e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .bfill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .note{background:#fff !important;border:0.7pt solid #b9b2c6 !important;break-inside:avoid;page-break-inside:avoid}
+    .note-h{color:#4a2670 !important}
+    .chip,.tag{background:#f4f1fa !important;border-color:#cfc6e0 !important;color:#3a3348 !important;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sec h2{color:#1a1030 !important}
+    .printfoot{display:flex !important;justify-content:space-between;margin-top:10px;padding-top:7px;
+      border-top:0.7pt solid #b9b2c6;font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#6b6478 !important}
+  }
 </style>
 </head>
 <body>
@@ -581,13 +616,82 @@ function seasonAvgTable(){
 }
 
 /* ---- Reports ---- */
+/* everything worth knowing about one player, in one row */
+function reportRow(p){
+  const {ovr}=ovrOf(p.id);
+  const objs=S.objectives.filter(o=>o.player_id===p.id);
+  const tks=S.tasks.filter(t=>t.player_id===p.id);
+  const assigned=assignedFor(p.id);
+  const seen=assigned.filter(m=>watched(p.id,m.did,m.vid)).length;
+  const tested=activeTests().filter(t=>latestResult(p.id,t.key)).length;
+  const dates=S.results.filter(r=>r.player_id===p.id).map(r=>String(r.tested_at)).sort();
+  return {p,ovr,d:deltaFor(p.id,'ovr',ovr),
+    objDone:objs.filter(o=>o.done).length,objN:objs.length,
+    tkDone:tks.filter(taskDone).length,tkN:tks.length,
+    seen,assignedN:assigned.length,
+    tested,testN:activeTests().length,
+    lastTest:dates.length?dates[dates.length-1]:null,
+    prio:weakest(p.id,playerRatings(p.id))};
+}
+function pctBar(a,b){
+  const pct=b?Math.round(100*a/b):0;
+  const col=!b?'rgba(255,255,255,.15)':pct===100?'#5ee6a0':pct>=50?'var(--pur)':'var(--gold)';
+  return '<div style="display:flex;align-items:center;gap:7px;justify-content:center">'+
+    '<span style="font-weight:800;font-size:.84rem;min-width:34px;text-align:right">'+a+'/'+b+'</span>'+
+    '<span class="btrack" style="width:52px"><i class="bfill" style="width:'+pct+'%;background:'+col+'"></i></span></div>';
+}
 function vReports(){
   const ps=visPlayers().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  return `<div class="sec"><h2>PROGRESS REPORTS</h2><div class="rule"></div></div>
-    <p class="lead">Growth since the last checkpoint — ratings, raw test improvement, and what to work on next.</p>
-    ${gradeBar()}
-    ${ps.length?ps.map(p=>reportCard(p)).join(''):`<div class="empty"><div class="ico">📈</div><div>No players.</div></div>`}`;
+  const rows=ps.map(reportRow);
+  const sum=(f)=>rows.reduce((a,r)=>a+f(r),0);
+  const teamOvr=(()=>{const v=rows.map(r=>r.ovr).filter(x=>x!=null);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null;})();
+  return `<div class="sec"><h2>PROGRESS REPORTS</h2><div class="rule"></div>
+      ${rows.length?`<button class="btn btn-g btn-s" data-act="print-reports">🖨 Print / PDF</button>`:''}
+      <button class="btn btn-g btn-s" data-act="snap">📌 Save Checkpoint</button></div>
+    <p class="lead noprint">Every athlete at a glance — ratings, objectives, to-dos, video completion and what to coach next.</p>
+    <div class="noprint">${gradeBar()}</div>
+    ${!rows.length?`<div class="empty"><div class="ico">📈</div><div>No players.</div></div>`:`
+    <div class="printhead">
+      <div class="ph-row">
+        <svg class="ph-paw" width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/>
+          <circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>
+        <div><div class="ph-kick">Jaguars Basketball &middot; SW Florida</div>
+          <div class="ph-title">Team Progress Report</div></div>
+        <div class="ph-min"><b>${rows.length}</b><span>Athletes</span></div>
+      </div>
+      <div class="ph-meta">${printDate()}${teamOvr!=null?' &middot; team average OVR '+teamOvr:''}</div>
+    </div>
+    <div class="row noprint" style="gap:12px;margin-bottom:15px">
+      ${statCard('Team OVR',teamOvr==null?'–':teamOvr)}
+      ${statCard('Objectives',sum(r=>r.objDone)+'/'+sum(r=>r.objN))}
+      ${statCard('To-dos',sum(r=>r.tkDone)+'/'+sum(r=>r.tkN))}
+      ${statCard('Videos watched',sum(r=>r.seen)+'/'+sum(r=>r.assignedN))}
+    </div>
+    <div class="wrap"><div class="scroll"><table>
+      <thead><tr><th class="l">Player</th><th>OVR</th><th>Objectives</th><th>To-dos</th>
+        <th>Videos</th><th>Tests</th><th>Last test</th><th class="l">Work on next</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td><div class="cell l"><b>${esc(r.p.name)}</b>
+          <span style="color:var(--tx-d);font-size:.8em"> G${r.p.grade==null?'–':r.p.grade}</span></div></td>
+        <td><div class="cell" style="font-family:var(--disp);font-size:1.15rem;color:${ratingColor(r.ovr)}">${r.ovr==null?'–':r.ovr}${dEl(r.d)}</div></td>
+        <td><div class="cell">${pctBar(r.objDone,r.objN)}</div></td>
+        <td><div class="cell">${pctBar(r.tkDone,r.tkN)}</div></td>
+        <td><div class="cell">${pctBar(r.seen,r.assignedN)}</div></td>
+        <td><div class="cell">${pctBar(r.tested,r.testN)}</div></td>
+        <td><div class="cell" style="font-size:.8rem;color:var(--tx-m)">${r.lastTest?esc(r.lastTest):'<span style="color:var(--tx-d)">never</span>'}</div></td>
+        <td><div class="cell l" style="font-size:.83rem">${r.prio?`<b style="color:var(--pur-br)">${esc(r.prio.label)}</b> <span style="color:var(--tx-d)">${r.prio.rating} vs ${r.prio.avg}</span>`:'<span style="color:var(--tx-d)">needs more data</span>'}</div></td>
+      </tr>`).join('')}</tbody></table></div></div>
+    <div class="printfoot"><span>Jaguars Basketball &middot; Team Progress Report</span><span>${rows.length} athletes</span></div>
+    <div class="sec" style="margin-top:26px"><h2 style="font-size:1.15rem">INDIVIDUAL DETAIL</h2><div class="rule"></div></div>
+    ${ps.map(p=>reportCard(p)).join('')}`}`;
 }
+function statCard(label,val){
+  return '<div class="note" style="flex:1;min-width:130px;margin-bottom:0;text-align:center">'+
+    '<div class="note-h" style="margin-bottom:3px">'+label+'</div>'+
+    '<b style="font-family:var(--disp);font-size:1.6rem">'+val+'</b></div>';
+}
+function printDate(){try{return new Date().toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});}catch(e){return '';}}
 function reportCard(p){
   const {ovr,ratings}=ovrOf(p.id);
   const snap=lastSnap(p.id);
@@ -1473,6 +1577,7 @@ function wire(){
   document.querySelectorAll('[data-p]').forEach(el=>el.onclick=()=>playerModal(el.dataset.p));
   document.querySelectorAll('[data-atab]').forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.atab;render();});
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
+  const pr=document.querySelector('[data-act="print-reports"]'); if(pr)pr.onclick=()=>window.print();
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
   document.querySelectorAll('[data-atag]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const k=b.dataset.atag;
