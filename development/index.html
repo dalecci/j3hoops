@@ -177,7 +177,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const $=id=>document.getElementById(id);
 const GRADES=[3,4,5,6,7,8,9,10];
 
-let DEMO=false;
+let DEMO=false, MSG_OK=true, CODES_OK=true;
 const S={players:[],drills:[],coachScores:[],coaches:[],
   attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],
   groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
@@ -192,13 +192,16 @@ async function loadAll(){
       q('tryout_players'),q('tryout_drills'),q('tryout_scores'),q('tryout_coaches'),
       q('pd_attributes'),q('pd_tests'),q('pd_test_weights'),q('pd_norms'),q('pd_results'),
       q('pd_snapshots'),q('pd_groups'),q('pd_group_members'),q('pd_assignments'),
-      q('pd_item_state'),q('pd_games'),q('pd_stats'),q('pd_settings'),
-      q('pd_comments'),q('pd_replies'),q('pd_access')]);
+      q('pd_item_state'),q('pd_games'),q('pd_stats'),q('pd_settings')]);
     const bad=r.find(x=>x.error); if(bad) throw bad.error;
     [S.players,S.drills,S.coachScores,S.coaches,S.attrs,S.tests,S.weights,S.norms,S.results,
      S.snaps,S.groups,S.members,S.assigns,S.itemState,S.games,S.stats]=r.slice(0,16).map(x=>x.data||[]);
     const set={}; (r[16].data||[]).forEach(x=>set[x.key]=x.value); S.settings=set;
-    S.comments=r[17].data||[]; S.replies=r[18].data||[]; S.access=r[19].data||[];
+    // optional tables — a missing one must never knock the whole app into demo mode
+    const opt=await Promise.all([q('pd_comments'),q('pd_replies'),q('pd_access')]);
+    S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
+    MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
+    if(!MSG_OK||!CODES_OK) console.warn('Messages/Parent-code tables not created yet — run the pd_access/pd_comments/pd_replies schema.');
     if(!S.attrs.length) throw new Error('not seeded');
     DEMO=false;
   }catch(e){ console.warn('Player-development tables not ready — DEMO mode.',e?.message||e); DEMO=true; seedDemo(); }
@@ -243,7 +246,8 @@ function seedDemo(){
 function subscribe(){ if(DEMO)return;
   const ch=sb.channel('pd');
   ['pd_results','pd_attributes','pd_tests','pd_test_weights','pd_assignments','pd_item_state',
-   'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','pd_comments','pd_replies','pd_access','tryout_players','tryout_drills']
+   'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','tryout_players','tryout_drills']
+   .concat(MSG_OK?['pd_comments','pd_replies']:[]).concat(CODES_OK?['pd_access']:[])
    .forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},refresh));
   ch.subscribe();
 }
@@ -647,7 +651,12 @@ function commentReaches(c,player){
   return c.scope_value===player.id;
 }
 function reachCount(c){return S.players.filter(pl=>commentReaches(c,pl)).length;}
+function setupNotice(what){
+  return '<div class="note" style="border-color:rgba(227,174,51,.4)"><div class="note-h gold" style="color:var(--gold-br)">Setup needed</div>'+
+    '<div style="color:var(--tx-s)">The '+what+' tables haven\u2019t been created in Supabase yet. Everything else works \u2014 run the schema and this lights up automatically.</div></div>';
+}
 function vMessages(){
+  if(!MSG_OK) return '<div class="sec"><h2>MESSAGES</h2><div class="rule"></div></div>'+setupNotice('message');
   const cs=S.comments.slice().sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
   return '<div class="sec"><h2>MESSAGES</h2><div class="rule"></div>'+
     '<button class="btn btn-p btn-s" data-act="new-msg">＋ New Message</button></div>'+
@@ -757,6 +766,7 @@ function bulkPlayerModal(){
 /* ---- Admin: parent access codes ---- */
 function randCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let o='';for(let i=0;i<4;i++)o+=A[Math.floor(Math.random()*A.length)];return 'JAG-'+o;}
 function adminAccess(){
+  if(!CODES_OK) return setupNotice('parent access code');
   const ps=S.players.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="codes-all">⚡ Generate codes for everyone</button></div>'+
     '<p class="lead">Give a family their code and they open <b>j3hoops.com/parent</b> to see their athlete.</p>'+
