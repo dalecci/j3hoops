@@ -242,7 +242,7 @@ const S={players:[],drills:[],coachScores:[],coaches:[],
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
   objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
-  videos:[],docs:[],docEdit:null,assignTags:[],picked:[]};
+  videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[]};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -261,10 +261,10 @@ async function loadAll(){
     const opt=await Promise.all([q('pd_comments'),q('pd_replies'),q('pd_access'),
       q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),
       sb.from('training_videos').select('*').neq('category','fullgame'),
-      sb.from('training_documents').select('*')]);
+      sb.from('training_documents').select('*'),q('pd_welcome')]);
     S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
     S.objectives=opt[3].data||[]; S.tasks=opt[4].data||[]; S.lists=opt[5].data||[]; S.listItems=opt[6].data||[];
-    S.videos=opt[7].data||[]; S.docs=opt[8].data||[];
+    S.videos=opt[7].data||[]; S.docs=opt[8].data||[]; S.welcome=opt[9].data||[];
     MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
     GOALS_OK=!opt[3].error && !opt[4].error; LISTS_OK=!opt[5].error && !opt[6].error;
     if(!MSG_OK||!CODES_OK) console.warn('Messages/Parent-code tables not created yet — run the pd_access/pd_comments/pd_replies schema.');
@@ -306,7 +306,7 @@ function seedDemo(){
     {id:uuid(),name:'Cone Dribble Series',description:'Weave both hands.',tags:['handle'],kind:'drill',video_url:''},
     {id:uuid(),name:'Closeout Breakdown',description:'Film breakdown of closeouts.',tags:['defense'],kind:'breakdown',video_url:''}];
   S.groups=[{id:uuid(),name:'Guards',color:'#8B43E0'},{id:uuid(),name:'Bigs',color:'#E3AE33'}];
-  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];S.objectives=[];S.tasks=[];S.lists=[];S.listItems=[];S.videos=[];S.docs=[];
+  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];S.objectives=[];S.tasks=[];S.lists=[];S.listItems=[];S.videos=[];S.docs=[];S.welcome=[];
   S.settings={scale:{mid:70,spread:10,floor:35,cap:99,k:10},provisional_min_inputs:2};
 }
 function subscribe(){ if(DEMO)return;
@@ -334,6 +334,25 @@ const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort
 const activeTests=()=>S.tests.filter(t=>t.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
 const visPlayers=()=>S.players.filter(p=>!S.grades.length||S.grades.includes(p.grade));
 
+/* ratings compare an athlete against peers — either their school grade or their team */
+function cohortMode(){return (S.settings&&S.settings.cohort)||'grade';}
+function teamsOf(pid){return S.members.filter(m=>m.player_id===pid).map(m=>m.group_id);}
+function cohortPeers(player){
+  if(!player)return [];
+  if(cohortMode()==='team'){
+    const t=teamsOf(player.id);
+    if(t.length) return S.players.filter(x=>teamsOf(x.id).some(g=>t.includes(g)));
+    return [];   // no team set -> fall through to the program baseline
+  }
+  return S.players.filter(x=>x.grade===player.grade);
+}
+function cohortName(player){
+  if(cohortMode()==='team'){
+    const t=teamsOf(player.id).map(id=>(S.groups.find(g=>g.id===id)||{}).name).filter(Boolean);
+    return t.length?t.join(' / '):'no team';
+  }
+  return 'grade '+(player.grade==null?'–':player.grade);
+}
 function latestResult(pid,tk){
   const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
     .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));
@@ -344,8 +363,8 @@ function priorResult(pid,tk){
     .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));
   return rs.length>1?rs[1]:null;
 }
-function cohort(tk,grade){
-  const vals=S.players.filter(p=>p.grade===grade).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value);
+function cohort(tk,player){
+  const vals=cohortPeers(player).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value);
   if(!vals.length) return {n:0,mean:0,sd:0};
   const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
   const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
@@ -363,11 +382,11 @@ function poolStats(tk){
    Grade cohort is the target, but with <4 tested it's statistically meaningless
    (with n=2 every z is +/-0.707 regardless of the actual score), so we shrink it
    toward a baseline: an admin-entered norm if one exists, else the whole-program spread. */
-function testRating(tk,grade,value){
+function testRating(tk,player,value){
   const t=S.tests.find(x=>x.key===tk); if(!t||value==null||isNaN(value))return null;
   const sc=SC(), flip=t.lower_is_better?-1:1;
-  const c=cohort(tk,grade), pool=poolStats(tk);
-  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
+  const c=cohort(tk,player), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+(player&&player.grade));
   let zBase=0;
   if(nm&&+nm.sd>0) zBase=((value-+nm.mean)/+nm.sd)*flip;
   else if(pool.n>2&&pool.sd>0) zBase=((value-pool.mean)/pool.sd)*flip;
@@ -377,11 +396,11 @@ function testRating(tk,grade,value){
   return Math.max(sc.floor,Math.min(sc.cap,Math.round(sc.mid+sc.spread*z)));
 }
 /* what a rating is currently being measured against — shown in the player breakdown */
-function basisFor(tk,grade){
-  const c=cohort(tk,grade), pool=poolStats(tk);
-  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
-  if(c.n>3) return 'grade '+grade+' ('+c.n+' tested)';
-  if(nm) return 'grade '+grade+' norm';
+function basisFor(tk,player){
+  const c=cohort(tk,player), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+(player&&player.grade));
+  if(c.n>3) return cohortName(player)+' ('+c.n+' tested)';
+  if(nm) return 'grade norm';
   if(pool.n>2) return 'whole program ('+pool.n+' tested)';
   return 'not enough data';
 }
@@ -397,7 +416,7 @@ function attrRating(pid,attrKey){
   let num=0,den=0,inputs=0,parts=[];
   S.weights.filter(w=>w.attribute_key===attrKey).forEach(w=>{
     const r=latestResult(pid,w.test_key); if(!r)return;
-    const rt=testRating(w.test_key,p.grade,+r.value); if(rt==null)return;
+    const rt=testRating(w.test_key,p,+r.value); if(rt==null)return;
     num+=rt*+w.weight; den+=+w.weight; inputs++;
     parts.push({kind:'test',key:w.test_key,rating:rt,weight:+w.weight,raw:+r.value});
   });
@@ -530,6 +549,7 @@ function vAssign(){
       '<button class="gchip '+(acat===c[0]?'on':'')+'" data-acat="'+c[0]+'">'+c[1]+
       ' <span style="opacity:.6">'+(c[0]==='all'?allMedia().length:allMedia().filter(m=>c[0]==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===c[0]).length)+'</span></button>').join('')+'</div>';
   return `<div class="sec"><h2>ASSIGN</h2><div class="rule"></div>
+      <button class="btn btn-g btn-s" data-act="clear-week">🧹 Clear week</button>
       <button class="btn btn-g btn-s" data-act="new-group">＋ Group</button>
       <button class="btn btn-p btn-s" data-act="new-drill">＋ Video / Drill</button></div>
     <p class="lead">Assign any video, breakdown or drill to <b>one kid, several kids, a group, or a whole grade</b>.</p>
@@ -730,12 +750,12 @@ function weakest(pid,ratings){
 /* ---- Admin ---- */
 function vAdmin(){
   const t=S.adminTab;
-  const tabs=[['players','Players'],['playbook','Playbook'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['access','Parent Codes'],['scale','Scale']];
+  const tabs=[['players','Players'],['teams','Teams'],['welcome','Welcome'],['playbook','Playbook'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['access','Parent Codes'],['scale','Scale']];
   return `<div class="sec"><h2>ADMIN</h2><div class="rule"></div></div>
     <p class="lead">Full control. Everything here is editable at any time — nothing resets your data.</p>
     <div class="row" style="margin-bottom:16px">${tabs.map(([k,l])=>
       `<button class="btn ${t===k?'btn-p':'btn-g'} btn-s" data-atab="${k}">${l}</button>`).join('')}</div>
-    ${t==='players'?adminPlayers():t==='playbook'?adminPlaybook():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():t==='access'?adminAccess():adminScale()}`;
+    ${t==='players'?adminPlayers():t==='welcome'?adminWelcome():t==='playbook'?adminPlaybook():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='teams'?adminGroups():t==='access'?adminAccess():adminScale()}`;
 }
 function adminAttrs(){
   return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-attr">＋ Add Attribute</button></div>
@@ -792,7 +812,18 @@ function adminGroups(){
 }
 function adminScale(){
   const sc=SC();
-  return `<div class="note" style="max-width:520px">
+  const cm=cohortMode();
+  return `<div class="note" style="max-width:520px;margin-bottom:14px">
+    <div class="note-h">Compare ratings against</div>
+    <div class="row" style="margin:8px 0 4px">
+      <button class="btn ${cm==='grade'?'btn-p':'btn-g'} btn-s" data-cohort="grade">School grade</button>
+      <button class="btn ${cm==='team'?'btn-p':'btn-g'} btn-s" data-cohort="team">Team</button>
+    </div>
+    <p class="lead" style="margin:8px 0 0">${cm==='team'
+      ? 'Each athlete is rated against their own team. Best when a team spans several grades.'
+      : 'Each athlete is rated against others in the same school grade.'} Either way it falls back to the whole program until enough players are tested.</p>
+  </div>
+  <div class="note" style="max-width:520px">
     <div class="note-h">Rating scale</div>
     <div class="g3">
       <div class="field"><label>Average (z=0)</label><input class="inp" id="sc-mid" value="${sc.mid}" inputmode="numeric"></div>
@@ -855,7 +886,7 @@ function msgModal(){
   modal('New Message',
     '<div class="field"><label>Send to</label><select class="inp" id="m-scope">'+
       '<option value="all">Everyone</option><option value="grade">A grade</option>'+
-      '<option value="group">A group</option><option value="player">One player</option></select></div>'+
+      '<option value="group">A team</option><option value="player">One player</option></select></div>'+
     '<div id="m-target"></div>'+
     '<div class="field"><label>From</label><input class="inp" id="m-from" value="Coach Dale"></div>'+
     '<div class="field"><label>Message</label><textarea class="inp" id="m-body" rows="5" placeholder="Great work this week…"></textarea></div>'+
@@ -884,12 +915,13 @@ function adminPlayers(){
   return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-player">＋ Add Player</button>'+
     '<button class="btn btn-g btn-s" data-act="bulk-player">⇪ Bulk add</button></div>'+
     (ps.length?'<div class="wrap"><div class="scroll"><table>'+
-    '<thead><tr><th class="l">Player</th><th>#</th><th>Grade</th><th>Height</th><th>Parent code</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th class="l">Player</th><th>Team</th><th>#</th><th>Grade</th><th>Parent code</th><th></th></tr></thead><tbody>'+
     ps.map(pl=>{const ac=S.access.find(a=>a.player_id===pl.id&&!a.revoked_at);
+      const tm=S.members.filter(m=>m.player_id===pl.id).map(m=>S.groups.find(g=>g.id===m.group_id)).filter(Boolean);
       return '<tr><td><div class="cell l"><b>'+esc(pl.name)+'</b></div></td>'+
+      '<td><div class="cell">'+(tm.length?tm.map(g=>'<span class="tag" style="border-color:'+g.color+'66;color:'+g.color+'">'+esc(g.name)+'</span>').join(''):'<span style="color:var(--tx-d)">no team</span>')+'</div></td>'+
       '<td><div class="cell">'+(pl.number==null?'–':pl.number)+'</div></td>'+
       '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
-      '<td><div class="cell">'+(pl.height?esc(String(pl.height)):'–')+'</div></td>'+
       '<td><div class="cell"><span class="tag" style="font-family:monospace">'+esc(codeFor(pl.id))+'</span></div></td>'+
       '<td><div class="cell"><button class="btn btn-g btn-s" data-eplayer="'+pl.id+'">Edit</button></div></td></tr>';}).join('')+
     '</tbody></table></div></div>'
@@ -906,6 +938,10 @@ function playerEditModal(id){
       '<div class="field"><label>Jersey #</label><input class="inp" id="pl-num" inputmode="numeric" value="'+(pl&&pl.number!=null?pl.number:'')+'"></div>'+
       '<div class="field"><label>Height</label><input class="inp" id="pl-h" value="'+(pl&&pl.height?esc(String(pl.height)):'')+'" placeholder="5-2"></div>'+
     '</div>'+
+    '<div class="field"><label>Team</label><select class="inp" id="pl-team"><option value="">— none —</option>'+
+      S.groups.map(g=>{const on=pl&&S.members.some(m=>m.player_id===pl.id&&m.group_id===g.id);
+        return '<option value="'+g.id+'" '+(on?'selected':'')+'>'+esc(g.name)+'</option>';}).join('')+'</select>'+
+      '<div style="font-size:.73rem;color:var(--tx-d);margin-top:6px">Grade is only used to compare ratings fairly \u2014 the team is what work gets assigned to.</div></div>'+
     (pl?'<button class="btn btn-g btn-s btn-dz" id="pl-del">Delete player</button>':'')+
     '<button class="btn btn-p btn-block" id="pl-save" style="margin-top:12px">'+(pl?'Save':'Add player')+'</button>');
   $('pl-save').onclick=async()=>{
@@ -913,8 +949,17 @@ function playerEditModal(id){
     const row={name,grade:$('pl-grade').value?+$('pl-grade').value:null,
       number:$('pl-num').value===''?null:+$('pl-num').value,
       height:$('pl-h').value.trim()||null};
+    let pid=pl?pl.id:null;
     if(pl){Object.assign(pl,row); await patch('tryout_players',pl.id,row);}
-    else{const full=Object.assign({status:'registered'},row); const sv=await put('tryout_players',full); S.players.push(sv||Object.assign({id:uuid()},full));}
+    else{const full=Object.assign({status:'registered'},row); const sv=await put('tryout_players',full);
+      const np=sv||Object.assign({id:uuid()},full); S.players.push(np); pid=np.id;}
+    // team membership (one team per player here)
+    const want=$('pl-team')?$('pl-team').value:'';
+    for(const m of S.members.filter(m=>m.player_id===pid)){
+      if(m.group_id!==want){ await del('pd_group_members',m.id); S.members=S.members.filter(x=>x.id!==m.id); } }
+    if(want&&!S.members.some(m=>m.player_id===pid&&m.group_id===want)){
+      const row2={group_id:want,player_id:pid};
+      const sv2=await put('pd_group_members',row2); S.members.push(sv2||Object.assign({id:uuid()},row2)); }
     closeModal(); render(); flag('Saved');};
   const d=$('pl-del'); if(d)d.onclick=async()=>{S.players=S.players.filter(x=>x.id!==pl.id); await del('tryout_players',pl.id); closeModal(); render();};
 }
@@ -933,6 +978,104 @@ function bulkPlayerModal(){
       const row={name,grade:g?+g:null,number:num?+num:null,status:'registered'};
       const sv=await put('tryout_players',row); S.players.push(sv||Object.assign({id:uuid()},row)); n++;}
     closeModal(); render(); flag(n+' players added');};
+}
+
+/* ---- Weekly reset: wipe a grade's assignments so next week's can go out ---- */
+function assignmentsMatching(target,cat){
+  return S.assigns.filter(a=>{
+    if(target!=='all'){
+      const isTeam=a.scope==='group'&&a.scope_value===target;
+      if(!isTeam) return false;
+    }
+    if(cat==='all')return true;
+    // resolve what the assignment points at
+    const mids=[];
+    if(a.drill_id)mids.push('d:'+a.drill_id);
+    if(a.video_id)mids.push('v:'+a.video_id);
+    if(a.list_id)listDrills(a.list_id).forEach(m=>mids.push(m.mid));
+    return mids.some(mid=>{const m=findMedia(mid); if(!m)return false;
+      return cat==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===cat;});
+  });
+}
+function clearWeekModal(){
+  const render1=()=>{
+    const grade=$('cw-grade')?$('cw-grade').value:'all';
+    const cat=$('cw-cat')?$('cw-cat').value:'practice';
+    const hits=assignmentsMatching(grade,cat);
+    const el=$('cw-count');
+    if(el)el.innerHTML=hits.length
+      ? '<b style="color:var(--gold-br)">'+hits.length+' assignment'+(hits.length===1?'':'s')+'</b> will be removed.'
+      : '<span style="color:var(--tx-d)">Nothing matches — nothing will be removed.</span>';
+  };
+  modal('Clear assignments',
+    '<p class="lead" style="margin-top:0">Use this to wipe last week\u2019s videos before you assign the new ones. It only removes the <b>assignment</b> — no video or drill is deleted.</p>'+
+    '<div class="g2">'+
+      '<div class="field"><label>Team</label><select class="inp" id="cw-grade">'+
+        '<option value="all">Every assignment</option>'+S.groups.map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('')+'</select></div>'+
+      '<div class="field"><label>Category</label><select class="inp" id="cw-cat">'+
+        '<option value="practice">Practice</option><option value="gamebreakdown">Game Breakdown</option>'+
+        '<option value="drill">My Drills</option><option value="all">Everything</option></select></div>'+
+    '</div>'+
+    '<div class="note" id="cw-count" style="text-align:center">…</div>'+
+    '<button class="btn btn-p btn-block" id="cw-go" style="margin-top:6px">Clear them</button>');
+  $('cw-grade').onchange=render1; $('cw-cat').onchange=render1; render1();
+  $('cw-go').onclick=async()=>{
+    const grade=$('cw-grade').value, cat=$('cw-cat').value;
+    const hits=assignmentsMatching(grade,cat);
+    if(!hits.length){closeModal();return;}
+    closeModal(); flag('Clearing '+hits.length+'…');
+    for(const a of hits){ await del('pd_assignments',a.id); }
+    const ids=new Set(hits.map(a=>a.id));
+    S.assigns=S.assigns.filter(a=>!ids.has(a.id));
+    render(); flag('Cleared '+hits.length+' assignment'+(hits.length===1?'':'s'));
+  };
+}
+
+/* ---- Admin: welcome messages shown on the athlete portal home ---- */
+function welcomeLabel(w){
+  if(w.scope==='all')return 'Everyone';
+  if(w.scope==='grade')return 'Grade '+w.scope_value;
+  const g=S.groups.find(x=>x.id===w.scope_value); return g?g.name:'Group';
+}
+function adminWelcome(){
+  const ws=S.welcome.slice().sort((a,b)=>(a.scope==='all'?0:1)-(b.scope==='all'?0:1));
+  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-welcome">＋ Add Welcome</button></div>'+
+    '<p class="lead" style="margin-top:0">This is the first thing families see when they open the portal. A team message overrides the everyone message.</p>'+
+    (ws.length?ws.map(w=>'<div class="note">'+
+      '<div class="row" style="justify-content:space-between;align-items:flex-start">'+
+        '<span class="tag">'+esc(welcomeLabel(w))+'</span>'+
+        '<div class="row" style="gap:6px"><button class="btn btn-g btn-s" data-ewel="'+w.id+'">Edit</button>'+
+        '<button class="btn btn-g btn-s btn-dz" data-dwel="'+w.id+'">✕</button></div></div>'+
+      (w.title?'<div style="font-weight:800;font-size:1.05rem;margin-top:9px">'+esc(w.title)+'</div>':'')+
+      '<div style="color:var(--tx-s);font-size:.9rem;margin-top:5px;white-space:pre-line">'+esc(w.body||'')+'</div>'+
+    '</div>').join('')
+    :'<div class="empty"><div class="ico">👋</div><div>No welcome message yet.</div></div>');
+}
+function welcomeModal(id){
+  const w=id?S.welcome.find(x=>x.id===id):null;
+  modal(w?'Edit Welcome':'New Welcome',
+    '<div class="field"><label>Show to</label><select class="inp" id="w-scope">'+
+      '<option value="all" '+(w&&w.scope==='all'?'selected':'')+'>Everyone</option>'+
+      '<option value="grade" '+(w&&w.scope==='grade'?'selected':'')+'>A school grade</option>'+
+      '<option value="group" '+(w&&w.scope==='group'?'selected':'')+'>A team</option></select></div>'+
+    '<div id="w-target"></div>'+
+    '<div class="field"><label>Heading</label><input class="inp" id="w-title" value="'+(w?esc(w.title||''):'')+'" placeholder="Welcome to the Jaguars"></div>'+
+    '<div class="field"><label>Message</label><textarea class="inp" id="w-body" rows="7" placeholder="What families should know…">'+(w?esc(w.body||''):'')+'</textarea></div>'+
+    '<button class="btn btn-p btn-block" id="w-save">'+(w?'Save':'Add')+'</button>');
+  const tgt=()=>{const v=$('w-scope').value;
+    $('w-target').innerHTML = v==='grade'
+      ? '<div class="field"><label>Grade</label><select class="inp" id="w-val">'+GRADES.map(g=>'<option value="'+g+'" '+(w&&+w.scope_value===g?'selected':'')+'>Grade '+g+'</option>').join('')+'</select></div>'
+      : v==='group'
+      ? '<div class="field"><label>Group</label><select class="inp" id="w-val">'+S.groups.map(g=>'<option value="'+g.id+'" '+(w&&w.scope_value===g.id?'selected':'')+'>'+esc(g.name)+'</option>').join('')+'</select></div>'
+      : '';};
+  $('w-scope').onchange=tgt; tgt();
+  $('w-save').onclick=async()=>{
+    const scope=$('w-scope').value;
+    const row={scope,scope_value:scope==='all'?null:($('w-val')?$('w-val').value:null),
+      title:$('w-title').value.trim()||null,body:$('w-body').value};
+    if(w){Object.assign(w,row); await patch('pd_welcome',w.id,row);}
+    else{const sv=await put('pd_welcome',row); S.welcome.push(sv||Object.assign({id:uuid()},row));}
+    closeModal(); render(); flag('Saved');};
 }
 
 /* ---- Admin: playbook documents (shared with the Warriors portal) ---- */
@@ -1105,7 +1248,7 @@ function objModal(){
     '<div class="field"><label>Target date</label><input class="inp" id="o-due" type="date"></div>'+
     '<div class="field"><label>Give it to</label><select class="inp" id="o-scope">'+
       '<option value="player">This player</option><option value="grade">A grade</option>'+
-      '<option value="group">A group</option><option value="all">Everyone</option></select></div>'+
+      '<option value="group">A team</option><option value="all">Everyone</option></select></div>'+
     '<div id="o-target"></div>'+
     '<button class="btn btn-p btn-block" id="o-save">Add objective</button>');
   const tgt=()=>{const v=$('o-scope').value;
@@ -1134,7 +1277,7 @@ function taskModal(){
     '<div class="field"><label>Due date</label><input class="inp" id="t-due" type="date"></div>'+
     '<div class="field"><label>Give it to</label><select class="inp" id="t-scope">'+
       '<option value="player">This player</option><option value="grade">A grade</option>'+
-      '<option value="group">A group</option><option value="all">Everyone</option></select></div>'+
+      '<option value="group">A team</option><option value="all">Everyone</option></select></div>'+
     '<div id="t-target"></div>'+
     '<button class="btn btn-p btn-block" id="t-save">Add to-do</button>');
   const tgt=()=>{const v=$('t-scope').value;
@@ -1359,7 +1502,7 @@ function playerModal(pid){
         <td><div class="cell l" style="font-weight:500;font-size:.8rem;color:var(--tx-m)">${
           (r.parts||[]).map(x=>x.kind==='coach'?`coach ${x.raw}/10 → ${x.rating}`:`${esc(testLabel(x.key))} ${x.raw} → ${x.rating}`).join(' · ')||'no data'}</div></td>
         <td><div class="cell l" style="font-weight:500;font-size:.78rem;color:var(--tx-d)">${
-          [...new Set((r.parts||[]).filter(x=>x.kind==='test').map(x=>basisFor(x.key,p.grade)))].join(', ')||'–'}</div></td></tr>`}).join('')}
+          [...new Set((r.parts||[]).filter(x=>x.kind==='test').map(x=>basisFor(x.key,p)))].join(', ')||'–'}</div></td></tr>`}).join('')}
      </tbody></table></div></div>
    <div style="margin-top:14px"><div class="note-h">Assigned work</div>
      ${assignedFor(pid).map(d=>`<span class="chip" style="margin:3px 5px 3px 0">${esc(d.name)}</span>`).join('')||'<span style="color:var(--tx-d);font-size:.85rem">Nothing assigned yet.</span>'}</div>`;
@@ -1392,9 +1535,9 @@ function assignModal(mid,listId){
   modal('Assign · '+esc(d.name),`
     <div class="field"><label>Assign to</label>
       <select class="inp" id="as-scope">
+        <option value="group">A team</option>
         <option value="player">Specific players</option>
-        <option value="group">A group</option>
-        <option value="grade">A whole grade</option>
+        <option value="grade">A school grade</option>
         <option value="all">Everyone</option>
       </select></div>
     <div id="as-target"></div>
@@ -1453,7 +1596,7 @@ function drillModal(){
 }
 function groupModal(gid){
   const g=gid?S.groups.find(x=>x.id===gid):null;
-  if(!g){ modal('New Group',`
+  if(!g){ modal('New Team',`
       <div class="field"><label>Name</label><input class="inp" id="g-name" placeholder="Guards"></div>
       <div class="field"><label>Color</label><input class="inp" id="g-color" value="#8B43E0"></div>
       <button class="btn btn-p btn-block" id="g-save">Create</button>`);
@@ -1462,7 +1605,7 @@ function groupModal(gid){
       const saved=await put('pd_groups',row); S.groups.push(saved||{id:uuid(),...row});
       closeModal(); render(); flag('Created');}; return; }
   const mem=new Set(S.members.filter(m=>m.group_id===gid).map(m=>m.player_id));
-  modal('Members · '+esc(g.name),`<div class="row">
+  modal('Players · '+esc(g.name),`<div class="row">
       ${S.players.sort((a,b)=>(a.number??999)-(b.number??999)).map(p=>
         `<button class="gchip ${mem.has(p.id)?'on':''}" data-mem="${p.id}">${p.number??'–'} ${esc(p.name.split(' ')[0])}</button>`).join('')}
     </div><button class="btn btn-p btn-block" id="g-savem" style="margin-top:14px">Save members</button>`);
@@ -1594,6 +1737,13 @@ function wire(){
     render();};
   document.querySelectorAll('[data-acat]').forEach(b=>b.onclick=()=>{S.assignCat=b.dataset.acat;render();});
   document.querySelectorAll('[data-edoc]').forEach(b=>b.onclick=()=>docModal(b.dataset.edoc));
+  document.querySelectorAll('[data-cohort]').forEach(b=>b.onclick=async()=>{
+    S.settings.cohort=b.dataset.cohort;
+    await put('pd_settings',{key:'cohort',value:b.dataset.cohort},'key');
+    render(); flag('Now comparing by '+b.dataset.cohort);});
+  document.querySelectorAll('[data-ewel]').forEach(b=>b.onclick=()=>welcomeModal(b.dataset.ewel));
+  document.querySelectorAll('[data-dwel]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.dwel; S.welcome=S.welcome.filter(x=>x.id!==id); await del('pd_welcome',id); render(); flag('Removed');});
   document.querySelectorAll('[data-eattr]').forEach(b=>b.onclick=()=>attrModal(b.dataset.eattr));
   document.querySelectorAll('[data-etest]').forEach(b=>b.onclick=()=>testModal(b.dataset.etest));
   document.querySelectorAll('[data-egroup]').forEach(b=>b.onclick=()=>groupModal(b.dataset.egroup));
@@ -1657,10 +1807,11 @@ function wire(){
     'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
     'snap':saveCheckpoint,'save-scale':saveScale,
     'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
+    'clear-week':()=>clearWeekModal(),
     'bulk-tag':()=>bulkTagModal(),
     'bulk-clear':()=>{S.picked=[];render();},
     'bulk-assign':()=>{ if(S.picked.length) assignModal(S.picked[0]); },
-    'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
+    'new-welcome':()=>welcomeModal(),'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
     'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
