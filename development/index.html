@@ -146,6 +146,10 @@
   .chip b{color:var(--gold-br)}
   .tag{font-size:.64rem;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(227,174,51,.10);
     border:1px solid rgba(227,174,51,.28);color:var(--gold-br)}
+  .chkbox{width:26px;height:26px;flex-shrink:0;border-radius:8px;border:2px solid var(--line);
+    background:rgba(255,255,255,.03);color:#fff;font-weight:900;font-size:.95rem;display:grid;place-items:center;transition:.14s}
+  .chkbox:hover{border-color:var(--pur)}
+  .chkbox.on{background:linear-gradient(135deg,#2f9e6a,#1f7d51);border-color:transparent}
   .empty{text-align:center;padding:54px 20px;color:var(--tx-m)}
   .empty .ico{font-size:2.3rem;margin-bottom:10px}
   .flag{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:150;background:#0d2a1c;
@@ -177,12 +181,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const $=id=>document.getElementById(id);
 const GRADES=[3,4,5,6,7,8,9,10];
 
-let DEMO=false, MSG_OK=true, CODES_OK=true;
+let DEMO=false, MSG_OK=true, CODES_OK=true, GOALS_OK=true, LISTS_OK=true;
 const S={players:[],drills:[],coachScores:[],coaches:[],
   attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],
   groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
-  comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:''};
+  comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
+  objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -198,9 +203,12 @@ async function loadAll(){
      S.snaps,S.groups,S.members,S.assigns,S.itemState,S.games,S.stats]=r.slice(0,16).map(x=>x.data||[]);
     const set={}; (r[16].data||[]).forEach(x=>set[x.key]=x.value); S.settings=set;
     // optional tables — a missing one must never knock the whole app into demo mode
-    const opt=await Promise.all([q('pd_comments'),q('pd_replies'),q('pd_access')]);
+    const opt=await Promise.all([q('pd_comments'),q('pd_replies'),q('pd_access'),
+      q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items')]);
     S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
+    S.objectives=opt[3].data||[]; S.tasks=opt[4].data||[]; S.lists=opt[5].data||[]; S.listItems=opt[6].data||[];
     MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
+    GOALS_OK=!opt[3].error && !opt[4].error; LISTS_OK=!opt[5].error && !opt[6].error;
     if(!MSG_OK||!CODES_OK) console.warn('Messages/Parent-code tables not created yet — run the pd_access/pd_comments/pd_replies schema.');
     if(!S.attrs.length) throw new Error('not seeded');
     DEMO=false;
@@ -240,7 +248,7 @@ function seedDemo(){
     {id:uuid(),name:'Cone Dribble Series',description:'Weave both hands.',tags:['handle'],kind:'drill',video_url:''},
     {id:uuid(),name:'Closeout Breakdown',description:'Film breakdown of closeouts.',tags:['defense'],kind:'breakdown',video_url:''}];
   S.groups=[{id:uuid(),name:'Guards',color:'#8B43E0'},{id:uuid(),name:'Bigs',color:'#E3AE33'}];
-  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];
+  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];S.objectives=[];S.tasks=[];S.lists=[];S.listItems=[];
   S.settings={scale:{mid:70,spread:10,floor:35,cap:99,k:10},provisional_min_inputs:2};
 }
 function subscribe(){ if(DEMO)return;
@@ -248,6 +256,7 @@ function subscribe(){ if(DEMO)return;
   ['pd_results','pd_attributes','pd_tests','pd_test_weights','pd_assignments','pd_item_state',
    'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','tryout_players','tryout_drills']
    .concat(MSG_OK?['pd_comments','pd_replies']:[]).concat(CODES_OK?['pd_access']:[])
+   .concat(GOALS_OK?['pd_objectives','pd_tasks']:[]).concat(LISTS_OK?['pd_lists','pd_list_items']:[]).concat(['pd_item_state'])
    .forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},refresh));
   ch.subscribe();
 }
@@ -376,7 +385,7 @@ function render(){
      <div class="pill"><span class="dot"></span>${S.players.length} players</div>
    </div></div>
    <div class="tabs"><div class="tabs-in">
-     ${[['cards','Player Cards'],['testing','Testing'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['messages','Messages'],['admin','Admin']]
+     ${[['cards','Player Cards'],['testing','Testing'],['goals','Goals'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['messages','Messages'],['admin','Admin']]
        .map(([k,l])=>`<button class="tab ${S.view===k?'on':''}" data-v="${k}">${l}</button>`).join('')}
    </div></div>
    <main>${(VIEWS[S.view]||(()=>''))()}</main>
@@ -445,13 +454,19 @@ function vTesting(){
 
 /* ---- Assign ---- */
 function vAssign(){
+  const sub=S.assignSub||'videos';
+  const nav='<div class="row" style="margin-bottom:16px">'+
+    [['videos','Videos'],['lists','Lists']].map(([k,lbl])=>
+      '<button class="btn '+(sub===k?'btn-p':'btn-g')+' btn-s" data-asub="'+k+'">'+lbl+'</button>').join('')+'</div>';
+  if(sub==='lists') return '<div class="sec"><h2>ASSIGN</h2><div class="rule"></div></div>'+nav+vLists();
   const q=(S.assignFilter||'').toLowerCase();
   let lib=S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   if(q)lib=lib.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.tags||[]).some(t=>t.toLowerCase().includes(q)));
-  return `<div class="sec"><h2>ASSIGN VIDEOS &amp; DRILLS</h2><div class="rule"></div>
+  return `<div class="sec"><h2>ASSIGN</h2><div class="rule"></div>
       <button class="btn btn-g btn-s" data-act="new-group">＋ Group</button>
       <button class="btn btn-p btn-s" data-act="new-drill">＋ Video / Drill</button></div>
     <p class="lead">Assign any video, breakdown or drill to <b>one kid, several kids, a group, or a whole grade</b>.</p>
+    ${nav}
     <div class="row" style="margin-bottom:14px">
       <input class="inp" id="afilter" placeholder="🔎 Search library…" value="${esc(S.assignFilter||'')}" style="max-width:340px">
       ${S.groups.map(g=>`<span class="chip" style="border-color:${g.color}55"><b style="color:${g.color}">${esc(g.name)}</b> ${S.members.filter(m=>m.group_id===g.id).length}</span>`).join('')}
@@ -798,7 +813,199 @@ async function makeCode(pid){
   const sv=await put('pd_access',row); S.access.push(sv||Object.assign({id:uuid()},row));
 }
 
-const VIEWS={cards:vCards,testing:vTesting,assign:vAssign,stats:vStats,reports:vReports,messages:vMessages,admin:vAdmin};
+
+/* ================= Goals: objectives + to-dos ================= */
+function watched(pid,did){const st=S.itemState.find(x=>x.player_id===pid&&x.drill_id===did);
+  return !!st&&(st.status==='watched'||st.status==='done');}
+function taskDone(t){return t.done||(t.auto_on_watch&&t.drill_id&&watched(t.player_id,t.drill_id));}
+function objFor(pid){return S.objectives.filter(o=>o.player_id===pid)
+  .sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));}
+function tasksFor(pid){return S.tasks.filter(t=>t.player_id===pid)
+  .sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));}
+function dueChip(d){
+  if(!d)return '';
+  const today=new Date().toISOString().slice(0,10);
+  const late=String(d)<today;
+  return '<span class="chip" style="'+(late?'border-color:rgba(255,128,128,.4);color:#ff9d9d':'')+'">'+(late?'⚠ ':'')+'due '+esc(String(d))+'</span>';
+}
+function currentGoalPlayer(){
+  const ps=visPlayers().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(S.goalPlayer&&ps.find(x=>x.id===S.goalPlayer))return S.goalPlayer;
+  return ps.length?ps[0].id:null;
+}
+function vGoals(){
+  if(!GOALS_OK) return '<div class="sec"><h2>GOALS</h2><div class="rule"></div></div>'+setupNotice('objective and task');
+  const ps=visPlayers().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const sel=currentGoalPlayer();
+  if(!sel) return '<div class="sec"><h2>GOALS</h2><div class="rule"></div></div><div class="empty"><div class="ico">🎯</div><div>Add players first.</div></div>';
+  const p=S.players.find(x=>x.id===sel);
+  const objs=objFor(sel), tks=tasksFor(sel);
+  const objDone=objs.filter(o=>o.done).length, tkDone=tks.filter(taskDone).length;
+  const pct=(a,b)=>b?Math.round(100*a/b):0;
+  return '<div class="sec"><h2>GOALS &amp; TO-DOS</h2><div class="rule"></div>'+
+    '<button class="btn btn-g btn-s" data-act="new-obj">＋ Objective</button>'+
+    '<button class="btn btn-p btn-s" data-act="new-task">＋ To-do</button></div>'+
+    '<p class="lead">Objectives are checked off by <b>you only</b>. To-dos tied to a video check themselves off when the athlete watches it.</p>'+
+    '<div class="bd-pick" style="max-width:420px;margin-bottom:16px"><label>Player</label>'+
+      '<select class="inp" id="goalsel">'+ps.map(x=>'<option value="'+x.id+'" '+(x.id===sel?'selected':'')+'>'+esc(x.name)+' · G'+(x.grade==null?'–':x.grade)+'</option>').join('')+'</select></div>'+
+    // progress
+    '<div class="row" style="gap:14px;margin-bottom:16px">'+
+      progressCard('Objectives',objDone,objs.length,pct(objDone,objs.length))+
+      progressCard('To-dos',tkDone,tks.length,pct(tkDone,tks.length))+
+    '</div>'+
+    '<div class="sec" style="margin-top:8px"><h2 style="font-size:1.1rem">OBJECTIVES</h2><div class="rule"></div></div>'+
+    (objs.length?objs.map(o=>'<div class="note" style="'+(o.done?'border-color:rgba(94,230,160,.35)':'')+'">'+
+      '<div class="row" style="align-items:flex-start;gap:12px">'+
+        '<button class="chkbox '+(o.done?'on':'')+'" data-objtog="'+o.id+'" title="Only coaches can check this">'+(o.done?'✓':'')+'</button>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:800;'+(o.done?'color:var(--tx-m);text-decoration:line-through':'')+'">'+esc(o.title)+'</div>'+
+          (o.detail?'<div style="color:var(--tx-m);font-size:.88rem;margin-top:4px;white-space:pre-line">'+esc(o.detail)+'</div>':'')+
+          '<div style="margin-top:7px">'+dueChip(o.due_date)+(o.done?'<span class="chip" style="color:#5ee6a0">completed</span>':'')+'</div>'+
+        '</div>'+
+        '<button class="btn btn-g btn-s btn-dz" data-objdel="'+o.id+'">✕</button>'+
+      '</div></div>').join('')
+      :'<div class="empty" style="padding:26px"><div>No objectives yet.</div></div>')+
+    '<div class="sec" style="margin-top:22px"><h2 style="font-size:1.1rem">TO-DOS</h2><div class="rule"></div></div>'+
+    (tks.length?tks.map(t=>{const d=taskDone(t);
+      const dr=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
+      const auto=t.auto_on_watch&&t.drill_id&&!t.done&&d;
+      return '<div class="note" style="'+(d?'border-color:rgba(94,230,160,.35)':'')+'">'+
+      '<div class="row" style="align-items:flex-start;gap:12px">'+
+        '<button class="chkbox '+(d?'on':'')+'" data-tasktog="'+t.id+'">'+(d?'✓':'')+'</button>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:800;'+(d?'color:var(--tx-m);text-decoration:line-through':'')+'">'+esc(t.title)+'</div>'+
+          '<div style="margin-top:7px">'+dueChip(t.due_date)+
+            (dr?'<span class="chip">🎬 '+esc(dr.name)+'</span>':'')+
+            (t.auto_on_watch&&t.drill_id?'<span class="chip" style="color:var(--pur-br)">auto-checks on watch</span>':'')+
+            (auto?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':'')+'</div>'+
+        '</div>'+
+        '<button class="btn btn-g btn-s btn-dz" data-taskdel="'+t.id+'">✕</button>'+
+      '</div></div>';}).join('')
+      :'<div class="empty" style="padding:26px"><div>No to-dos yet.</div></div>');
+}
+function progressCard(label,done,total,pct){
+  return '<div class="note" style="flex:1;min-width:170px;margin-bottom:0">'+
+    '<div class="note-h">'+label+'</div>'+
+    '<div class="row" style="justify-content:space-between;align-items:baseline">'+
+      '<b style="font-family:var(--disp);font-size:1.7rem">'+done+'<span style="font-size:1rem;color:var(--tx-d)">/'+total+'</span></b>'+
+      '<b style="color:'+(pct===100&&total?'#5ee6a0':'var(--pur-br)')+'">'+pct+'%</b></div>'+
+    '<div class="btrack" style="margin-top:8px"><i class="bfill" style="width:'+pct+'%;background:'+(pct===100&&total?'#5ee6a0':'var(--pur)')+'"></i></div></div>';
+}
+function objModal(){
+  modal('New Objective',
+    '<div class="field"><label>Objective</label><input class="inp" id="o-title" placeholder="Become a lockdown defender"></div>'+
+    '<div class="field"><label>Detail (optional)</label><textarea class="inp" id="o-detail" rows="3" placeholder="Better angles and discipline closing out"></textarea></div>'+
+    '<div class="field"><label>Target date</label><input class="inp" id="o-due" type="date"></div>'+
+    '<div class="field"><label>Give it to</label><select class="inp" id="o-scope">'+
+      '<option value="player">This player</option><option value="grade">A grade</option>'+
+      '<option value="group">A group</option><option value="all">Everyone</option></select></div>'+
+    '<div id="o-target"></div>'+
+    '<button class="btn btn-p btn-block" id="o-save">Add objective</button>');
+  const tgt=()=>{const v=$('o-scope').value;
+    $('o-target').innerHTML = v==='grade'
+      ? '<div class="field"><label>Grade</label><select class="inp" id="o-val">'+GRADES.map(g=>'<option value="'+g+'">Grade '+g+'</option>').join('')+'</select></div>'
+      : v==='group'
+      ? '<div class="field"><label>Group</label><select class="inp" id="o-val">'+S.groups.map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('')+'</select></div>'
+      : '';};
+  $('o-scope').onchange=tgt; tgt();
+  $('o-save').onclick=async()=>{
+    const title=$('o-title').value.trim(); if(!title)return;
+    const detail=$('o-detail').value.trim()||null, due=$('o-due').value||null;
+    const targets=scopeToPlayers($('o-scope').value, $('o-val')?$('o-val').value:null);
+    for(const pid of targets){
+      const row={player_id:pid,title,detail,due_date:due,done:false};
+      const sv=await put('pd_objectives',row); S.objectives.push(sv||Object.assign({id:uuid()},row));}
+    closeModal(); render(); flag(targets.length+' objective'+(targets.length===1?'':'s')+' added');};
+}
+function taskModal(){
+  const dr=S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  modal('New To-do',
+    '<div class="field"><label>What to do</label><input class="inp" id="t-title" placeholder="Watch the closeout breakdown"></div>'+
+    '<div class="field"><label>Linked video (optional)</label><select class="inp" id="t-drill">'+
+      '<option value="">— none —</option>'+dr.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join('')+'</select>'+
+      '<div style="font-size:.74rem;color:var(--tx-d);margin-top:6px">If a video is linked, the to-do checks itself off once the athlete watches it.</div></div>'+
+    '<div class="field"><label>Due date</label><input class="inp" id="t-due" type="date"></div>'+
+    '<div class="field"><label>Give it to</label><select class="inp" id="t-scope">'+
+      '<option value="player">This player</option><option value="grade">A grade</option>'+
+      '<option value="group">A group</option><option value="all">Everyone</option></select></div>'+
+    '<div id="t-target"></div>'+
+    '<button class="btn btn-p btn-block" id="t-save">Add to-do</button>');
+  const tgt=()=>{const v=$('t-scope').value;
+    $('t-target').innerHTML = v==='grade'
+      ? '<div class="field"><label>Grade</label><select class="inp" id="t-val">'+GRADES.map(g=>'<option value="'+g+'">Grade '+g+'</option>').join('')+'</select></div>'
+      : v==='group'
+      ? '<div class="field"><label>Group</label><select class="inp" id="t-val">'+S.groups.map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('')+'</select></div>'
+      : '';};
+  $('t-scope').onchange=tgt; tgt();
+  $('t-save').onclick=async()=>{
+    const title=$('t-title').value.trim(); if(!title)return;
+    const did=$('t-drill').value||null, due=$('t-due').value||null;
+    const targets=scopeToPlayers($('t-scope').value, $('t-val')?$('t-val').value:null);
+    for(const pid of targets){
+      const row={player_id:pid,title,drill_id:did,due_date:due,done:false,auto_on_watch:!!did};
+      const sv=await put('pd_tasks',row); S.tasks.push(sv||Object.assign({id:uuid()},row));}
+    closeModal(); render(); flag(targets.length+' to-do'+(targets.length===1?'':'s')+' added');};
+}
+function scopeToPlayers(scope,val){
+  if(scope==='all')return S.players.map(p=>p.id);
+  if(scope==='grade')return S.players.filter(p=>+p.grade===+val).map(p=>p.id);
+  if(scope==='group')return S.members.filter(m=>m.group_id===val).map(m=>m.player_id);
+  const cur=currentGoalPlayer(); return cur?[cur]:[];
+}
+
+/* ================= video lists ================= */
+function listDrills(lid){
+  return S.listItems.filter(i=>i.list_id===lid).sort((a,b)=>(a.order_idx??0)-(b.order_idx??0))
+    .map(i=>S.drills.find(d=>d.id===i.drill_id)).filter(Boolean);
+}
+function vLists(){
+  if(!LISTS_OK) return setupNotice('video list');
+  if(S.openList) return listEditor(S.openList);
+  return '<div class="row" style="margin-bottom:13px"><button class="btn btn-p btn-s" data-act="new-list">＋ New List</button></div>'+
+    '<p class="lead" style="margin-top:0">Bundle videos into a list, then assign the whole list at once.</p>'+
+    (S.lists.length?'<div class="cards">'+S.lists.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(l=>{
+      const n=listDrills(l.id).length;
+      const as=S.assigns.filter(a=>a.list_id===l.id);
+      return '<div class="note" style="cursor:pointer" data-openlist="'+l.id+'">'+
+        '<div style="font-weight:800;font-size:1.05rem">'+esc(l.name)+'</div>'+
+        (l.description?'<div style="color:var(--tx-m);font-size:.86rem;margin-top:4px">'+esc(l.description)+'</div>':'')+
+        '<div style="margin-top:9px"><span class="chip">'+n+' video'+(n===1?'':'s')+'</span>'+
+        (as.length?as.map(a=>'<span class="tag">'+scopeLabel(a)+'</span>').join(''):'<span class="chip" style="color:var(--tx-d)">not assigned</span>')+'</div></div>';}).join('')+'</div>'
+      :'<div class="empty"><div class="ico">📋</div><div>No lists yet.</div></div>');
+}
+function listEditor(lid){
+  const l=S.lists.find(x=>x.id===lid); if(!l){S.openList=null;return vLists();}
+  const inList=new Set(S.listItems.filter(i=>i.list_id===lid).map(i=>i.drill_id));
+  const items=listDrills(lid);
+  return '<button class="btn btn-g btn-s" data-act="list-back">← All lists</button>'+
+    '<div class="sec" style="margin-top:13px"><h2 style="font-size:1.3rem">'+esc(l.name)+'</h2><div class="rule"></div>'+
+      '<button class="btn btn-p btn-s" data-assignlist="'+lid+'">Assign this list →</button>'+
+      '<button class="btn btn-g btn-s btn-dz" data-listdel="'+lid+'">Delete</button></div>'+
+    (items.length?'<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Video</th><th>Kind</th><th></th></tr></thead><tbody>'+
+      items.map(d=>'<tr><td><div class="cell l"><b>'+esc(d.name)+'</b></div></td>'+
+        '<td><div class="cell"><span class="chip">'+esc(d.kind||'drill')+'</span></div></td>'+
+        '<td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-listrm="'+lid+'|'+d.id+'">Remove</button></div></td></tr>').join('')+
+      '</tbody></table></div></div>'
+      :'<p class="lead">Empty list — add videos below.</p>')+
+    '<div class="sec" style="margin-top:22px"><h2 style="font-size:1.05rem">ADD VIDEOS</h2><div class="rule"></div></div>'+
+    '<div class="cards">'+S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d=>
+      '<div class="note"><div style="font-weight:800">'+esc(d.name)+'</div>'+
+      '<div style="margin-top:8px">'+(inList.has(d.id)?'<span class="chip" style="color:#5ee6a0">✓ in list</span>'
+        :'<button class="btn btn-p btn-s" data-listadd="'+lid+'|'+d.id+'">＋ Add</button>')+'</div></div>').join('')+'</div>';
+}
+function listModal(){
+  modal('New List',
+    '<div class="field"><label>List name</label><input class="inp" id="l-name" placeholder="Week 1 — Defense"></div>'+
+    '<div class="field"><label>Description</label><input class="inp" id="l-desc" placeholder="Optional"></div>'+
+    '<button class="btn btn-p btn-block" id="l-save">Create list</button>');
+  $('l-save').onclick=async()=>{
+    const name=$('l-name').value.trim(); if(!name)return;
+    const row={name,description:$('l-desc').value.trim()||null};
+    const sv=await put('pd_lists',row); const nl=sv||Object.assign({id:uuid()},row);
+    S.lists.push(nl); S.openList=nl.id; closeModal(); render(); flag('List created');};
+}
+
+const VIEWS={cards:vCards,testing:vTesting,goals:vGoals,assign:vAssign,stats:vStats,reports:vReports,messages:vMessages,admin:vAdmin};
 
 /* ================= modals ================= */
 function modal(title,body,wide){
@@ -839,16 +1046,21 @@ function playerModal(pid){
 function assignedFor(pid){
   const p=S.players.find(x=>x.id===pid); if(!p)return [];
   const gids=S.members.filter(m=>m.player_id===pid).map(m=>m.group_id);
-  const ids=new Set(S.assigns.filter(a=>a.scope==='all'
+  const mine=S.assigns.filter(a=>a.scope==='all'
     ||(a.scope==='grade'&&+a.scope_value===+p.grade)
     ||(a.scope==='group'&&gids.includes(a.scope_value))
-    ||(a.scope==='player'&&a.scope_value===pid)).map(a=>a.drill_id));
+    ||(a.scope==='player'&&a.scope_value===pid));
+  const ids=new Set();
+  mine.forEach(a=>{ if(a.drill_id) ids.add(a.drill_id);
+    if(a.list_id) listDrills(a.list_id).forEach(d=>ids.add(d.id)); });
   return S.drills.filter(d=>ids.has(d.id));
 }
 
-function assignModal(drillId){
-  const d=S.drills.find(x=>x.id===drillId); if(!d)return;
-  const cur=S.assigns.filter(a=>a.drill_id===drillId);
+function assignModal(drillId,listId){
+  const isList=!!listId;
+  const d=isList?S.lists.find(x=>x.id===listId):S.drills.find(x=>x.id===drillId);
+  if(!d)return;
+  const cur=S.assigns.filter(a=>isList?a.list_id===listId:a.drill_id===drillId);
   modal('Assign · '+esc(d.name),`
     <div class="field"><label>Assign to</label>
       <select class="inp" id="as-scope">
@@ -881,7 +1093,8 @@ function assignModal(drillId){
   $('as-save').onclick=async()=>{
     const scope=$('as-scope').value;
     const reps=parseInt($('as-reps').value)||null, due=$('as-due').value||null;
-    const mk=async v=>{const row={drill_id:drillId,scope,scope_value:v,reps_target:reps,due_date:due};
+    const mk=async v=>{const row=isList?{list_id:listId,scope,scope_value:v,reps_target:reps,due_date:due}
+      :{drill_id:drillId,scope,scope_value:v,reps_target:reps,due_date:due};
       const saved=await put('pd_assignments',row); S.assigns.push(saved||{id:uuid(),...row});};
     if(scope==='player'){const picks=[...document.querySelectorAll('[data-pick].on')].map(b=>b.dataset.pick);
       if(!picks.length)return; for(const p of picks) await mk(p);}
@@ -1062,11 +1275,43 @@ function wire(){
   document.querySelectorAll('[data-code]').forEach(b=>b.onclick=async()=>{await makeCode(b.dataset.code);render();flag('Code created');});
   document.querySelectorAll('[data-dmsg]').forEach(b=>b.onclick=async()=>{
     const id=b.dataset.dmsg; S.comments=S.comments.filter(c=>c.id!==id); await del('pd_comments',id); render(); flag('Deleted');});
+  const gs=document.getElementById('goalsel'); if(gs)gs.onchange=()=>{S.goalPlayer=gs.value;render();};
+  document.querySelectorAll('[data-asub]').forEach(b=>b.onclick=()=>{S.assignSub=b.dataset.asub;S.openList=null;render();});
+  document.querySelectorAll('[data-openlist]').forEach(b=>b.onclick=()=>{S.openList=b.dataset.openlist;render();});
+  document.querySelectorAll('[data-assignlist]').forEach(b=>b.onclick=()=>assignModal(null,b.dataset.assignlist));
+  document.querySelectorAll('[data-listadd]').forEach(b=>b.onclick=async()=>{
+    const [lid,did]=b.dataset.listadd.split('|');
+    const maxo=S.listItems.filter(i=>i.list_id===lid).reduce((m,x)=>Math.max(m,x.order_idx||0),0);
+    const row={list_id:lid,drill_id:did,order_idx:maxo+10};
+    const sv=await put('pd_list_items',row,'list_id,drill_id'); S.listItems.push(sv||Object.assign({id:uuid()},row));
+    render(); flag('Added to list');});
+  document.querySelectorAll('[data-listrm]').forEach(b=>b.onclick=async()=>{
+    const [lid,did]=b.dataset.listrm.split('|');
+    const it=S.listItems.find(i=>i.list_id===lid&&i.drill_id===did); if(!it)return;
+    S.listItems=S.listItems.filter(i=>i.id!==it.id); await del('pd_list_items',it.id); render(); flag('Removed');});
+  document.querySelectorAll('[data-listdel]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.listdel; S.lists=S.lists.filter(l=>l.id!==id);
+    S.listItems=S.listItems.filter(i=>i.list_id!==id); S.openList=null;
+    await del('pd_lists',id); render(); flag('List deleted');});
+  document.querySelectorAll('[data-objtog]').forEach(b=>b.onclick=async()=>{
+    const o=S.objectives.find(x=>x.id===b.dataset.objtog); if(!o)return;
+    o.done=!o.done; o.done_at=o.done?new Date().toISOString():null;
+    await patch('pd_objectives',o.id,{done:o.done,done_at:o.done_at}); render(); flag(o.done?'Completed':'Reopened');});
+  document.querySelectorAll('[data-objdel]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.objdel; S.objectives=S.objectives.filter(x=>x.id!==id); await del('pd_objectives',id); render();});
+  document.querySelectorAll('[data-tasktog]').forEach(b=>b.onclick=async()=>{
+    const t=S.tasks.find(x=>x.id===b.dataset.tasktog); if(!t)return;
+    t.done=!taskDone(t); t.done_at=t.done?new Date().toISOString():null;
+    await patch('pd_tasks',t.id,{done:t.done,done_at:t.done_at}); render();});
+  document.querySelectorAll('[data-taskdel]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.taskdel; S.tasks=S.tasks.filter(x=>x.id!==id); await del('pd_tasks',id); render();});
   const acts={
     'new-attr':()=>attrModal(),'new-test':()=>testModal(),'new-weight':()=>weightModal(),
     'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
     'snap':saveCheckpoint,'save-scale':saveScale,
     'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
+    'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
+    'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
 }
