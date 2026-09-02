@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#25104A"/>
+<title>Jaguars · Athlete Portal V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* pulled from the real crest */
+  --pur-900:#170733; --pur-800:#25104A; --pur-700:#3A1A6B; --pur-600:#4E2489; --pur-400:#8B5CD6;
+  --gold:#F0A83C; --gold-lt:#FFC96B; --gold-dk:#C77F1E;
+  --ink:#fff; --ink-s:rgba(255,255,255,.80); --ink-m:rgba(255,255,255,.58); --ink-d:rgba(255,255,255,.34);
+  --line:rgba(255,255,255,.13); --line-s:rgba(255,255,255,.07);
+  --panel:rgba(255,255,255,.045);
+  --good:#54E08A; --warn:#FFC96B; --bad:#FF7A6B;
+  --disp:'Archivo Black',system-ui,sans-serif;
+  --cond:'Barlow Condensed',system-ui,sans-serif;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--pur-900)}
+body{font-family:var(--sans);color:var(--ink);line-height:1.5;min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+  background:
+    radial-gradient(1000px 620px at 78% -8%, rgba(240,168,60,.13), transparent 62%),
+    radial-gradient(900px 700px at -12% 8%, rgba(139,92,214,.24), transparent 60%),
+    linear-gradient(180deg,var(--pur-800),var(--pur-900) 62%);
+  background-attachment:fixed;
+  padding-bottom:86px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.wrap{max-width:680px;margin:0 auto;padding:0 16px}
+
+/* ============ header ============ */
+.top{position:relative;overflow:hidden;padding:20px 16px 18px;
+  background:linear-gradient(160deg,var(--pur-700),var(--pur-900));
+  border-bottom:1px solid var(--line)}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt),var(--gold-dk))}
+.top-mark{position:absolute;right:-56px;top:-40px;width:220px;opacity:.13;pointer-events:none;
+  filter:grayscale(.2)}
+.top-in{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:14px;position:relative}
+.crest{width:56px;height:56px;flex-shrink:0;border-radius:50%;
+  box-shadow:0 0 0 2px rgba(240,168,60,.55), 0 10px 26px -10px #000}
+.who{min-width:0;flex:1}
+.who .eyebrow{font-family:var(--cond);font-size:.78rem;font-weight:700;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--gold-lt)}
+.who h1{font-family:var(--disp);font-size:1.45rem;line-height:1.05;letter-spacing:-.01em;margin-top:1px}
+.who .sub{font-size:.76rem;color:var(--ink-m);margin-top:3px}
+.sign{font-family:var(--cond);font-size:.82rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-m);border:1px solid var(--line);border-radius:999px;padding:7px 13px}
+.sign:hover{color:#fff;border-color:var(--gold)}
+
+/* kid switcher */
+.kids{display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px;scrollbar-width:none}
+.kids::-webkit-scrollbar{display:none}
+.kidc{display:flex;align-items:center;gap:9px;padding:6px 14px 6px 6px;border-radius:999px;flex-shrink:0;
+  border:1px solid var(--line);background:var(--panel);font-weight:700;font-size:.86rem;color:var(--ink-m)}
+.kidc.on{background:linear-gradient(135deg,var(--gold),var(--gold-dk));border-color:transparent;color:#2B1200}
+.kidn{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;
+  background:rgba(0,0,0,.28);font-family:var(--cond);font-weight:800;font-size:.92rem}
+.kidc.on .kidn{background:rgba(0,0,0,.22);color:#fff}
+.kidc.plus{border-style:dashed;color:var(--gold-lt);padding:6px 15px}
+
+/* ============ hero card ============ */
+.card{position:relative;margin-top:18px;border-radius:22px;overflow:hidden;
+  border:1px solid rgba(240,168,60,.30);
+  background:linear-gradient(158deg,#3E1C72 0%,#2A1150 45%,#1B0A38 100%);
+  box-shadow:0 26px 60px -30px #000}
+.card-watermark{position:absolute;right:-44px;bottom:-52px;width:250px;opacity:.10;pointer-events:none}
+.card-top{position:relative;display:flex;align-items:flex-start;gap:16px;padding:22px 22px 6px}
+.num{font-family:var(--disp);font-size:2.6rem;line-height:.85;color:transparent;
+  -webkit-text-stroke:2px rgba(240,168,60,.75);letter-spacing:-.02em;flex-shrink:0}
+.nm{flex:1;min-width:0}
+.nm .team{font-family:var(--cond);font-size:.82rem;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--gold-lt)}
+.nm h2{font-family:var(--disp);font-size:1.9rem;line-height:1;letter-spacing:-.02em;margin-top:3px}
+.nm .meta{font-size:.76rem;color:var(--ink-m);margin-top:5px}
+
+/* OVR dial */
+.dial{position:relative;width:98px;height:98px;flex-shrink:0}
+.dial svg{transform:rotate(-90deg)}
+.dial-val{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1}
+.dial-val b{font-family:var(--disp);font-size:2rem;letter-spacing:-.02em;display:block}
+.dial-val span{font-family:var(--cond);font-size:.66rem;font-weight:700;letter-spacing:.22em;color:var(--ink-d)}
+.up{color:var(--good)} .down{color:var(--bad)}
+
+/* attribute pips */
+.attrs{padding:14px 22px 22px;display:grid;gap:10px}
+.at{display:grid;grid-template-columns:96px 1fr 30px;align-items:center;gap:11px}
+.at-l{font-family:var(--cond);font-size:.84rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-m);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pips{display:flex;gap:3px}
+.pip{flex:1;height:9px;border-radius:2px;background:rgba(255,255,255,.09)}
+.pip.f{background:linear-gradient(180deg,var(--gold-lt),var(--gold))}
+.pip.f.hi{background:linear-gradient(180deg,#fff,var(--gold-lt))}
+.at-v{font-family:var(--disp);font-size:1.02rem;text-align:right}
+.card-foot{border-top:1px solid var(--line-s);padding:11px 22px;font-size:.72rem;color:var(--ink-d);
+  display:flex;justify-content:space-between;gap:10px}
+
+/* ============ section head ============ */
+.sh{display:flex;align-items:center;gap:12px;margin:30px 2px 14px}
+.sh h3{font-family:var(--disp);font-size:1.06rem;letter-spacing:.01em}
+.sh .ln{flex:1;height:2px;background:linear-gradient(90deg,var(--gold),transparent)}
+.sh .ct{font-family:var(--cond);font-size:.86rem;font-weight:700;letter-spacing:.1em;color:var(--gold-lt)}
+
+/* ============ creed ============ */
+.creed{margin-top:18px;border-radius:20px;overflow:hidden;border:1px solid var(--line);
+  background:linear-gradient(150deg,rgba(240,168,60,.10),rgba(139,92,214,.10)),rgba(0,0,0,.22)}
+.creed-top{padding:16px 20px 4px;font-family:var(--cond);font-size:.84rem;font-weight:700;
+  letter-spacing:.26em;text-transform:uppercase;color:var(--gold-lt)}
+.creed-l{display:flex;gap:16px;padding:14px 20px;border-top:1px solid var(--line-s);align-items:baseline}
+.creed-l:first-of-type{border-top:none}
+.creed-n{font-family:var(--disp);font-size:.8rem;color:var(--gold);width:20px;flex-shrink:0}
+.creed-w{font-family:var(--disp);font-size:1.32rem;letter-spacing:-.01em;width:132px;flex-shrink:0;line-height:1.05}
+.creed-t{color:var(--ink-s);font-size:.9rem;line-height:1.5}
+@media(max-width:520px){.creed-l{flex-wrap:wrap;gap:6px 12px}.creed-w{width:auto}.creed-t{width:100%}}
+
+/* ============ progress ============ */
+.prog{margin-top:16px;border:1px solid var(--line);border-radius:18px;padding:18px 20px;background:var(--panel)}
+.prog-r{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:11px}
+.prog-l{font-family:var(--cond);font-size:.84rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-m)}
+.prog-p{font-family:var(--disp);font-size:1.7rem;line-height:1}
+.bar{height:12px;border-radius:99px;background:rgba(0,0,0,.32);overflow:hidden;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt))}
+.prog-s{font-size:.79rem;color:var(--ink-d);margin-top:9px;font-weight:600}
+
+/* ============ action list ============ */
+.act{display:flex;align-items:center;gap:14px;width:100%;padding:15px 17px;border-radius:16px;
+  border:1px solid var(--line);background:var(--panel);margin-bottom:10px;text-align:left;transition:.15s}
+.act:hover{border-color:rgba(240,168,60,.5);transform:translateX(3px);background:rgba(255,255,255,.07)}
+.act-i{width:40px;height:40px;border-radius:12px;flex-shrink:0;display:grid;place-items:center;font-size:1.2rem;
+  background:linear-gradient(150deg,rgba(240,168,60,.22),rgba(139,92,214,.22));border:1px solid var(--line)}
+.act-m{flex:1;min-width:0}
+.act-t{display:block;font-weight:800;font-size:.96rem}
+.act-s{display:block;color:var(--ink-d);font-size:.78rem;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-n{flex-shrink:0;min-width:28px;height:28px;padding:0 9px;border-radius:99px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:#2B1200;font-weight:900;font-size:.82rem}
+
+/* ============ video rows ============ */
+.vr{display:flex;align-items:center;gap:13px;width:100%;padding:9px 13px 9px 9px;border-radius:15px;
+  border:1px solid var(--line);background:var(--panel);margin-bottom:9px;text-align:left;transition:.15s}
+.vr:hover{border-color:rgba(240,168,60,.5)}
+.vr.done{opacity:.5}
+.vt{position:relative;width:88px;height:50px;border-radius:9px;overflow:hidden;flex-shrink:0;background:#000}
+.vt img{width:100%;height:100%;object-fit:cover;display:block}
+.vt .pl{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:.85rem;
+  background:rgba(0,0,0,.22);text-shadow:0 2px 6px #000}
+.vm{flex:1;min-width:0}
+.vn{display:block;font-weight:700;font-size:.92rem;line-height:1.25}
+.vs{display:block;color:var(--ink-d);font-size:.75rem;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vk{flex-shrink:0;font-weight:900;color:var(--gold-lt)}
+.vk.ok{color:var(--good)}
+
+/* ============ stat strip ============ */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:9px;margin-top:4px}
+.st{border:1px solid var(--line);border-radius:14px;padding:13px 8px;text-align:center;background:var(--panel)}
+.st b{font-family:var(--disp);font-size:1.35rem;display:block;color:var(--gold-lt)}
+.st span{font-family:var(--cond);font-size:.72rem;font-weight:700;letter-spacing:.14em;color:var(--ink-d);text-transform:uppercase}
+
+/* ============ bottom nav ============ */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:70;
+  background:rgba(23,7,51,.92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.nav-in{max-width:680px;margin:0 auto;display:flex}
+.nb{flex:1;padding:11px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  color:var(--ink-d);position:relative;transition:.14s}
+.nb:hover{color:var(--ink-m)}
+.nb.on{color:#fff}
+.nb.on::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:26px;height:3px;border-radius:0 0 3px 3px;background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt))}
+.nb-i{font-size:1.16rem;line-height:1}
+.nb-l{font-family:var(--cond);font-size:.76rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.nb-b{position:absolute;top:6px;right:calc(50% - 22px);min-width:17px;height:17px;padding:0 5px;border-radius:99px;
+  background:var(--gold);color:#2B1200;font-size:.63rem;font-weight:900;display:grid;place-items:center}
+
+/* ============ playbook ============ */
+.pb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px}
+.pb{padding:17px 16px;border-radius:16px;border:1px solid var(--line);background:var(--panel);text-align:left;transition:.15s}
+.pb:hover{border-color:rgba(240,168,60,.5);transform:translateY(-2px)}
+.pb-i{font-size:1.5rem;display:block;margin-bottom:6px}
+.pb-t{display:block;font-weight:800;font-size:.96rem}
+.pb-s{display:block;color:var(--ink-d);font-size:.76rem;margin-top:2px}
+.doc{border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:20px 22px;line-height:1.6}
+.doc h4{font-family:var(--disp);font-size:1.02rem;color:#fff;margin:20px 0 10px;
+  padding-left:12px;border-left:4px solid var(--gold)}
+.doc h4:first-child{margin-top:0}
+.term{display:flex;gap:13px;align-items:flex-start;margin-bottom:11px}
+.term-n{width:24px;height:24px;flex-shrink:0;border-radius:7px;display:grid;place-items:center;
+  background:rgba(240,168,60,.16);border:1px solid rgba(240,168,60,.34);color:var(--gold-lt);
+  font-weight:900;font-size:.74rem}
+.term-w{font-weight:800;color:#fff}
+.term-d{color:var(--ink-s);font-size:.89rem;margin-top:2px}
+.quote{margin-top:16px;padding:14px 17px;border-left:4px solid var(--gold);border-radius:0 12px 12px 0;
+  background:rgba(240,168,60,.09);color:var(--ink-s);font-style:italic}
+.back{font-family:var(--cond);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:.84rem;
+  color:var(--ink-m);border:1px solid var(--line);border-radius:999px;padding:8px 15px;margin-bottom:4px}
+.back:hover{color:#fff;border-color:var(--gold)}
+.note{border:1px solid var(--line);border-radius:16px;padding:16px 17px;background:var(--panel);margin-bottom:11px}
+.msg-h{display:flex;align-items:baseline;gap:9px;margin-bottom:7px}
+.msg-a{font-family:var(--cond);font-size:.92rem;font-weight:700;letter-spacing:.06em;color:var(--gold-lt)}
+.msg-d{font-size:.73rem;color:var(--ink-d)}
+.chk{width:25px;height:25px;flex-shrink:0;border-radius:8px;border:2px solid var(--line);
+  display:grid;place-items:center;font-weight:900;font-size:.82rem}
+.chk.on{background:linear-gradient(135deg,#3FBF77,#248A50);border-color:transparent}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:.74rem;font-weight:700;padding:5px 11px;
+  border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line-s);color:var(--ink-s);margin:3px 5px 3px 0}
+.demo{position:fixed;top:0;left:0;right:0;z-index:90;background:var(--gold);color:#2B1200;
+  text-align:center;font-weight:800;font-size:.74rem;padding:4px;letter-spacing:.04em}
+.pad{height:22px}
+</style>
+</head>
+<body>
+<div class="demo">V2 DESIGN PREVIEW — sample data, not connected</div>
+<div id="app"></div>
+
+<script type="module">
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LOGO='logo.png';
+
+/* ---------------- sample data ---------------- */
+const KIDS=[
+  {id:'a',name:'Jayden Francis',first:'Jayden',num:24,team:'Grade 7 Team',grade:5,height:"4'8\"",ovr:84,delta:+3},
+  {id:'b',name:'Jackson Francis',first:'Jackson',num:30,team:'Grade 3 Team',grade:3,height:"4'2\"",ovr:70,delta:+1}
+];
+const ATTRS={
+  a:[['Shooting',75,2],['Finishing',68,0],['Ball Handling',73,-1],['Passing',80,4],
+     ['Defense',93,3],['Rebounding',82,1],['Athleticism',71,2],['Basketball IQ',93,5],['Coachability',93,0]],
+  b:[['Shooting',66,1],['Finishing',72,3],['Ball Handling',64,0],['Passing',70,2],
+     ['Defense',75,1],['Rebounding',68,0],['Athleticism',73,4],['Basketball IQ',70,1],['Coachability',88,2]]
+};
+const CREED=[
+  ['FORCE','Players must play with force. Nothing we run is done at half speed or half effort.'],
+  ['INTENTIONAL',"Everything we do has a reason. If we can't say why we're doing a drill, we don't run it."],
+  ['COMPETE','Every skill we work on, we compete at. There is a winner and a loser in the drill.'],
+  ['DELIBERATE',"On purpose, every time — almost obsessed with the skills we've chosen to own."]
+];
+const VIDS=[
+  {t:'Closeout Breakdown — Game 4',s:'Game Breakdown · 6 min',y:'dDeMqcpGbhI',done:false},
+  {t:'2-Ball Dribbling Series',s:'Practice · 4 min',y:'V-_O7nl0Ii0',done:false},
+  {t:'Pick & Roll Reads',s:'Practice · 8 min',y:'8gQ2wLQiC7A',done:true}
+];
+const TASKS=[
+  {t:'Watch the closeout breakdown',due:'Sep 6',done:false,vid:true},
+  {t:'100 form shots — both hands',due:'Sep 7',done:false,vid:false},
+  {t:'Watch pick & roll reads',due:'Sep 4',done:true,vid:true}
+];
+const OBJS=[
+  {t:'Become a lockdown defender',d:'Better angles and discipline on closeouts.',due:'Oct 1',done:false},
+  {t:'Finish with the left hand',d:'Every drive to the left finishes left.',due:'Nov 15',done:true}
+];
+const MSGS=[
+  {a:'Coach Dale',d:'Sep 2',b:"Jayden did so well today. He performed at the top level for shooting. His IQ is incredible and he is always willing to push hard.\n\nMy goal for him this month: lockdown defense through better angles, playing off ball, and dribbling with his head up.",unread:true},
+  {a:'Coach Dale',d:'Aug 28',b:"Great practice. Let's focus on defense 101 today.",unread:false}
+];
+const PB=[
+  {k:'standards',i:'🏅',t:'Team Standards',n:1},
+  {k:'terminology',i:'📖',t:'Terminology',n:1},
+  {k:'calls',i:'📣',t:'Defensive Calls',n:1},
+  {k:'dsets',i:'🛡️',t:'Defensive Sets',n:2},
+  {k:'osets',i:'⚔️',t:'Offensive Sets',n:2}
+];
+const TERMS=[['Push','Fast break'],['Swing','Reverse the ball'],['Cut','Move without the ball'],
+  ['Flash','Quick cut into open area'],['Seal','Pin your defender'],['Drag','Trailing ball screen']];
+
+const S={kid:'a',view:'home',doc:null};
+const kid=()=>KIDS.find(k=>k.id===S.kid);
+
+/* ---------------- pieces ---------------- */
+function dial(v,delta){
+  const R=42,C=2*Math.PI*R,off=C-(C*Math.min(v,100)/100);
+  return `<div class="dial">
+    <svg width="98" height="98" viewBox="0 0 98 98">
+      <circle cx="49" cy="49" r="${R}" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="7"/>
+      <circle cx="49" cy="49" r="${R}" fill="none" stroke="url(#gg)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
+      <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FFC96B"/><stop offset="1" stop-color="#C77F1E"/></linearGradient></defs>
+    </svg>
+    <div class="dial-val"><b>${v}</b><span>OVR ${delta>0?`<i class="up">▲${delta}</i>`:delta<0?`<i class="down">▼${Math.abs(delta)}</i>`:''}</span></div>
+  </div>`;
+}
+function pips(v){
+  const n=10,f=Math.round(v/10);
+  return `<span class="pips">${Array.from({length:n},(_,i)=>
+    `<i class="pip ${i<f?'f':''} ${v>=90?'hi':''}"></i>`).join('')}</span>`;
+}
+function heroCard(){
+  const k=kid();
+  return `<div class="card">
+    <img class="card-watermark" src="${LOGO}" alt="">
+    <div class="card-top">
+      <div class="num">${k.num}</div>
+      <div class="nm">
+        <div class="team">${esc(k.team)}</div>
+        <h2>${esc(k.name)}</h2>
+        <div class="meta">Grade ${k.grade} · ${esc(k.height)}</div>
+      </div>
+      ${dial(k.ovr,k.delta)}
+    </div>
+    <div class="attrs">${ATTRS[k.id].map(([l,v,d])=>`
+      <div class="at"><span class="at-l">${l}</span>${pips(v)}
+        <span class="at-v" style="color:${v>=90?'#FFC96B':v>=80?'#fff':v>=70?'#D9CBEF':'#B9A9D6'}">${v}</span></div>`).join('')}
+    </div>
+    <div class="card-foot"><span>Compared with the ${esc(k.team)}</span><span>Updated Sep 2</span></div>
+  </div>`;
+}
+function kidbar(){
+  return `<div class="kids">
+    ${KIDS.map(k=>`<button class="kidc ${k.id===S.kid?'on':''}" data-kid="${k.id}">
+      <span class="kidn">${k.num}</span>${esc(k.first)}</button>`).join('')}
+    <button class="kidc plus">＋ Add athlete</button>
+  </div>`;
+}
+function header(){
+  const k=kid();
+  return `<div class="top">
+    <img class="top-mark" src="${LOGO}" alt="">
+    <div class="top-in">
+      <img class="crest" src="${LOGO}" alt="Jaguars">
+      <div class="who">
+        <div class="eyebrow">SW Florida</div>
+        <h1>JAGUARS</h1>
+        <div class="sub">${esc(k.name)} · Athlete Portal</div>
+      </div>
+      <button class="sign">Sign out</button>
+    </div>
+    <div class="wrap" style="padding:0">${kidbar()}</div>
+  </div>`;
+}
+
+/* ---------------- views ---------------- */
+function vHome(){
+  const openT=TASKS.filter(t=>!t.done).length;
+  const openV=VIDS.filter(v=>!v.done).length;
+  const unread=MSGS.filter(m=>m.unread).length;
+  const openO=OBJS.filter(o=>!o.done).length;
+  const total=TASKS.length+VIDS.length, done=TASKS.filter(t=>t.done).length+VIDS.filter(v=>v.done).length;
+  const pct=Math.round(100*done/total);
+  const acts=[];
+  if(openT)acts.push(['work','🎯',`${openT} to-dos to finish`,TASKS.filter(t=>!t.done).map(t=>t.t).join(' · '),openT]);
+  if(openV)acts.push(['film','🎬',`${openV} videos to watch`,VIDS.filter(v=>!v.done).map(v=>v.t).join(' · '),openV]);
+  if(unread)acts.push(['coach','💬',`${unread} new message`,MSGS.find(m=>m.unread).b.slice(0,58)+'…',unread]);
+  if(openO)acts.push(['work','🏅',`${openO} objective in progress`,'Your coach checks these off',openO]);
+  return `${heroCard()}
+
+  <div class="creed">
+    <div class="creed-top">This Is Who We Are</div>
+    ${CREED.map(([w,t],i)=>`<div class="creed-l">
+      <span class="creed-n">0${i+1}</span><span class="creed-w">${w}</span><span class="creed-t">${esc(t)}</span></div>`).join('')}
+  </div>
+
+  <div class="prog">
+    <div class="prog-r"><span class="prog-l">Follow-up progress</span>
+      <b class="prog-p" style="color:${pct===100?'var(--good)':'var(--gold-lt)'}">${pct}%</b></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="prog-s">${done} of ${total} things done this week</div>
+  </div>
+
+  ${acts.length?`<div class="sh"><h3>NEEDS ATTENTION</h3><div class="ln"></div></div>
+  ${acts.map(([go,i,t,s,n])=>`<button class="act" data-go="${go}">
+    <span class="act-i">${i}</span>
+    <span class="act-m"><span class="act-t">${esc(t)}</span><span class="act-s">${esc(s)}</span></span>
+    <span class="act-n">${n}</span></button>`).join('')}`:''}
+
+  <div class="sh"><h3>SEASON</h3><div class="ln"></div></div>
+  <div class="stats">
+    <div class="st"><b>7</b><span>GP</span></div>
+    <div class="st"><b>12.4</b><span>PPG</span></div>
+    <div class="st"><b>5.1</b><span>RPG</span></div>
+    <div class="st"><b>3.8</b><span>APG</span></div>
+    <div class="st"><b>2.2</b><span>SPG</span></div>
+    <div class="st"><b>47%</b><span>FG</span></div>
+  </div><div class="pad"></div>`;
+}
+function vWork(){
+  const od=OBJS.filter(o=>o.done).length, td=TASKS.filter(t=>t.done).length;
+  return `<div class="sh"><h3>OBJECTIVES</h3><div class="ln"></div><span class="ct">${od}/${OBJS.length}</span></div>
+  ${OBJS.map(o=>`<div class="note">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <span class="chk ${o.done?'on':''}">${o.done?'✓':''}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;${o.done?'color:var(--ink-m);text-decoration:line-through':''}">${esc(o.t)}</div>
+        <div style="color:var(--ink-m);font-size:.87rem;margin-top:3px">${esc(o.d)}</div>
+        <div style="margin-top:8px"><span class="pill">target ${o.due}</span>${o.done?'<span class="pill" style="color:var(--good)">done</span>':''}</div>
+      </div></div></div>`).join('')}
+  <p style="color:var(--ink-d);font-size:.78rem;margin:-2px 2px 0">Only your coach can tick these off.</p>
+
+  <div class="sh"><h3>TO-DO</h3><div class="ln"></div><span class="ct">${td}/${TASKS.length}</span></div>
+  ${TASKS.map(t=>`<div class="note">
+    <div style="display:flex;gap:13px;align-items:flex-start">
+      <span class="chk ${t.done?'on':''}">${t.done?'✓':''}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;${t.done?'color:var(--ink-m);text-decoration:line-through':''}">${esc(t.t)}</div>
+        <div style="margin-top:8px"><span class="pill">due ${t.due}</span>
+          ${t.vid?'<span class="pill">🎬 video</span>':''}
+          ${(t.vid&&!t.done)?'<span class="pill" style="color:var(--gold-lt)">watch it to check off</span>':''}</div>
+      </div></div></div>`).join('')}<div class="pad"></div>`;
+}
+function vFilm(){
+  return `<div class="sh"><h3>THIS WEEK'S FILM</h3><div class="ln"></div><span class="ct">${VIDS.length}</span></div>
+  <p style="color:var(--ink-m);font-size:.88rem;margin:-6px 2px 14px">Practice clips and game breakdowns your coach assigned.</p>
+  ${VIDS.map(v=>`<button class="vr ${v.done?'done':''}">
+    <span class="vt"><img src="https://img.youtube.com/vi/${v.y}/mqdefault.jpg" alt="" loading="lazy"><span class="pl">▶</span></span>
+    <span class="vm"><span class="vn">${esc(v.t)}</span><span class="vs">${esc(v.s)}</span></span>
+    <span class="vk ${v.done?'ok':''}">${v.done?'✓':'▶'}</span></button>`).join('')}<div class="pad"></div>`;
+}
+function vBook(){
+  if(S.doc){
+    return `<button class="back" data-back>← Back</button>
+    <div class="sh"><h3>BASKETBALL TERMINOLOGY</h3><div class="ln"></div></div>
+    <div class="doc">
+      <h4>Offensive Terms</h4>
+      ${TERMS.map(([w,d],i)=>`<div class="term"><span class="term-n">${i+1}</span>
+        <div><div class="term-w">${w}</div><div class="term-d">${d}</div></div></div>`).join('')}
+      <div class="quote">Communicate on every play — defense is five people thinking as one.</div>
+    </div><div class="pad"></div>`;
+  }
+  return `<div class="sh"><h3>PLAYBOOK</h3><div class="ln"></div></div>
+  <p style="color:var(--ink-m);font-size:.88rem;margin:-6px 2px 14px">Everything we run, in your pocket.</p>
+  <div class="pb-grid">${PB.map(x=>`<button class="pb" data-doc="${x.k}">
+    <span class="pb-i">${x.i}</span><span class="pb-t">${x.t}</span>
+    <span class="pb-s">${x.n} page${x.n===1?'':'s'}</span></button>`).join('')}</div><div class="pad"></div>`;
+}
+function vCoach(){
+  return `<div class="sh"><h3>FROM YOUR COACH</h3><div class="ln"></div></div>
+  ${MSGS.map(m=>`<div class="note">
+    <div class="msg-h"><span class="msg-a">${m.a}</span><span class="msg-d">${m.d}</span></div>
+    <div style="color:var(--ink-s);white-space:pre-line">${esc(m.b)}</div>
+  </div>`).join('')}<div class="pad"></div>`;
+}
+const VIEWS={home:vHome,work:vWork,film:vFilm,book:vBook,coach:vCoach};
+
+function nav(){
+  const openT=TASKS.filter(t=>!t.done).length,openV=VIDS.filter(v=>!v.done).length,
+        unread=MSGS.filter(m=>m.unread).length;
+  const items=[['home','Home','🏠',0],['work','Work','🎯',openT],['film','Film','🎬',openV],
+    ['book','Book','📘',0],['coach','Coach','💬',unread]];
+  return `<div class="nav"><div class="nav-in">
+    ${items.map(([k,l,i,b])=>`<button class="nb ${S.view===k?'on':''}" data-go="${k}">
+      <span class="nb-i">${i}</span><span class="nb-l">${l}</span>
+      ${b?`<span class="nb-b">${b}</span>`:''}</button>`).join('')}
+  </div></div>`;
+}
+function render(){
+  $('app').innerHTML=header()+`<div class="wrap">${VIEWS[S.view]()}</div>`+nav();
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{S.view=b.dataset.go;S.doc=null;render();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-kid]').forEach(b=>b.onclick=()=>{S.kid=b.dataset.kid;render();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{S.doc=b.dataset.doc;render();window.scrollTo(0,0);});
+  const bk=document.querySelector('[data-back]'); if(bk)bk.onclick=()=>{S.doc=null;render();};
+}
+render();
+</script>
+</body>
+</html>
