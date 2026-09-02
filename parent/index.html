@@ -132,11 +132,32 @@ const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],p
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
   clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
 
+/* A stable code derived from the player id — mirrors the coach app so codes
+   work even before the pd_access table exists. An issued code always wins. */
+function derivedCode(pid){
+  const s=String(pid||''); let h=2166136261;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let n=Math.abs(h),o='';
+  for(let i=0;i<4;i++){o+=A[n%A.length];n=Math.floor(n/A.length);}
+  return 'JAG-'+o;
+}
+
 /* ---------- load ---------- */
 async function loadFor(code){
-  const {data:acc}=await sb.from('pd_access').select('*').eq('code',code.toUpperCase()).is('revoked_at',null).limit(1);
-  if(!acc||!acc.length) return false;
-  const pid=acc[0].player_id;
+  code=String(code||'').trim().toUpperCase();
+  let pid=null;
+  // 1) an explicitly issued code, if that table exists
+  try{
+    const {data:acc,error}=await sb.from('pd_access').select('*').eq('code',code).is('revoked_at',null).limit(1);
+    if(!error&&acc&&acc.length) pid=acc[0].player_id;
+  }catch(e){}
+  // 2) otherwise match against the code derived from each player id
+  if(!pid){
+    const {data:ps}=await sb.from('tryout_players').select('id');
+    const m=(ps||[]).find(x=>derivedCode(x.id)===code);
+    if(m) pid=m.id;
+  }
+  if(!pid) return false;
   const q=(t)=>sb.from(t).select('*');
   const r=await Promise.all([
     sb.from('tryout_players').select('*').eq('id',pid).single(),
