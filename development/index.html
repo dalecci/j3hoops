@@ -1037,9 +1037,50 @@ function welcomeLabel(w){
   if(w.scope==='grade')return 'Grade '+w.scope_value;
   const g=S.groups.find(x=>x.id===w.scope_value); return g?g.name:'Group';
 }
+function creedBlock(){
+  const v=(S.settings&&S.settings.values)||{title:'This Is Who We Are',items:[]};
+  const items=v.items||[];
+  return '<div class="note" style="border-color:rgba(166,107,242,.35)">'+
+    '<div class="row" style="justify-content:space-between;align-items:flex-start">'+
+      '<div><div class="note-h">Team creed &mdash; shown at the top of every family\u2019s home page</div>'+
+      '<b style="font-size:1.02rem">'+esc(v.title||'This Is Who We Are')+'</b></div>'+
+      '<button class="btn btn-g btn-s" data-act="edit-creed">Edit</button></div>'+
+    (items.length?'<div style="margin-top:11px;display:grid;gap:9px">'+items.map(x=>
+      '<div style="padding-left:12px;border-left:3px solid var(--pur)">'+
+        '<div style="font-family:var(--disp);font-size:1.1rem;letter-spacing:.05em">'+esc(x.word)+'</div>'+
+        '<div style="color:var(--tx-m);font-size:.86rem">'+esc(x.text)+'</div></div>').join('')+'</div>'
+      :'<p class="lead" style="margin:9px 0 0">No values set yet.</p>')+
+  '</div>';
+}
+function creedModal(){
+  const v=(S.settings&&S.settings.values)||{title:'This Is Who We Are',items:[]};
+  const items=(v.items||[]).slice();
+  while(items.length<6) items.push({word:'',text:''});
+  modal('Team creed',
+    '<div class="field"><label>Heading</label><input class="inp" id="cr-title" value="'+esc(v.title||'This Is Who We Are')+'"></div>'+
+    '<p class="lead" style="margin:-4px 2px 12px">Leave a word blank to drop that value.</p>'+
+    items.map((x,i)=>'<div class="note" style="margin-bottom:9px">'+
+      '<div class="field" style="margin-bottom:8px"><label>Value '+(i+1)+'</label>'+
+        '<input class="inp" id="cr-w'+i+'" value="'+esc(x.word||'')+'" placeholder="FORCE"></div>'+
+      '<div class="field" style="margin-bottom:0"><label>What it means</label>'+
+        '<textarea class="inp" id="cr-t'+i+'" rows="2">'+esc(x.text||'')+'</textarea></div>'+
+    '</div>').join('')+
+    '<button class="btn btn-p btn-block" id="cr-save">Save creed</button>');
+  $('cr-save').onclick=async()=>{
+    const out=[];
+    for(let i=0;i<items.length;i++){
+      const w=$('cr-w'+i).value.trim(); if(!w)continue;
+      out.push({word:w.toUpperCase(),text:$('cr-t'+i).value.trim()});
+    }
+    const val={title:$('cr-title').value.trim()||'This Is Who We Are',items:out};
+    S.settings.values=val;
+    await put('pd_settings',{key:'values',value:val},'key');
+    closeModal(); render(); flag('Creed saved');};
+}
 function adminWelcome(){
   const ws=S.welcome.slice().sort((a,b)=>(a.scope==='all'?0:1)-(b.scope==='all'?0:1));
-  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-welcome">＋ Add Welcome</button></div>'+
+  return creedBlock()+
+    '<div class="row" style="margin:16px 0 12px"><button class="btn btn-p btn-s" data-act="new-welcome">＋ Add Welcome</button></div>'+
     '<p class="lead" style="margin-top:0">This is the first thing families see when they open the portal. A team message overrides the everyone message.</p>'+
     (ws.length?ws.map(w=>'<div class="note">'+
       '<div class="row" style="justify-content:space-between;align-items:flex-start">'+
@@ -1811,7 +1852,7 @@ function wire(){
     'bulk-tag':()=>bulkTagModal(),
     'bulk-clear':()=>{S.picked=[];render();},
     'bulk-assign':()=>{ if(S.picked.length) assignModal(S.picked[0]); },
-    'new-welcome':()=>welcomeModal(),'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
+    'edit-creed':()=>creedModal(),'new-welcome':()=>welcomeModal(),'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
     'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
