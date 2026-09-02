@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0A0612"/>
+<title>Jaguars · Athlete Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0612; --card:#140B20; --card2:#251539; --head:#1a1030;
+    --pur:#8B43E0; --pur-br:#A66BF2; --pur-dp:#5B21B6; --pur-soft:rgba(139,67,224,.12);
+    --gold:#E3AE33; --gold-br:#F4C84B;
+    --tx:#fff; --tx-s:rgba(255,255,255,.78); --tx-m:rgba(255,255,255,.55); --tx-d:rgba(255,255,255,.32);
+    --line:rgba(255,255,255,.10); --line-s:rgba(255,255,255,.055);
+    --disp:'Anton',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html{background:var(--bg)}
+  body{font-family:var(--sans);color:var(--tx);line-height:1.5;min-height:100vh;overflow-x:hidden;
+    background:radial-gradient(1100px 650px at 80% -10%,rgba(139,67,224,.20),transparent 60%),
+               radial-gradient(800px 550px at -10% 10%,rgba(227,174,51,.08),transparent 55%),var(--bg);
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,textarea{font-family:inherit}
+  .wrap{max-width:680px;margin:0 auto;padding:18px 16px 70px}
+
+  .bar{position:sticky;top:0;z-index:60;background:rgba(10,6,18,.85);backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  .bar-in{max-width:680px;margin:0 auto;padding:11px 16px;display:flex;align-items:center;gap:11px}
+  .badge{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--pur),var(--pur-dp))}
+  .bname b{font-family:var(--disp);font-size:1rem;letter-spacing:.05em;display:block;line-height:1}
+  .bname span{font-size:.68rem;color:var(--gold-br)}
+  .out{margin-left:auto;font-size:.7rem;font-weight:800;color:var(--tx-m);text-transform:uppercase;letter-spacing:.08em}
+  .out:hover{color:var(--pur-br)}
+
+  /* gate */
+  .gate{min-height:88vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate-in{width:100%;max-width:400px;text-align:center}
+  .gbadge{width:76px;height:76px;border-radius:21px;margin:0 auto 18px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--pur),var(--pur-dp));box-shadow:0 18px 40px -16px var(--pur)}
+  .gate-in h1{font-family:var(--disp);font-size:2.3rem;line-height:.98;letter-spacing:.02em}
+  .kick{font-size:.68rem;font-weight:900;letter-spacing:.26em;color:var(--gold-br);text-transform:uppercase}
+  .gate-in p{color:var(--tx-m);margin:9px 0 22px;font-size:.92rem}
+  .codein{width:100%;padding:16px;border-radius:13px;border:1px solid var(--line);background:var(--card);
+    color:#fff;font-size:1.35rem;font-weight:800;text-align:center;letter-spacing:.12em;text-transform:uppercase;
+    font-family:var(--disp)}
+  .codein:focus{outline:none;border-color:var(--pur);background:var(--pur-soft)}
+  .err{color:#ff8080;font-size:.85rem;font-weight:700;min-height:20px;margin-top:9px}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 18px;border-radius:11px;
+    font-weight:800;font-size:.88rem;transition:.15s}
+  .btn-p{background:linear-gradient(135deg,var(--pur),var(--pur-dp));color:#fff;box-shadow:0 10px 22px -10px var(--pur)}
+  .btn-p:hover{filter:brightness(1.08)}
+  .btn-g{border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--tx-s)}
+  .btn-g:hover{border-color:var(--pur);color:var(--pur-br)}
+  .btn-block{width:100%}
+  .btn-s{padding:8px 13px;font-size:.78rem;border-radius:9px}
+
+  /* hero card */
+  .hero{border-radius:20px;overflow:hidden;border:1px solid var(--line);margin-bottom:16px;
+    background:linear-gradient(160deg,#22133a,#0f0919);position:relative}
+  .hero.elite{border-color:rgba(244,200,75,.5);background:linear-gradient(160deg,#2e2114,#120c1c)}
+  .hero-top{display:flex;align-items:center;gap:14px;padding:20px 20px 14px}
+  .jersey{width:62px;height:62px;border-radius:15px;flex-shrink:0;display:grid;place-items:center;
+    font-family:var(--disp);font-size:1.8rem;background:var(--card2);border:1px solid var(--line)}
+  .pname{font-family:var(--disp);font-size:1.7rem;line-height:1;letter-spacing:.02em}
+  .pmeta{font-size:.76rem;color:var(--tx-d);font-weight:600;margin-top:4px}
+  .ovrbox{margin-left:auto;text-align:center;line-height:1}
+  .ovrbox b{font-family:var(--disp);font-size:3.1rem;display:block}
+  .ovrbox span{font-size:.6rem;font-weight:900;letter-spacing:.18em;color:var(--tx-d)}
+  .bars{padding:2px 20px 20px;display:grid;gap:9px}
+  .brow{display:grid;grid-template-columns:92px 1fr 40px;align-items:center;gap:10px}
+  .blab{font-size:.7rem;font-weight:700;color:var(--tx-m);text-transform:uppercase;letter-spacing:.04em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btrack{height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .bfill{height:100%;border-radius:99px;transition:width .6s ease}
+  .bval{font-family:var(--disp);font-size:1.05rem;text-align:right}
+  .delta{font-size:.64rem;font-weight:800;margin-left:3px}
+  .up{color:#5ee6a0}.down{color:#ff8080}.flat{color:var(--tx-d)}
+
+  .sec{display:flex;align-items:center;gap:11px;margin:26px 2px 13px}
+  .sec h2{font-family:var(--disp);font-size:1.15rem;letter-spacing:.04em}
+  .sec .rule{flex:1;height:1px;background:var(--line)}
+  .note{border:1px solid var(--line);border-radius:14px;padding:15px 16px;background:var(--card);margin-bottom:11px}
+  .note-h{font-size:.64rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--pur-br);margin-bottom:6px}
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;padding:5px 10px;border-radius:8px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line-s);color:var(--tx-s);margin:3px 5px 3px 0}
+  .chip b{color:var(--gold-br)}
+  .tag{font-size:.66rem;font-weight:800;padding:4px 10px;border-radius:999px;background:rgba(227,174,51,.10);
+    border:1px solid rgba(227,174,51,.28);color:var(--gold-br);margin:2px 4px 2px 0;display:inline-block}
+  .vid{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:11px;overflow:hidden;margin-top:10px}
+  .vid iframe,.vid video{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .vidlink{display:inline-block;margin-top:9px;color:var(--pur-br);font-weight:800;font-size:.85rem;text-decoration:none}
+  .msg-from{font-size:.76rem;font-weight:800;color:var(--gold-br)}
+  .msg-date{font-size:.7rem;color:var(--tx-d);margin-left:6px}
+  .reply{border-left:2px solid var(--line);padding-left:11px;margin-top:10px}
+  .inp{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:#fff;font-size:.9rem;font-weight:500;resize:vertical}
+  .inp:focus{outline:none;border-color:var(--pur);background:var(--pur-soft)}
+  .empty{text-align:center;padding:34px 16px;color:var(--tx-d);font-size:.9rem}
+  .flag{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:150;background:#0d2a1c;
+    border:1px solid #1f6b45;color:#7ff0b4;font-weight:800;font-size:.8rem;padding:9px 18px;border-radius:999px;
+    opacity:0;transition:.25s;pointer-events:none}
+  .flag.show{opacity:1}
+  .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:9px}
+  .stat{border:1px solid var(--line);border-radius:11px;padding:11px 8px;text-align:center;background:var(--card)}
+  .stat b{font-family:var(--disp);font-size:1.4rem;display:block;color:var(--gold-br)}
+  .stat span{font-size:.6rem;font-weight:800;letter-spacing:.1em;color:var(--tx-d);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Loading…</div></div>
+<div id="flag" class="flag">✓ Sent</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+const SB_URL='https://vlcpgwxeybpzwidjackz.supabase.co';
+const SB_KEY='sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const sb=createClient(SB_URL,SB_KEY);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const KEY='jag_parent_code';
+
+const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
+  drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
+  coachScores:[],settings:{}};
+
+function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
+  clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
+
+/* ---------- load ---------- */
+async function loadFor(code){
+  const {data:acc}=await sb.from('pd_access').select('*').eq('code',code.toUpperCase()).is('revoked_at',null).limit(1);
+  if(!acc||!acc.length) return false;
+  const pid=acc[0].player_id;
+  const q=(t)=>sb.from(t).select('*');
+  const r=await Promise.all([
+    sb.from('tryout_players').select('*').eq('id',pid).single(),
+    q('pd_attributes'),q('pd_tests'),q('pd_test_weights'),q('pd_norms'),q('pd_results'),
+    q('pd_snapshots'),q('tryout_players'),q('tryout_drills'),q('pd_assignments'),
+    q('pd_groups'),q('pd_group_members'),q('pd_comments'),q('pd_replies'),
+    q('pd_stats'),q('pd_games'),q('tryout_scores'),q('pd_settings')]);
+  S.player=r[0].data;
+  S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
+  S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
+  S.assigns=r[9].data||[];S.groups=r[10].data||[];S.members=r[11].data||[];
+  S.comments=r[12].data||[];S.replies=r[13].data||[];S.stats=r[14].data||[];S.games=r[15].data||[];
+  S.coachScores=r[16].data||[];
+  const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
+  return !!S.player;
+}
+
+/* ---------- rating engine (mirrors the coach app) ---------- */
+const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
+const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
+const activeTests=()=>S.tests.filter(t=>t.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
+function latestResult(pid,tk){const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
+  .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));return rs.length?rs[0]:null;}
+function priorResult(pid,tk){const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
+  .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));return rs.length>1?rs[1]:null;}
+function stats(vals){if(!vals.length)return{n:0,mean:0,sd:0};
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
+  return{n:vals.length,mean,sd};}
+const cohort=(tk,grade)=>stats(S.players.filter(p=>p.grade===grade).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value));
+const poolStats=tk=>stats(S.players.map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value));
+function testRating(tk,grade,value){
+  const t=S.tests.find(x=>x.key===tk); if(!t||value==null||isNaN(value))return null;
+  const sc=SC(), flip=t.lower_is_better?-1:1;
+  const c=cohort(tk,grade), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
+  let zBase=0;
+  if(nm&&+nm.sd>0) zBase=((value-+nm.mean)/+nm.sd)*flip;
+  else if(pool.n>2&&pool.sd>0) zBase=((value-pool.mean)/pool.sd)*flip;
+  const zGrade=(c.n>3&&c.sd>0)?((value-c.mean)/c.sd)*flip:null;
+  const k=+sc.k||10,n=c.n;
+  const z=zGrade==null?zBase:zGrade*(n/(n+k))+zBase*(k/(n+k));
+  return Math.max(sc.floor,Math.min(sc.cap,Math.round(sc.mid+sc.spread*z)));
+}
+const coachTo100=s=>Math.round(40+(s-1)*(60/9));
+function coachAvg(pid,k){const v=S.coachScores.filter(s=>s.player_id===pid&&s.category===k).map(s=>+s.value);
+  return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function attrRating(pid,key){
+  const p=S.player,a=S.attrs.find(x=>x.key===key); if(!p||!a)return{rating:null};
+  let num=0,den=0;
+  S.weights.filter(w=>w.attribute_key===key).forEach(w=>{
+    const r=latestResult(pid,w.test_key); if(!r)return;
+    const rt=testRating(w.test_key,p.grade,+r.value); if(rt==null)return;
+    num+=rt*+w.weight; den+=+w.weight;});
+  const cw=+a.coach_weight||0;
+  if(cw>0){const cs=coachAvg(pid,key); if(cs!=null){num+=coachTo100(cs)*cw; den+=cw;}}
+  return den>0?{rating:Math.round(num/den)}:{rating:null};
+}
+function ovrOf(pid){
+  const rt={};let num=0,den=0;
+  activeAttrs().forEach(a=>{const r=attrRating(pid,a.key);rt[a.key]=r;
+    if(r.rating!=null){num+=r.rating*(+a.weight||1);den+=(+a.weight||1);}});
+  return{ovr:den>0?Math.round(num/den):null,ratings:rt};
+}
+function lastSnap(pid){const s=S.snaps.filter(x=>x.player_id===pid)
+  .sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));return s.length?s[0]:null;}
+function deltaFor(pid,key,cur){const s=lastSnap(pid);if(!s||cur==null)return null;
+  const prev=key==='ovr'?s.ovr:(s.attributes_json||{})[key];
+  return prev==null?null:Math.round(cur-prev);}
+function ratingColor(v){if(v==null)return 'rgba(255,255,255,.2)';
+  if(v>=90)return '#F4C84B';if(v>=80)return '#A66BF2';if(v>=70)return '#5ee6a0';
+  if(v>=60)return '#e3c33a';return '#ff8f6b';}
+const dEl=d=>d==null?'':`<span class="delta ${d>0?'up':d<0?'down':'flat'}">${d>0?'▲'+d:d<0?'▼'+Math.abs(d):'–'}</span>`;
+
+/* ---------- assigned + messages for this player ---------- */
+function myDrills(){
+  const p=S.player; if(!p)return[];
+  const gids=S.members.filter(m=>m.player_id===p.id).map(m=>m.group_id);
+  const ids=new Set(S.assigns.filter(a=>a.scope==='all'
+    ||(a.scope==='grade'&&+a.scope_value===+p.grade)
+    ||(a.scope==='group'&&gids.includes(a.scope_value))
+    ||(a.scope==='player'&&a.scope_value===p.id)).map(a=>a.drill_id));
+  return S.drills.filter(d=>ids.has(d.id));
+}
+function myMessages(){
+  const p=S.player; if(!p)return[];
+  const gids=S.members.filter(m=>m.player_id===p.id).map(m=>m.group_id);
+  return S.comments.filter(c=>c.scope==='all'
+    ||(c.scope==='grade'&&+c.scope_value===+p.grade)
+    ||(c.scope==='group'&&gids.includes(c.scope_value))
+    ||(c.scope==='player'&&c.scope_value===p.id))
+    .sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+}
+function ytId(u){const m=String(u||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
+function videoEmbed(u){
+  if(!u||!u.trim())return '';
+  const id=ytId(u);
+  if(id)return `<div class="vid"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen loading="lazy" title="drill"></iframe></div>`;
+  if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(u))return `<div class="vid"><video src="${esc(u)}" controls preload="metadata" playsinline></video></div>`;
+  return `<a class="vidlink" href="${esc(u)}" target="_blank" rel="noopener">▶ Open video</a>`;
+}
+
+/* ---------- render ---------- */
+function paw(sz){return `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="#F4C84B"><ellipse cx="12" cy="15.4" rx="5.3" ry="4.3"/><circle cx="5.4" cy="9.6" r="2.15"/><circle cx="9.6" cy="5.7" r="2.15"/><circle cx="14.4" cy="5.7" r="2.15"/><circle cx="18.6" cy="9.6" r="2.15"/></svg>`;}
+function renderGate(msg){
+  $('app').innerHTML=`<div class="gate"><div class="gate-in">
+    <div class="gbadge">${paw(38)}</div>
+    <div class="kick">Jaguars Basketball</div>
+    <h1>ATHLETE PORTAL</h1>
+    <p>Enter the code your coach gave you to see your athlete's development.</p>
+    <input class="codein" id="code" placeholder="JAG-••••" maxlength="8" autocomplete="off">
+    <div class="err" id="err">${msg||''}</div>
+    <button class="btn btn-p btn-block" id="go" style="margin-top:6px">Open portal</button>
+  </div></div>`;
+  const go=async()=>{
+    const c=$('code').value.trim().toUpperCase(); if(!c)return;
+    $('err').textContent='Checking…';
+    const ok=await loadFor(c);
+    if(!ok){$('err').textContent='That code isn’t valid. Check with your coach.';return;}
+    try{localStorage.setItem(KEY,c);}catch(e){}
+    renderPortal();
+  };
+  $('go').onclick=go;
+  $('code').onkeydown=e=>{if(e.key==='Enter')go();};
+  $('code').focus();
+}
+function renderPortal(){
+  const p=S.player; const {ovr,ratings}=ovrOf(p.id);
+  const gains=[];
+  activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
+    if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
+      gains.push({t,from:+pr.value,to:+cur.value,better:t.lower_is_better?d<0:d>0});}});
+  const drills=myDrills(), msgs=myMessages();
+  const ln=S.stats.filter(s=>s.player_id===p.id);
+  const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
+  const f=v=>(Math.round(v*10)/10).toFixed(1);
+
+  $('app').innerHTML=`
+  <div class="bar"><div class="bar-in">
+    <div class="badge">${paw(20)}</div>
+    <div class="bname"><b>JAGUARS</b><span>Athlete Portal</span></div>
+    <button class="out" id="signout">Sign out</button>
+  </div></div>
+  <div class="wrap">
+    <div class="hero ${ovr>=90?'elite':''}">
+      <div class="hero-top">
+        <div class="jersey">${p.number??'–'}</div>
+        <div style="min-width:0"><div class="pname">${esc(p.name)}</div>
+          <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(String(p.height)):''}</div></div>
+        <div class="ovrbox"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b>
+          <span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
+      </div>
+      <div class="bars">${activeAttrs().map(a=>{const v=ratings[a.key]?.rating;
+        return `<div class="brow"><span class="blab">${esc(a.label)}</span>
+          <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
+          <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
+    </div>
+    <p style="color:var(--tx-d);font-size:.78rem;margin:-6px 2px 4px">Ratings are 0–100 and compare athletes <b>within their own grade level</b>. Growth over time matters more than the number.</p>
+
+    ${gains.length?`<div class="sec"><h2>PROGRESS</h2><div class="rule"></div></div>
+      <div class="note"><div class="note-h">Improvement since last test</div>
+        ${gains.map(x=>`<span class="chip">${esc(x.t.label)} <b style="color:${x.better?'#5ee6a0':'#ff8f6b'}">${x.from} → ${x.to}</b></span>`).join('')}
+      </div>`:''}
+
+    <div class="sec"><h2>WORK ON THIS</h2><div class="rule"></div></div>
+    ${drills.length?drills.map(d=>`<div class="note">
+        <b style="font-size:1rem">${esc(d.name)}</b>
+        ${(d.tags&&d.tags.length)?`<div style="margin-top:6px">${d.tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+        ${d.description?`<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">${esc(d.description)}</div>`:''}
+        ${videoEmbed(d.video_url)}
+      </div>`).join(''):`<div class="empty">Nothing assigned yet — your coach will add drills here.</div>`}
+
+    ${g?`<div class="sec"><h2>SEASON STATS</h2><div class="rule"></div></div>
+      <div class="statgrid">
+        <div class="stat"><b>${g}</b><span>GP</span></div>
+        <div class="stat"><b>${f(sum('pts')/g)}</b><span>PPG</span></div>
+        <div class="stat"><b>${f((sum('oreb')+sum('dreb'))/g)}</b><span>RPG</span></div>
+        <div class="stat"><b>${f(sum('ast')/g)}</b><span>APG</span></div>
+        <div class="stat"><b>${f(sum('stl')/g)}</b><span>SPG</span></div>
+        <div class="stat"><b>${sum('fga')?f(100*sum('fgm')/sum('fga'))+'%':'–'}</b><span>FG%</span></div>
+      </div>`:''}
+
+    <div class="sec"><h2>FROM YOUR COACH</h2><div class="rule"></div></div>
+    ${msgs.length?msgs.map(c=>{
+      const reps=S.replies.filter(r=>r.comment_id===c.id&&r.player_id===p.id)
+        .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+      return `<div class="note">
+        <div><span class="msg-from">${esc(c.author_name||'Coach')}</span>
+          <span class="msg-date">${esc(String(c.created_at||'').slice(0,10))}</span></div>
+        <div style="margin-top:7px;color:var(--tx-s);white-space:pre-line">${esc(c.body)}</div>
+        ${reps.map(r=>`<div class="reply"><b style="font-size:.78rem;color:var(--pur-br)">${esc(r.author_name||'You')}</b>
+          <div style="color:var(--tx-s);font-size:.87rem">${esc(r.body)}</div></div>`).join('')}
+        <div style="margin-top:11px">
+          <textarea class="inp" rows="2" placeholder="Reply to your coach…" data-rep="${c.id}"></textarea>
+          <button class="btn btn-g btn-s" style="margin-top:7px" data-send="${c.id}">Send reply</button>
+        </div>
+      </div>`}).join(''):`<div class="empty">No messages yet.</div>`}
+  </div>`;
+
+  $('signout').onclick=()=>{try{localStorage.removeItem(KEY);}catch(e){} S.player=null; renderGate();};
+  document.querySelectorAll('[data-send]').forEach(b=>b.onclick=async()=>{
+    const cid=b.dataset.send;
+    const ta=document.querySelector(`[data-rep="${cid}"]`);
+    const body=ta.value.trim(); if(!body)return;
+    const row={comment_id:cid,player_id:S.player.id,author_name:S.player.name+"'s parent",body};
+    const {data}=await sb.from('pd_replies').insert(row).select().single();
+    S.replies.push(data||Object.assign({id:'tmp'+Date.now()},row,{created_at:new Date().toISOString()}));
+    ta.value=''; renderPortal(); flag('Reply sent');
+  });
+}
+
+/* ---------- boot ---------- */
+(async()=>{
+  let saved=null; try{saved=localStorage.getItem(KEY);}catch(e){}
+  if(saved){ const ok=await loadFor(saved); if(ok){renderPortal();return;} }
+  renderGate();
+})();
+</script>
+</body>
+</html>
