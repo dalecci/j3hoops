@@ -146,6 +146,23 @@
   .wtitle{font-family:var(--disp);font-size:1.55rem;letter-spacing:.02em;line-height:1.05;margin-bottom:9px}
   .wbody p{color:var(--tx-s);font-size:.93rem;margin-bottom:9px}
   .wbody p:last-child{margin-bottom:0}
+  /* team creed — who we are */
+  .creed{margin:0 0 14px;padding:20px 20px 18px;border-radius:18px;position:relative;overflow:hidden;
+    border:1px solid rgba(166,107,242,.32);
+    background:linear-gradient(160deg,#1d1030,#120a1e)}
+  .creed::before{content:"";position:absolute;right:-50px;top:-70px;width:210px;height:210px;border-radius:50%;
+    background:radial-gradient(circle,rgba(227,174,51,.16),transparent 68%);pointer-events:none}
+  .creed-head{position:relative;font-size:.66rem;font-weight:900;letter-spacing:.26em;text-transform:uppercase;
+    color:var(--gold-br);margin-bottom:14px}
+  .creed-grid{position:relative;display:grid;gap:11px}
+  .creed-card{padding-left:14px;border-left:3px solid var(--pur);}
+  .creed-card:nth-child(2){border-left-color:var(--gold)}
+  .creed-card:nth-child(3){border-left-color:var(--pur-br)}
+  .creed-card:nth-child(4){border-left-color:var(--gold-br)}
+  .creed-word{font-family:var(--disp);font-size:1.5rem;letter-spacing:.06em;line-height:1;
+    background:linear-gradient(180deg,#fff 35%,#cbb2ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .creed-text{color:var(--tx-s);font-size:.87rem;line-height:1.45;margin-top:4px}
+  @media(min-width:560px){.creed-grid{grid-template-columns:1fr 1fr;gap:15px 18px}}
   /* follow-up progress */
   .follow{border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--card);margin-bottom:6px}
   .frow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
@@ -606,10 +623,23 @@ function secHome(p,ovr,objs,tks,objDone,tkDone,media,msgs){
     label:openObjs.length+' objective'+(openObjs.length===1?'':'s')+' in progress',
     sub:'Your coach checks these off'});
 
+  const vals=(S.settings&&S.settings.values)||null;
+  const valsBlock = (vals&&vals.items&&vals.items.length)
+    ? '<div class="creed">'+
+        '<div class="creed-head">'+esc(vals.title||'This Is Who We Are')+'</div>'+
+        '<div class="creed-grid">'+vals.items.map(v=>
+          '<div class="creed-card">'+
+            '<div class="creed-word">'+esc(v.word)+'</div>'+
+            '<div class="creed-text">'+esc(v.text)+'</div>'+
+          '</div>').join('')+'</div>'+
+      '</div>'
+    : '';
+
   return (w?'<div class="welcome">'+
       (w.title?'<div class="wtitle">'+esc(w.title)+'</div>':'')+
       '<div class="wbody">'+String(w.body||'').split('\n').filter(x=>x.trim()).map(x=>'<p>'+esc(x.trim())+'</p>').join('')+'</div>'+
     '</div>':'')+
+    valsBlock+
 
     '<div class="follow">'+
       '<div class="frow"><span class="flab">Follow-up progress</span>'+
