@@ -106,6 +106,9 @@
     border:1px solid #1f6b45;color:#7ff0b4;font-weight:800;font-size:.8rem;padding:9px 18px;border-radius:999px;
     opacity:0;transition:.25s;pointer-events:none}
   .flag.show{opacity:1}
+  .chkro{width:24px;height:24px;flex-shrink:0;border-radius:7px;border:2px solid var(--line);
+    background:rgba(255,255,255,.03);color:#fff;font-weight:900;font-size:.9rem;display:grid;place-items:center}
+  .chkro.on{background:linear-gradient(135deg,#2f9e6a,#1f7d51);border-color:transparent}
   .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:9px}
   .stat{border:1px solid var(--line);border-radius:11px;padding:11px 8px;text-align:center;background:var(--card)}
   .stat b{font-family:var(--disp);font-size:1.4rem;display:block;color:var(--gold-br)}
@@ -127,7 +130,7 @@ const KEY='jag_parent_code';
 
 const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
-  coachScores:[],settings:{}};
+  coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[]};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
   clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
@@ -164,7 +167,8 @@ async function loadFor(code){
     q('pd_attributes'),q('pd_tests'),q('pd_test_weights'),q('pd_norms'),q('pd_results'),
     q('pd_snapshots'),q('tryout_players'),q('tryout_drills'),q('pd_assignments'),
     q('pd_groups'),q('pd_group_members'),q('pd_comments'),q('pd_replies'),
-    q('pd_stats'),q('pd_games'),q('tryout_scores'),q('pd_settings')]);
+    q('pd_stats'),q('pd_games'),q('tryout_scores'),q('pd_settings'),
+    q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),q('pd_item_state')]);
   S.player=r[0].data;
   S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
   S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
@@ -172,6 +176,7 @@ async function loadFor(code){
   S.comments=r[12].data||[];S.replies=r[13].data||[];S.stats=r[14].data||[];S.games=r[15].data||[];
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
+  S.objectives=r[18].data||[];S.tasks=r[19].data||[];S.lists=r[20].data||[];S.listItems=r[21].data||[];S.itemState=r[22].data||[];
   return !!S.player;
 }
 
@@ -233,14 +238,33 @@ function ratingColor(v){if(v==null)return 'rgba(255,255,255,.2)';
 const dEl=d=>d==null?'':`<span class="delta ${d>0?'up':d<0?'down':'flat'}">${d>0?'▲'+d:d<0?'▼'+Math.abs(d):'–'}</span>`;
 
 /* ---------- assigned + messages for this player ---------- */
+function listDrills(lid){return S.listItems.filter(i=>i.list_id===lid)
+  .sort((a,b)=>(a.order_idx??0)-(b.order_idx??0))
+  .map(i=>S.drills.find(d=>d.id===i.drill_id)).filter(Boolean);}
 function myDrills(){
   const p=S.player; if(!p)return[];
   const gids=S.members.filter(m=>m.player_id===p.id).map(m=>m.group_id);
-  const ids=new Set(S.assigns.filter(a=>a.scope==='all'
+  const mine=S.assigns.filter(a=>a.scope==='all'
     ||(a.scope==='grade'&&+a.scope_value===+p.grade)
     ||(a.scope==='group'&&gids.includes(a.scope_value))
-    ||(a.scope==='player'&&a.scope_value===p.id)).map(a=>a.drill_id));
+    ||(a.scope==='player'&&a.scope_value===p.id));
+  const ids=new Set();
+  mine.forEach(a=>{ if(a.drill_id) ids.add(a.drill_id);
+    if(a.list_id) listDrills(a.list_id).forEach(d=>ids.add(d.id)); });
+  // videos referenced by a to-do also show up
+  S.tasks.filter(t=>t.player_id===p.id&&t.drill_id).forEach(t=>ids.add(t.drill_id));
   return S.drills.filter(d=>ids.has(d.id));
+}
+function hasWatched(did){const st=S.itemState.find(x=>x.player_id===S.player.id&&x.drill_id===did);
+  return !!st&&(st.status==='watched'||st.status==='done');}
+function taskDone(t){return t.done||(t.auto_on_watch&&t.drill_id&&hasWatched(t.drill_id));}
+async function markWatched(did){
+  if(!S.player||hasWatched(did))return;
+  const row={player_id:S.player.id,drill_id:did,status:'watched',completed_at:new Date().toISOString()};
+  const {data}=await sb.from('pd_item_state').upsert(row,{onConflict:'drill_id,player_id'}).select().single();
+  const ex=S.itemState.find(x=>x.player_id===S.player.id&&x.drill_id===did);
+  if(ex)Object.assign(ex,row); else S.itemState.push(data||row);
+  renderPortal(); flag('✓ Marked watched');
 }
 function myMessages(){
   const p=S.player; if(!p)return[];
@@ -252,12 +276,12 @@ function myMessages(){
     .sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
 }
 function ytId(u){const m=String(u||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
-function videoEmbed(u){
+function videoEmbed(u,did){
   if(!u||!u.trim())return '';
-  const id=ytId(u);
-  if(id)return `<div class="vid"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen loading="lazy" title="drill"></iframe></div>`;
-  if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(u))return `<div class="vid"><video src="${esc(u)}" controls preload="metadata" playsinline></video></div>`;
-  return `<a class="vidlink" href="${esc(u)}" target="_blank" rel="noopener">▶ Open video</a>`;
+  const yt=ytId(u);
+  if(yt)return `<div class="vid"><iframe id="yt_${did}" data-yt="${did}" src="https://www.youtube.com/embed/${yt}?enablejsapi=1" allowfullscreen loading="lazy" title="drill"></iframe></div>`;
+  if(/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(u))return `<div class="vid"><video data-vid="${did}" src="${esc(u)}" controls preload="metadata" playsinline></video></div>`;
+  return `<a class="vidlink" href="${esc(u)}" target="_blank" rel="noopener" data-openvid="${did}">▶ Open video</a>`;
 }
 
 /* ---------- render ---------- */
@@ -291,6 +315,9 @@ function renderPortal(){
     if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
       gains.push({t,from:+pr.value,to:+cur.value,better:t.lower_is_better?d<0:d>0});}});
   const drills=myDrills(), msgs=myMessages();
+  const objs=S.objectives.filter(o=>o.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
+  const tks=S.tasks.filter(t=>t.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
+  const objDone=objs.filter(o=>o.done).length, tkDone=tks.filter(taskDone).length;
   const ln=S.stats.filter(s=>s.player_id===p.id);
   const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
   const f=v=>(Math.round(v*10)/10).toFixed(1);
@@ -322,12 +349,45 @@ function renderPortal(){
         ${gains.map(x=>`<span class="chip">${esc(x.t.label)} <b style="color:${x.better?'#5ee6a0':'#ff8f6b'}">${x.from} → ${x.to}</b></span>`).join('')}
       </div>`:''}
 
+    ${objs.length?`<div class="sec"><h2>OBJECTIVES</h2><div class="rule"></div>
+        <span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">${objDone}/${objs.length}</span></div>
+      <div class="btrack" style="margin:0 2px 13px"><i class="bfill" style="width:${objs.length?Math.round(100*objDone/objs.length):0}%;background:${objDone===objs.length?'#5ee6a0':'var(--pur)'}"></i></div>
+      ${objs.map(o=>`<div class="note" style="${o.done?'border-color:rgba(94,230,160,.35)':''}">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="chkro ${o.done?'on':''}">${o.done?'✓':''}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;${o.done?'color:var(--tx-m);text-decoration:line-through':''}">${esc(o.title)}</div>
+            ${o.detail?`<div style="color:var(--tx-m);font-size:.87rem;margin-top:4px;white-space:pre-line">${esc(o.detail)}</div>`:''}
+            <div style="margin-top:7px">${o.due_date?`<span class="chip">target ${esc(String(o.due_date))}</span>`:''}${o.done?'<span class="chip" style="color:#5ee6a0">done</span>':''}</div>
+          </div></div></div>`).join('')}
+      <p style="color:var(--tx-d);font-size:.76rem;margin:-2px 2px 4px">Only your coach can tick these off.</p>`:''}
+
+    ${tks.length?`<div class="sec"><h2>TO-DO</h2><div class="rule"></div>
+        <span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">${tkDone}/${tks.length}</span></div>
+      ${tks.map(t=>{const d=taskDone(t);const dr=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
+        return `<div class="note" style="${d?'border-color:rgba(94,230,160,.35)':''}">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <span class="chkro ${d?'on':''}">${d?'✓':''}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;${d?'color:var(--tx-m);text-decoration:line-through':''}">${esc(t.title)}</div>
+            <div style="margin-top:7px">${t.due_date?`<span class="chip">due ${esc(String(t.due_date))}</span>`:''}
+              ${dr?`<span class="chip">🎬 ${esc(dr.name)}</span>`:''}
+              ${(!d&&dr)?'<span class="chip" style="color:var(--pur-br)">watch the video to check this off</span>':''}</div>
+          </div></div>
+        ${dr?videoEmbed(dr.video_url,dr.id):''}
+        ${(dr&&!d)?`<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="${dr.id}">✓ I watched it</button>`:''}
+      </div>`;}).join('')}`:''}
+
     <div class="sec"><h2>WORK ON THIS</h2><div class="rule"></div></div>
     ${drills.length?drills.map(d=>`<div class="note">
-        <b style="font-size:1rem">${esc(d.name)}</b>
+        <div style="display:flex;gap:9px;align-items:flex-start">
+          <b style="font-size:1rem;flex:1">${esc(d.name)}</b>
+          ${hasWatched(d.id)?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':''}
+        </div>
         ${(d.tags&&d.tags.length)?`<div style="margin-top:6px">${d.tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
         ${d.description?`<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">${esc(d.description)}</div>`:''}
-        ${videoEmbed(d.video_url)}
+        ${videoEmbed(d.video_url,d.id)}
+        ${(d.video_url&&!hasWatched(d.id))?`<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="${d.id}">✓ I watched it</button>`:''}
       </div>`).join(''):`<div class="empty">Nothing assigned yet — your coach will add drills here.</div>`}
 
     ${g?`<div class="sec"><h2>SEASON STATS</h2><div class="rule"></div></div>
@@ -357,6 +417,9 @@ function renderPortal(){
       </div>`}).join(''):`<div class="empty">No messages yet.</div>`}
   </div>`;
 
+  document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>markWatched(b.dataset.watch));
+  document.querySelectorAll('[data-openvid]').forEach(a=>a.onclick=()=>setTimeout(()=>markWatched(a.dataset.openvid),1200));
+  attachWatchDetection();
   $('signout').onclick=()=>{try{localStorage.removeItem(KEY);}catch(e){} S.player=null; renderGate();};
   document.querySelectorAll('[data-send]').forEach(b=>b.onclick=async()=>{
     const cid=b.dataset.send;
@@ -367,6 +430,44 @@ function renderPortal(){
     S.replies.push(data||Object.assign({id:'tmp'+Date.now()},row,{created_at:new Date().toISOString()}));
     ta.value=''; renderPortal(); flag('Reply sent');
   });
+}
+
+/* ---------- auto watch detection ---------- */
+function attachWatchDetection(){
+  // native video: mark at 90% watched
+  document.querySelectorAll('video[data-vid]').forEach(v=>{
+    if(v._wired)return; v._wired=true;
+    v.addEventListener('timeupdate',()=>{
+      if(v.duration&&v.currentTime/v.duration>=0.9) markWatched(v.dataset.vid);
+    });
+  });
+  // youtube: poll the iframe player through the IFrame API
+  const frames=[...document.querySelectorAll('iframe[data-yt]')].filter(f=>!f._wired);
+  if(!frames.length)return;
+  const boot=()=>frames.forEach(f=>{
+    f._wired=true;
+    try{
+      const pl=new YT.Player(f.id,{events:{onStateChange:e=>{
+        if(e.data===YT.PlayerState.ENDED) markWatched(f.dataset.yt);
+        if(e.data===YT.PlayerState.PLAYING){
+          clearInterval(f._t);
+          f._t=setInterval(()=>{
+            try{const d=pl.getDuration(),c=pl.getCurrentTime();
+              if(d&&c/d>=0.9){clearInterval(f._t);markWatched(f.dataset.yt);}
+            }catch(err){clearInterval(f._t);}
+          },2000);
+        } else clearInterval(f._t);
+      }}});
+    }catch(err){}
+  });
+  if(window.YT&&window.YT.Player){boot();return;}
+  if(!window._ytLoading){
+    window._ytLoading=true;
+    const t=document.createElement('script'); t.src='https://www.youtube.com/iframe_api';
+    document.head.appendChild(t);
+  }
+  const prev=window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady=()=>{ if(prev)try{prev()}catch(e){} boot(); };
 }
 
 /* ---------- boot ---------- */
