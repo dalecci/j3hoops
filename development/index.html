@@ -181,7 +181,8 @@ let DEMO=false;
 const S={players:[],drills:[],coachScores:[],coaches:[],
   attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],
   groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
-  view:'cards',grades:[],adminTab:'attributes',testSession:null,openPlayer:null,openGame:null,assignFilter:''};
+  view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
+  comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:''};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -191,11 +192,13 @@ async function loadAll(){
       q('tryout_players'),q('tryout_drills'),q('tryout_scores'),q('tryout_coaches'),
       q('pd_attributes'),q('pd_tests'),q('pd_test_weights'),q('pd_norms'),q('pd_results'),
       q('pd_snapshots'),q('pd_groups'),q('pd_group_members'),q('pd_assignments'),
-      q('pd_item_state'),q('pd_games'),q('pd_stats'),q('pd_settings')]);
+      q('pd_item_state'),q('pd_games'),q('pd_stats'),q('pd_settings'),
+      q('pd_comments'),q('pd_replies'),q('pd_access')]);
     const bad=r.find(x=>x.error); if(bad) throw bad.error;
     [S.players,S.drills,S.coachScores,S.coaches,S.attrs,S.tests,S.weights,S.norms,S.results,
      S.snaps,S.groups,S.members,S.assigns,S.itemState,S.games,S.stats]=r.slice(0,16).map(x=>x.data||[]);
     const set={}; (r[16].data||[]).forEach(x=>set[x.key]=x.value); S.settings=set;
+    S.comments=r[17].data||[]; S.replies=r[18].data||[]; S.access=r[19].data||[];
     if(!S.attrs.length) throw new Error('not seeded');
     DEMO=false;
   }catch(e){ console.warn('Player-development tables not ready — DEMO mode.',e?.message||e); DEMO=true; seedDemo(); }
@@ -234,13 +237,13 @@ function seedDemo(){
     {id:uuid(),name:'Cone Dribble Series',description:'Weave both hands.',tags:['handle'],kind:'drill',video_url:''},
     {id:uuid(),name:'Closeout Breakdown',description:'Film breakdown of closeouts.',tags:['defense'],kind:'breakdown',video_url:''}];
   S.groups=[{id:uuid(),name:'Guards',color:'#8B43E0'},{id:uuid(),name:'Bigs',color:'#E3AE33'}];
-  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];
+  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];
   S.settings={scale:{mid:70,spread:10,floor:35,cap:99,k:10},provisional_min_inputs:2};
 }
 function subscribe(){ if(DEMO)return;
   const ch=sb.channel('pd');
   ['pd_results','pd_attributes','pd_tests','pd_test_weights','pd_assignments','pd_item_state',
-   'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','tryout_players','tryout_drills']
+   'pd_groups','pd_group_members','pd_games','pd_stats','pd_snapshots','pd_settings','pd_comments','pd_replies','pd_access','tryout_players','tryout_drills']
    .forEach(t=>ch.on('postgres_changes',{event:'*',schema:'public',table:t},refresh));
   ch.subscribe();
 }
@@ -369,7 +372,7 @@ function render(){
      <div class="pill"><span class="dot"></span>${S.players.length} players</div>
    </div></div>
    <div class="tabs"><div class="tabs-in">
-     ${[['cards','Player Cards'],['testing','Testing'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['admin','Admin']]
+     ${[['cards','Player Cards'],['testing','Testing'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['messages','Messages'],['admin','Admin']]
        .map(([k,l])=>`<button class="tab ${S.view===k?'on':''}" data-v="${k}">${l}</button>`).join('')}
    </div></div>
    <main>${(VIEWS[S.view]||(()=>''))()}</main>
@@ -551,12 +554,12 @@ function weakest(pid,ratings){
 /* ---- Admin ---- */
 function vAdmin(){
   const t=S.adminTab;
-  const tabs=[['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['scale','Scale']];
+  const tabs=[['players','Players'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['access','Parent Codes'],['scale','Scale']];
   return `<div class="sec"><h2>ADMIN</h2><div class="rule"></div></div>
     <p class="lead">Full control. Everything here is editable at any time — nothing resets your data.</p>
     <div class="row" style="margin-bottom:16px">${tabs.map(([k,l])=>
       `<button class="btn ${t===k?'btn-p':'btn-g'} btn-s" data-atab="${k}">${l}</button>`).join('')}</div>
-    ${t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():adminScale()}`;
+    ${t==='players'?adminPlayers():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():t==='access'?adminAccess():adminScale()}`;
 }
 function adminAttrs(){
   return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-attr">＋ Add Attribute</button></div>
@@ -629,7 +632,151 @@ function adminScale(){
     <b>k</b> controls how much small groups are pulled toward the grade average — higher k = more conservative until you've tested more kids.</p>
   </div>`;
 }
-const VIEWS={cards:vCards,testing:vTesting,assign:vAssign,stats:vStats,reports:vReports,admin:vAdmin};
+
+/* ---- Messages (coach -> parents) ---- */
+function audienceLabel(c){
+  if(c.scope==='all')return 'Everyone';
+  if(c.scope==='grade')return 'Grade '+c.scope_value;
+  if(c.scope==='group'){const g=S.groups.find(x=>x.id===c.scope_value);return g?g.name:'Group';}
+  const pl=S.players.find(x=>x.id===c.scope_value);return pl?pl.name:'Player';
+}
+function commentReaches(c,player){
+  if(c.scope==='all')return true;
+  if(c.scope==='grade')return +c.scope_value===+player.grade;
+  if(c.scope==='group')return S.members.some(m=>m.group_id===c.scope_value&&m.player_id===player.id);
+  return c.scope_value===player.id;
+}
+function reachCount(c){return S.players.filter(pl=>commentReaches(c,pl)).length;}
+function vMessages(){
+  const cs=S.comments.slice().sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  return '<div class="sec"><h2>MESSAGES</h2><div class="rule"></div>'+
+    '<button class="btn btn-p btn-s" data-act="new-msg">＋ New Message</button></div>'+
+    '<p class="lead">Post to <b>everyone, a grade, a group, or one player</b>. Families see it in the parent portal and can reply.</p>'+
+    (cs.length? '<div style="display:grid;gap:11px">'+cs.map(c=>{
+      const reps=S.replies.filter(r=>r.comment_id===c.id).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+      return '<div class="note"><div class="row" style="justify-content:space-between;align-items:flex-start">'+
+        '<div><span class="tag">'+esc(audienceLabel(c))+'</span> '+
+        '<span class="chip">'+reachCount(c)+' player'+(reachCount(c)===1?'':'s')+'</span></div>'+
+        '<div class="row" style="gap:6px"><span style="color:var(--tx-d);font-size:.74rem">'+esc(String(c.created_at||'').slice(0,10))+'</span>'+
+        '<button class="btn btn-g btn-s btn-dz" data-dmsg="'+c.id+'">✕</button></div></div>'+
+        '<div style="margin-top:9px;color:var(--tx-s);white-space:pre-line">'+esc(c.body)+'</div>'+
+        (c.author_name?'<div style="margin-top:6px;font-size:.75rem;color:var(--tx-d)">— '+esc(c.author_name)+'</div>':'')+
+        (reps.length?'<div style="margin-top:11px;border-top:1px solid var(--line-s);padding-top:9px">'+
+          '<div class="note-h">Replies</div>'+reps.map(r=>{
+            const pl=S.players.find(x=>x.id===r.player_id);
+            return '<div style="margin-bottom:7px"><b style="font-size:.82rem;color:var(--gold-br)">'+esc(r.author_name||'Parent')+
+              (pl?' · '+esc(pl.name):'')+'</b><div style="color:var(--tx-s);font-size:.88rem">'+esc(r.body)+'</div></div>';}).join('')+
+          '</div>':'')+
+        '</div>';}).join('')+'</div>'
+      : '<div class="empty"><div class="ico">💬</div><div>No messages yet. Tap <b>＋ New Message</b>.</div></div>');
+}
+function msgModal(){
+  modal('New Message',
+    '<div class="field"><label>Send to</label><select class="inp" id="m-scope">'+
+      '<option value="all">Everyone</option><option value="grade">A grade</option>'+
+      '<option value="group">A group</option><option value="player">One player</option></select></div>'+
+    '<div id="m-target"></div>'+
+    '<div class="field"><label>From</label><input class="inp" id="m-from" value="Coach Dale"></div>'+
+    '<div class="field"><label>Message</label><textarea class="inp" id="m-body" rows="5" placeholder="Great work this week…"></textarea></div>'+
+    '<button class="btn btn-p btn-block" id="m-save">Post message</button>');
+  const tgt=()=>{const v=$('m-scope').value;
+    $('m-target').innerHTML = v==='grade'
+      ? '<div class="field"><label>Grade</label><select class="inp" id="m-val">'+GRADES.map(g=>'<option value="'+g+'">Grade '+g+'</option>').join('')+'</select></div>'
+      : v==='group'
+      ? '<div class="field"><label>Group</label><select class="inp" id="m-val">'+S.groups.map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('')+'</select></div>'
+      : v==='player'
+      ? '<div class="field"><label>Player</label><select class="inp" id="m-val">'+S.players.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(pl=>'<option value="'+pl.id+'">'+esc(pl.name)+'</option>').join('')+'</select></div>'
+      : '<p class="lead">Goes to every family in the program.</p>';};
+  $('m-scope').onchange=tgt; tgt();
+  $('m-save').onclick=async()=>{
+    const body=$('m-body').value.trim(); if(!body)return;
+    const scope=$('m-scope').value;
+    const row={scope,scope_value:scope==='all'?null:$('m-val').value,
+      author_name:$('m-from').value.trim()||null,body};
+    const saved=await put('pd_comments',row); S.comments.push(saved||{id:uuid(),...row,created_at:new Date().toISOString()});
+    closeModal(); render(); flag('Posted');};
+}
+
+/* ---- Admin: players ---- */
+function adminPlayers(){
+  const ps=S.players.slice().sort((a,b)=>(a.grade??99)-(b.grade??99)||(a.number??999)-(b.number??999));
+  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-player">＋ Add Player</button>'+
+    '<button class="btn btn-g btn-s" data-act="bulk-player">⇪ Bulk add</button></div>'+
+    (ps.length?'<div class="wrap"><div class="scroll"><table>'+
+    '<thead><tr><th class="l">Player</th><th>#</th><th>Grade</th><th>Height</th><th>Parent code</th><th></th></tr></thead><tbody>'+
+    ps.map(pl=>{const ac=S.access.find(a=>a.player_id===pl.id&&!a.revoked_at);
+      return '<tr><td><div class="cell l"><b>'+esc(pl.name)+'</b></div></td>'+
+      '<td><div class="cell">'+(pl.number==null?'–':pl.number)+'</div></td>'+
+      '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
+      '<td><div class="cell">'+(pl.height?esc(String(pl.height)):'–')+'</div></td>'+
+      '<td><div class="cell">'+(ac?'<span class="tag" style="font-family:monospace">'+esc(ac.code)+'</span>':'<span style="color:var(--tx-d)">none</span>')+'</div></td>'+
+      '<td><div class="cell"><button class="btn btn-g btn-s" data-eplayer="'+pl.id+'">Edit</button></div></td></tr>';}).join('')+
+    '</tbody></table></div></div>'
+    :'<div class="empty"><div class="ico">🏀</div><div>No players yet. Tap <b>＋ Add Player</b>.</div></div>')+
+    '<p class="lead" style="margin-top:11px">Players are shared with the Tryouts app — adding one here adds it there too.</p>';
+}
+function playerEditModal(id){
+  const pl=id?S.players.find(x=>x.id===id):null;
+  modal(pl?'Edit Player':'Add Player',
+    '<div class="field"><label>Name</label><input class="inp" id="pl-name" value="'+(pl?esc(pl.name):'')+'" placeholder="First Last"></div>'+
+    '<div class="g3">'+
+      '<div class="field"><label>Grade</label><select class="inp" id="pl-grade"><option value="">—</option>'+
+        GRADES.map(g=>'<option value="'+g+'" '+(pl&&+pl.grade===g?'selected':'')+'>'+g+'</option>').join('')+'</select></div>'+
+      '<div class="field"><label>Jersey #</label><input class="inp" id="pl-num" inputmode="numeric" value="'+(pl&&pl.number!=null?pl.number:'')+'"></div>'+
+      '<div class="field"><label>Height</label><input class="inp" id="pl-h" value="'+(pl&&pl.height?esc(String(pl.height)):'')+'" placeholder="5-2"></div>'+
+    '</div>'+
+    (pl?'<button class="btn btn-g btn-s btn-dz" id="pl-del">Delete player</button>':'')+
+    '<button class="btn btn-p btn-block" id="pl-save" style="margin-top:12px">'+(pl?'Save':'Add player')+'</button>');
+  $('pl-save').onclick=async()=>{
+    const name=$('pl-name').value.trim(); if(!name)return;
+    const row={name,grade:$('pl-grade').value?+$('pl-grade').value:null,
+      number:$('pl-num').value===''?null:+$('pl-num').value,
+      height:$('pl-h').value.trim()||null};
+    if(pl){Object.assign(pl,row); await patch('tryout_players',pl.id,row);}
+    else{const full=Object.assign({status:'registered'},row); const sv=await put('tryout_players',full); S.players.push(sv||Object.assign({id:uuid()},full));}
+    closeModal(); render(); flag('Saved');};
+  const d=$('pl-del'); if(d)d.onclick=async()=>{S.players=S.players.filter(x=>x.id!==pl.id); await del('tryout_players',pl.id); closeModal(); render();};
+}
+function bulkPlayerModal(){
+  modal('Bulk add players',
+    '<p class="lead" style="margin-top:0">One player per line: <b>Name, Grade, Jersey#</b> — grade and number optional.</p>'+
+    '<div class="field"><textarea class="inp" id="bp" rows="9" placeholder="Marcus Bell, 7, 3"></textarea></div>'+
+    '<button class="btn btn-p btn-block" id="bp-save">Add players</button>');
+  $('bp-save').onclick=async()=>{
+    const lines=$('bp').value.split(String.fromCharCode(10)).map(l=>l.trim()).filter(Boolean);
+    let n=0;
+    for(const l of lines){
+      const parts=l.split(',').map(x=>(x||'').trim());
+      const name=parts[0], g=parts[1], num=parts[2];
+      if(!name)continue;
+      const row={name,grade:g?+g:null,number:num?+num:null,status:'registered'};
+      const sv=await put('tryout_players',row); S.players.push(sv||Object.assign({id:uuid()},row)); n++;}
+    closeModal(); render(); flag(n+' players added');};
+}
+
+/* ---- Admin: parent access codes ---- */
+function randCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let o='';for(let i=0;i<4;i++)o+=A[Math.floor(Math.random()*A.length)];return 'JAG-'+o;}
+function adminAccess(){
+  const ps=S.players.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="codes-all">⚡ Generate codes for everyone</button></div>'+
+    '<p class="lead">Give a family their code and they open <b>j3hoops.com/parent</b> to see their athlete.</p>'+
+    (ps.length?'<div class="wrap"><div class="scroll"><table>'+
+    '<thead><tr><th class="l">Player</th><th>Grade</th><th>Parent code</th><th></th></tr></thead><tbody>'+
+    ps.map(pl=>{const ac=S.access.find(a=>a.player_id===pl.id&&!a.revoked_at);
+      return '<tr><td><div class="cell l"><b>'+esc(pl.name)+'</b></div></td>'+
+        '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
+        '<td><div class="cell" style="font-family:monospace;font-size:1rem;color:var(--gold-br)">'+(ac?esc(ac.code):'—')+'</div></td>'+
+        '<td><div class="cell"><button class="btn btn-g btn-s" data-code="'+pl.id+'">'+(ac?'Regenerate':'Generate')+'</button></div></td></tr>';}).join('')+
+    '</tbody></table></div></div>':'<div class="empty"><div class="ico">🔑</div><div>Add players first.</div></div>');
+}
+async function makeCode(pid){
+  const old=S.access.filter(a=>a.player_id===pid&&!a.revoked_at);
+  for(const o of old){await del('pd_access',o.id); S.access=S.access.filter(x=>x.id!==o.id);}
+  const row={player_id:pid,code:randCode()};
+  const sv=await put('pd_access',row); S.access.push(sv||Object.assign({id:uuid()},row));
+}
+
+const VIEWS={cards:vCards,testing:vTesting,assign:vAssign,stats:vStats,reports:vReports,messages:vMessages,admin:vAdmin};
 
 /* ================= modals ================= */
 function modal(title,body,wide){
@@ -889,10 +1036,16 @@ function wire(){
     render(); flag('Saved');});
   const af=$('afilter'); if(af)af.oninput=()=>{S.assignFilter=af.value;render();
     const e=$('afilter'); if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}};
+  document.querySelectorAll('[data-eplayer]').forEach(b=>b.onclick=()=>playerEditModal(b.dataset.eplayer));
+  document.querySelectorAll('[data-code]').forEach(b=>b.onclick=async()=>{await makeCode(b.dataset.code);render();flag('Code created');});
+  document.querySelectorAll('[data-dmsg]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.dmsg; S.comments=S.comments.filter(c=>c.id!==id); await del('pd_comments',id); render(); flag('Deleted');});
   const acts={
     'new-attr':()=>attrModal(),'new-test':()=>testModal(),'new-weight':()=>weightModal(),
     'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
-    'snap':saveCheckpoint,'save-scale':saveScale};
+    'snap':saveCheckpoint,'save-scale':saveScale,
+    'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
+    'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
 }
 async function saveCheckpoint(){
