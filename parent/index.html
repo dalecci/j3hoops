@@ -343,14 +343,28 @@ function taskDone(t){
   if(t.video_id)return hasWatchedMid('v:'+t.video_id);
   return false;
 }
+/* NOTE: don't use upsert here. pd_item_state's video_id uniqueness is a *partial*
+   index, which PostgREST can't target with on_conflict (returns 400), so the write
+   silently failed while the UI showed it watched. Find-then-insert/update instead. */
 async function markWatched(mid){
   if(!S.player||!mid||hasWatchedMid(mid))return;
   const [k,id]=String(mid).split(':');
   const row={player_id:S.player.id,status:'watched',completed_at:new Date().toISOString()};
   if(k==='v')row.video_id=id; else row.drill_id=id;
-  const {data}=await sb.from('pd_item_state')
-    .upsert(row,{onConflict:k==='v'?'video_id,player_id':'drill_id,player_id'}).select().single();
-  S.itemState.push(data||row);
+  let q=sb.from('pd_item_state').select('id').eq('player_id',S.player.id);
+  q = k==='v' ? q.eq('video_id',id) : q.eq('drill_id',id);
+  const {data:ex}=await q.limit(1);
+  let saved=null;
+  if(ex&&ex.length){
+    const {error}=await sb.from('pd_item_state').update(row).eq('id',ex[0].id);
+    if(error){console.error('watch update failed',error);return;}
+    saved=Object.assign({id:ex[0].id},row);
+  }else{
+    const {data,error}=await sb.from('pd_item_state').insert(row).select().single();
+    if(error){console.error('watch insert failed',error);return;}
+    saved=data||row;
+  }
+  S.itemState.push(saved);
   renderPortal(); flag('✓ Marked watched');
 }
 function myMessages(){
@@ -398,9 +412,13 @@ function renderGate(msg){
 function renderPortal(){
   const p=S.player; const {ovr,ratings}=ovrOf(p.id);
   const media=myMedia();
-  const nPractice=media.filter(m=>m.cat==='practice').length;
-  const nBreak=media.filter(m=>m.cat==='gamebreakdown').length;
-  const nDrill=media.filter(m=>!['practice','gamebreakdown'].includes(m.cat)).length;
+  const practiceAll=media.filter(m=>m.cat==='practice');
+  const breakAll=media.filter(m=>m.cat==='gamebreakdown');
+  const drillAll=media.filter(m=>!['practice','gamebreakdown'].includes(m.cat));
+  const nPractice=practiceAll.length, nBreak=breakAll.length, nDrill=drillAll.length;
+  /* badges count what's still UNWATCHED, so they clear as the athlete works through them */
+  const unseen=arr=>arr.filter(m=>!hasWatchedMid(m.mid)).length;
+  const newPractice=unseen(practiceAll)+unseen(drillAll), newBreak=unseen(breakAll);
   const objs=S.objectives.filter(o=>o.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
   const tks=S.tasks.filter(t=>t.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
   const objDone=objs.filter(o=>o.done).length, tkDone=tks.filter(taskDone).length;
@@ -410,8 +428,8 @@ function renderPortal(){
   const NAV=[
     {key:'home',label:'Home',icon:'🏠'},
     {key:'work',label:'My Work',icon:'🎯',badge:openTk||null},
-    {key:'practice',label:'Practice',icon:'🏀',badge:nPractice||null},
-    {key:'breakdown',label:'Breakdown',icon:'🎬',badge:nBreak||null},
+    {key:'practice',label:'Practice',icon:'🏀',badge:newPractice||null},
+    {key:'breakdown',label:'Breakdown',icon:'🎬',badge:newBreak||null},
     {key:'playbook',label:'Playbook',icon:'📘'},
     {key:'messages',label:'Coach',icon:'💬',badge:msgs.length||null}
   ];
@@ -429,7 +447,7 @@ function renderPortal(){
       (n.badge?'<span class="nbadge">'+n.badge+'</span>':'')+'</button>').join('')+
   '</div></div>'+
   '<div class="wrap">'+(
-      v==='home'?secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill)
+      v==='home'?secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,newPractice,newBreak)
     : v==='work'?secWork(objs,tks,objDone,tkDone)
     : v==='practice'?secVideos('practice','Practice','Clips from our practices.')
     : v==='breakdown'?secVideos('gamebreakdown','Game Breakdown','Film breakdowns from our games.')
@@ -460,7 +478,12 @@ function renderPortal(){
 }
 
 /* ---------- sections ---------- */
-function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill){
+function videoTileSub(total,unseenN){
+  if(!total)return 'None yet';
+  if(!unseenN)return '✓ All watched';
+  return unseenN+' to watch';
+}
+function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,newPractice,newBreak){
   const gains=[];
   activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
     if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
@@ -484,8 +507,8 @@ function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill){
     '<p style="color:var(--tx-d);font-size:.78rem;margin:-6px 2px 6px">Ratings are 0–100 compared with athletes <b>in the same grade</b>. Growth matters more than the number.</p>'+
     '<div class="tiles">'+
       tile('work','🎯','My Work',(objs.length+tks.length)?((objDone+tkDone)+'/'+(objs.length+tks.length)+' done'):'Nothing yet')+
-      tile('practice','🏀','Practice',nPractice?nPractice+' video'+(nPractice===1?'':'s'):'None yet')+
-      tile('breakdown','🎬','Breakdown',nBreak?nBreak+' video'+(nBreak===1?'':'s'):'None yet')+
+      tile('practice','🏀','Practice',videoTileSub(nPractice+nDrill,newPractice))+
+      tile('breakdown','🎬','Breakdown',videoTileSub(nBreak,newBreak))+
       tile('playbook','📘','Playbook',S.docs.length+' pages')+
     '</div>'+
     (gains.length?'<div class="sec"><h2>PROGRESS</h2><div class="rule"></div></div>'+
