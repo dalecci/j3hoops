@@ -119,6 +119,52 @@
   .nbadge{background:var(--pur);color:#fff;font-size:.62rem;font-weight:900;border-radius:99px;
     padding:1px 6px;min-width:17px;text-align:center}
   .nlink.on .nbadge{background:var(--gold);color:#241233}
+  /* compact video row that expands */
+  .vrow{display:flex;align-items:center;gap:12px;width:100%;padding:9px 12px;border-radius:13px;
+    border:1px solid var(--line);background:var(--card);margin-bottom:9px;transition:.15s;text-align:left}
+  .vrow:hover{border-color:rgba(166,107,242,.55);transform:translateX(2px)}
+  .vrow.seen{opacity:.62}
+  .vthumb{position:relative;width:76px;height:44px;border-radius:8px;overflow:hidden;flex-shrink:0;
+    background:#000;display:block}
+  .vthumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .vph{display:grid;place-items:center;width:100%;height:100%;font-size:1.1rem}
+  .vplay{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:.8rem;
+    text-shadow:0 2px 6px #000;background:rgba(0,0,0,.2)}
+  .vmain{flex:1;min-width:0}
+  .vname{display:block;font-weight:800;font-size:.93rem;line-height:1.2}
+  .vdesc{display:block;color:var(--tx-d);font-size:.76rem;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vgo{color:var(--pur-br);font-weight:900;flex-shrink:0}
+  .vseen{color:#5ee6a0;font-weight:900;flex-shrink:0}
+  .vclose{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);color:var(--tx-m);
+    display:grid;place-items:center;flex-shrink:0}
+  .vclose:hover{border-color:var(--pur);color:#fff}
+  /* welcome message */
+  .welcome{border-radius:18px;padding:20px 22px;margin-bottom:14px;
+    border:1px solid rgba(227,174,51,.28);
+    background:linear-gradient(150deg,rgba(227,174,51,.10),rgba(139,67,224,.10)),var(--card)}
+  .wtitle{font-family:var(--disp);font-size:1.55rem;letter-spacing:.02em;line-height:1.05;margin-bottom:9px}
+  .wbody p{color:var(--tx-s);font-size:.93rem;margin-bottom:9px}
+  .wbody p:last-child{margin-bottom:0}
+  /* follow-up progress */
+  .follow{border:1px solid var(--line);border-radius:16px;padding:16px 18px;background:var(--card);margin-bottom:6px}
+  .frow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+  .flab{font-size:.68rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--tx-m)}
+  .fpct{font-family:var(--disp);font-size:1.6rem;line-height:1}
+  .fsub{font-size:.78rem;color:var(--tx-d);margin-top:8px;font-weight:600}
+  /* needs attention */
+  .todo{display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border-radius:14px;
+    border:1px solid var(--line);background:var(--card);margin-bottom:10px;transition:.15s;text-align:left}
+  .todo:hover{border-color:rgba(166,107,242,.55);transform:translateX(2px)}
+  .tdico{font-size:1.35rem;flex-shrink:0}
+  .tdmain{flex:1;min-width:0}
+  .tdlab{display:block;font-weight:800;font-size:.95rem}
+  .tdsub{display:block;color:var(--tx-d);font-size:.79rem;margin-top:2px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tdn{flex-shrink:0;min-width:26px;height:26px;padding:0 8px;border-radius:99px;display:grid;place-items:center;
+    background:var(--pur);color:#fff;font-weight:900;font-size:.8rem}
+  .allclear{text-align:center;padding:26px 16px;border:1px dashed var(--line);border-radius:16px;margin-bottom:6px}
+  .allclear b{font-size:1.05rem}
   /* tiles */
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:11px;margin:18px 0 4px}
   .tile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:15px 15px;border-radius:15px;
@@ -176,8 +222,8 @@ const KEY='jag_parent_code';
 
 const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
-  coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],
-  view:'home',openDoc:null,openCat:null};
+  coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],welcome:[],reads:[],
+  view:'home',openDoc:null,openCat:null,openVid:null};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
   clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
@@ -217,7 +263,8 @@ async function loadFor(code){
     q('pd_stats'),q('pd_games'),q('tryout_scores'),q('pd_settings'),
     q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),q('pd_item_state'),
     sb.from('training_videos').select('*').neq('category','fullgame'),
-    sb.from('training_documents').select('*')]);
+    sb.from('training_documents').select('*'),
+    q('pd_welcome'),q('pd_message_reads')]);
   S.player=r[0].data;
   S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
   S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
@@ -226,7 +273,7 @@ async function loadFor(code){
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
   S.objectives=r[18].data||[];S.tasks=r[19].data||[];S.lists=r[20].data||[];S.listItems=r[21].data||[];S.itemState=r[22].data||[];
-  S.videos=r[23].data||[];S.docs=r[24].data||[];
+  S.videos=r[23].data||[];S.docs=r[24].data||[];S.welcome=r[25].data||[];S.reads=r[26].data||[];
   return !!S.player;
 }
 
@@ -234,6 +281,25 @@ async function loadFor(code){
 const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
 const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
 const activeTests=()=>S.tests.filter(t=>t.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
+/* ratings compare an athlete against peers — either their school grade or their team */
+function cohortMode(){return (S.settings&&S.settings.cohort)||'grade';}
+function teamsOf(pid){return S.members.filter(m=>m.player_id===pid).map(m=>m.group_id);}
+function cohortPeers(player){
+  if(!player)return [];
+  if(cohortMode()==='team'){
+    const t=teamsOf(player.id);
+    if(t.length) return S.players.filter(x=>teamsOf(x.id).some(g=>t.includes(g)));
+    return [];   // no team set -> fall through to the program baseline
+  }
+  return S.players.filter(x=>x.grade===player.grade);
+}
+function cohortName(player){
+  if(cohortMode()==='team'){
+    const t=teamsOf(player.id).map(id=>(S.groups.find(g=>g.id===id)||{}).name).filter(Boolean);
+    return t.length?t.join(' / '):'no team';
+  }
+  return 'grade '+(player.grade==null?'–':player.grade);
+}
 function latestResult(pid,tk){const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
   .sort((a,b)=>String(b.tested_at).localeCompare(String(a.tested_at)));return rs.length?rs[0]:null;}
 function priorResult(pid,tk){const rs=S.results.filter(r=>r.player_id===pid&&r.test_key===tk)
@@ -242,13 +308,13 @@ function stats(vals){if(!vals.length)return{n:0,mean:0,sd:0};
   const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
   const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;
   return{n:vals.length,mean,sd};}
-const cohort=(tk,grade)=>stats(S.players.filter(p=>p.grade===grade).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value));
+const cohort=(tk,player)=>stats(cohortPeers(player).map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value));
 const poolStats=tk=>stats(S.players.map(p=>latestResult(p.id,tk)).filter(Boolean).map(r=>+r.value));
-function testRating(tk,grade,value){
+function testRating(tk,player,value){
   const t=S.tests.find(x=>x.key===tk); if(!t||value==null||isNaN(value))return null;
   const sc=SC(), flip=t.lower_is_better?-1:1;
-  const c=cohort(tk,grade), pool=poolStats(tk);
-  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+grade);
+  const c=cohort(tk,player), pool=poolStats(tk);
+  const nm=S.norms.find(n=>n.test_key===tk&&+n.grade===+(player&&player.grade));
   let zBase=0;
   if(nm&&+nm.sd>0) zBase=((value-+nm.mean)/+nm.sd)*flip;
   else if(pool.n>2&&pool.sd>0) zBase=((value-pool.mean)/pool.sd)*flip;
@@ -265,7 +331,7 @@ function attrRating(pid,key){
   let num=0,den=0;
   S.weights.filter(w=>w.attribute_key===key).forEach(w=>{
     const r=latestResult(pid,w.test_key); if(!r)return;
-    const rt=testRating(w.test_key,p.grade,+r.value); if(rt==null)return;
+    const rt=testRating(w.test_key,p,+r.value); if(rt==null)return;
     num+=rt*+w.weight; den+=+w.weight;});
   const cw=+a.coach_weight||0;
   if(cw>0){const cs=coachAvg(pid,key); if(cs!=null){num+=coachTo100(cs)*cw; den+=cw;}}
@@ -298,11 +364,16 @@ const PLAYBOOK_CATS=[
 function vidUrl(v){return v.youtube_id?('https://www.youtube.com/watch?v='+v.youtube_id):null;}
 /* one shape for a drill or a Warriors training video */
 function asMedia(x,kind){
-  return kind==='video'
-    ? {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary,
-       url:vidUrl(x), tags:x.tags||[], cat:x.category}
-    : {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description,
-       url:x.video_url, tags:x.tags||[], cat:x.kind||'drill'};
+  if(kind==='video'){
+    const yt=x.youtube_id||null;
+    return {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary, url:vidUrl(x),
+      tags:x.tags||[], cat:x.category, yt,
+      thumb:x.custom_thumb||(yt?'https://img.youtube.com/vi/'+yt+'/mqdefault.jpg':null)};
+  }
+  const yt=ytId(x.video_url);
+  return {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description, url:x.video_url,
+    tags:x.tags||[], cat:x.kind||'drill', yt,
+    thumb:yt?'https://img.youtube.com/vi/'+yt+'/mqdefault.jpg':null};
 }
 function listDrills(lid){return S.listItems.filter(i=>i.list_id===lid)
   .sort((a,b)=>(a.order_idx??0)-(b.order_idx??0))
@@ -427,11 +498,12 @@ function renderPortal(){
 
   const NAV=[
     {key:'home',label:'Home',icon:'🏠'},
+    {key:'stats',label:'Stats',icon:'📊'},
     {key:'work',label:'My Work',icon:'🎯',badge:openTk||null},
     {key:'practice',label:'Practice',icon:'🏀',badge:newPractice||null},
     {key:'breakdown',label:'Breakdown',icon:'🎬',badge:newBreak||null},
     {key:'playbook',label:'Playbook',icon:'📘'},
-    {key:'messages',label:'Coach',icon:'💬',badge:msgs.length||null}
+    {key:'messages',label:'Coach',icon:'💬',badge:msgs.filter(c=>!isRead(c.id)).length||null}
   ];
   const v=S.view||'home';
 
@@ -447,17 +519,21 @@ function renderPortal(){
       (n.badge?'<span class="nbadge">'+n.badge+'</span>':'')+'</button>').join('')+
   '</div></div>'+
   '<div class="wrap">'+(
-      v==='home'?secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,newPractice,newBreak)
+      v==='home'?secHome(p,ovr,objs,tks,objDone,tkDone,media,msgs)
+    : v==='stats'?secStats(p,ovr,ratings)
     : v==='work'?secWork(objs,tks,objDone,tkDone)
     : v==='practice'?secVideos('practice','Practice','Clips from our practices.')
     : v==='breakdown'?secVideos('gamebreakdown','Game Breakdown','Film breakdowns from our games.')
     : v==='playbook'?secPlaybook()
     : secMessages(msgs)
   )+'</div>';
+  if(v==='messages') markAllRead(msgs);
 
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{
     S.view=b.dataset.view;S.openDoc=null;S.openCat=null;renderPortal();window.scrollTo(0,0);});
   document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>markWatched(b.dataset.watch));
+  document.querySelectorAll('[data-openvid2]').forEach(b=>b.onclick=()=>{S.openVid=b.dataset.openvid2;renderPortal();});
+  document.querySelectorAll('[data-closevid]').forEach(b=>b.onclick=()=>{S.openVid=null;renderPortal();});
   document.querySelectorAll('[data-openvid]').forEach(a=>a.onclick=()=>setTimeout(()=>markWatched(a.dataset.openvid),1200));
   document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{S.openCat=b.dataset.cat;renderPortal();window.scrollTo(0,0);});
   document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{S.openDoc=b.dataset.doc;renderPortal();window.scrollTo(0,0);});
@@ -483,7 +559,86 @@ function videoTileSub(total,unseenN){
   if(!unseenN)return '✓ All watched';
   return unseenN+' to watch';
 }
-function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,newPractice,newBreak){
+/* the welcome message that applies to this athlete — most specific wins */
+function welcomeFor(p){
+  if(!p)return null;
+  const gids=S.members.filter(m=>m.player_id===p.id).map(m=>m.group_id);
+  const byGroup=S.welcome.find(w=>w.scope==='group'&&gids.includes(w.scope_value));
+  if(byGroup)return byGroup;
+  const byGrade=S.welcome.find(w=>w.scope==='grade'&&+w.scope_value===+p.grade);
+  if(byGrade)return byGrade;
+  return S.welcome.find(w=>w.scope==='all')||null;
+}
+const isRead=cid=>S.reads.some(r=>r.comment_id===cid&&r.player_id===S.player.id);
+async function markAllRead(msgs){
+  const unread=msgs.filter(c=>!isRead(c.id));
+  if(!unread.length)return;
+  const rows=unread.map(c=>({comment_id:c.id,player_id:S.player.id}));
+  const {data,error}=await sb.from('pd_message_reads').insert(rows).select();
+  if(error){console.error('mark read failed',error);return;}
+  (data||rows).forEach(r=>S.reads.push(r));
+  renderPortal();
+}
+
+function secHome(p,ovr,objs,tks,objDone,tkDone,media,msgs){
+  const w=welcomeFor(p);
+  const openTasks=tks.filter(t=>!taskDone(t));
+  const unwatched=media.filter(m=>!hasWatchedMid(m.mid));
+  const unread=msgs.filter(c=>!isRead(c.id));
+  const openObjs=objs.filter(o=>!o.done);
+  // parent follow-up = the things a family can actually action
+  const doneN=tkDone+(media.length-unwatched.length);
+  const totalN=tks.length+media.length;
+  const pct=totalN?Math.round(100*doneN/totalN):0;
+  const barCol=!totalN?'rgba(255,255,255,.15)':pct===100?'#5ee6a0':pct>=50?'var(--pur)':'var(--gold)';
+
+  const todo=[];
+  if(openTasks.length) todo.push({go:'work',icon:'🎯',n:openTasks.length,
+    label:openTasks.length+' to-do'+(openTasks.length===1?'':'s')+' to finish',
+    sub:openTasks.slice(0,2).map(t=>t.title).join(' · ')});
+  if(unwatched.length) todo.push({go:unwatched[0].cat==='gamebreakdown'?'breakdown':'practice',icon:'🎬',n:unwatched.length,
+    label:unwatched.length+' video'+(unwatched.length===1?'':'s')+' to watch',
+    sub:unwatched.slice(0,2).map(m=>m.name).join(' · ')});
+  if(unread.length) todo.push({go:'messages',icon:'💬',n:unread.length,
+    label:unread.length+' new message'+(unread.length===1?'':'s'),
+    sub:unread.slice(0,1).map(c=>(c.author_name||'Coach')+': '+String(c.body||'').slice(0,60)).join('')});
+  if(openObjs.length) todo.push({go:'work',icon:'🏅',n:openObjs.length,
+    label:openObjs.length+' objective'+(openObjs.length===1?'':'s')+' in progress',
+    sub:'Your coach checks these off'});
+
+  return (w?'<div class="welcome">'+
+      (w.title?'<div class="wtitle">'+esc(w.title)+'</div>':'')+
+      '<div class="wbody">'+String(w.body||'').split('\n').filter(x=>x.trim()).map(x=>'<p>'+esc(x.trim())+'</p>').join('')+'</div>'+
+    '</div>':'')+
+
+    '<div class="follow">'+
+      '<div class="frow"><span class="flab">Follow-up progress</span>'+
+        '<b class="fpct" style="color:'+barCol+'">'+pct+'%</b></div>'+
+      '<div class="btrack" style="height:11px"><i class="bfill" style="width:'+pct+'%;background:'+barCol+'"></i></div>'+
+      '<div class="fsub">'+(totalN?doneN+' of '+totalN+' things done':'Nothing assigned yet')+'</div>'+
+    '</div>'+
+
+    (todo.length
+      ? '<div class="sec"><h2>NEEDS ATTENTION</h2><div class="rule"></div></div>'+
+        todo.map(t=>'<button class="todo" data-goto="'+t.go+'">'+
+          '<span class="tdico">'+t.icon+'</span>'+
+          '<span class="tdmain"><span class="tdlab">'+esc(t.label)+'</span>'+
+            (t.sub?'<span class="tdsub">'+esc(t.sub)+'</span>':'')+'</span>'+
+          '<span class="tdn">'+t.n+'</span></button>').join('')
+      : '<div class="allclear"><div style="font-size:2rem">✅</div>'+
+        '<b>All caught up</b><div style="color:var(--tx-m);font-size:.87rem;margin-top:4px">Nothing outstanding right now.</div></div>')+
+
+    '<div class="tiles">'+
+      tile('stats','📊','Stats',ovr==null?'No rating yet':'OVR '+ovr)+
+      tile('work','🎯','My Work',(objs.length+tks.length)?((objDone+tkDone)+'/'+(objs.length+tks.length)+' done'):'Nothing yet')+
+      tile('practice','🏀','Practice',videoTileSub(media.filter(m=>m.cat!=='gamebreakdown').length,media.filter(m=>m.cat!=='gamebreakdown'&&!hasWatchedMid(m.mid)).length))+
+      tile('breakdown','🎬','Breakdown',videoTileSub(media.filter(m=>m.cat==='gamebreakdown').length,media.filter(m=>m.cat==='gamebreakdown'&&!hasWatchedMid(m.mid)).length))+
+      tile('playbook','📘','Playbook',S.docs.length+' pages')+
+    '</div>';
+}
+
+/* the card + testing progress + season stats now live on their own tab */
+function secStats(p,ovr,ratings){
   const gains=[];
   activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
     if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
@@ -505,12 +660,6 @@ function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,n
           '<span class="bval" style="color:'+ratingColor(val)+'">'+(val==null?'–':val)+'</span></div>';}).join('')+'</div>'+
     '</div>'+
     '<p style="color:var(--tx-d);font-size:.78rem;margin:-6px 2px 6px">Ratings are 0–100 compared with athletes <b>in the same grade</b>. Growth matters more than the number.</p>'+
-    '<div class="tiles">'+
-      tile('work','🎯','My Work',(objs.length+tks.length)?((objDone+tkDone)+'/'+(objs.length+tks.length)+' done'):'Nothing yet')+
-      tile('practice','🏀','Practice',videoTileSub(nPractice+nDrill,newPractice))+
-      tile('breakdown','🎬','Breakdown',videoTileSub(nBreak,newBreak))+
-      tile('playbook','📘','Playbook',S.docs.length+' pages')+
-    '</div>'+
     (gains.length?'<div class="sec"><h2>PROGRESS</h2><div class="rule"></div></div>'+
       '<div class="note"><div class="note-h">Improvement since last test</div>'+
         gains.map(x=>'<span class="chip">'+esc(x.t.label)+' <b style="color:'+(x.better?'#5ee6a0':'#ff8f6b')+'">'+x.from+' → '+x.to+'</b></span>').join('')+'</div>':'')+
@@ -522,8 +671,9 @@ function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill,n
         '<div class="stat"><b>'+f(sum('ast')/g)+'</b><span>APG</span></div>'+
         '<div class="stat"><b>'+f(sum('stl')/g)+'</b><span>SPG</span></div>'+
         '<div class="stat"><b>'+(sum('fga')?f(100*sum('fgm')/sum('fga'))+'%':'–')+'</b><span>FG%</span></div>'+
-      '</div>':'');
+      '</div>':'<div class="empty">No games logged yet.</div>');
 }
+
 function tile(goto,icon,label,sub){
   return '<button class="tile" data-goto="'+goto+'">'+
     '<span class="tico">'+icon+'</span>'+
@@ -563,6 +713,30 @@ function secWork(objs,tks,objDone,tkDone){
         ((m&&!d)?'<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="'+m.mid+'">✓ I watched it</button>':'')+
       '</div>';}).join(''):'<div class="empty">Nothing to do right now.</div>');
 }
+/* compact row that opens into the full player when tapped */
+function mediaCard(m){
+  const open=S.openVid===m.mid, seen=hasWatchedMid(m.mid);
+  if(!open){
+    return '<button class="vrow'+(seen?' seen':'')+'" data-openvid2="'+m.mid+'">'+
+      '<span class="vthumb">'+(m.thumb?'<img src="'+esc(m.thumb)+'" alt="" loading="lazy">':'<span class="vph">🎬</span>')+
+        '<span class="vplay">▶</span></span>'+
+      '<span class="vmain"><span class="vname">'+esc(m.name)+'</span>'+
+        (m.desc?'<span class="vdesc">'+esc(String(m.desc).slice(0,80))+'</span>':'')+'</span>'+
+      (seen?'<span class="vseen">✓</span>':'<span class="vgo">▶</span>')+
+    '</button>';
+  }
+  return '<div class="note" style="border-color:rgba(166,107,242,.5)">'+
+    '<div style="display:flex;gap:9px;align-items:flex-start">'+
+      '<b style="font-size:1rem;flex:1">'+esc(m.name)+'</b>'+
+      (seen?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':'')+
+      '<button class="vclose" data-closevid>✕</button>'+
+    '</div>'+
+    ((m.tags&&m.tags.length)?'<div style="margin-top:6px">'+m.tags.slice(0,4).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
+    (m.desc?'<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">'+esc(m.desc)+'</div>':'')+
+    videoEmbed(m.url,m.mid)+
+    (!seen?'<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="'+m.mid+'">✓ I watched it</button>':'')+
+  '</div>';
+}
 function secVideos(cat,title,blurb){
   const items=myMedia().filter(m=>m.cat===cat);
   const extra=cat==='practice'?myMedia().filter(m=>!['practice','gamebreakdown'].includes(m.cat)):[];
@@ -570,16 +744,7 @@ function secVideos(cat,title,blurb){
   return '<div class="sec"><h2>'+title.toUpperCase()+'</h2><div class="rule"></div>'+
       '<span style="font-size:.76rem;color:var(--tx-d)">'+all.length+'</span></div>'+
     '<p style="color:var(--tx-m);font-size:.88rem;margin:-6px 2px 14px">'+blurb+'</p>'+
-    (all.length?all.map(m=>'<div class="note">'+
-        '<div style="display:flex;gap:9px;align-items:flex-start">'+
-          '<b style="font-size:1rem;flex:1">'+esc(m.name)+'</b>'+
-          (hasWatchedMid(m.mid)?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':'')+
-        '</div>'+
-        ((m.tags&&m.tags.length)?'<div style="margin-top:6px">'+m.tags.slice(0,4).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
-        (m.desc?'<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">'+esc(m.desc)+'</div>':'')+
-        videoEmbed(m.url,m.mid)+
-        ((m.url&&!hasWatchedMid(m.mid))?'<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="'+m.mid+'">✓ I watched it</button>':'')+
-      '</div>').join(''):'<div class="empty">Nothing assigned here yet — your coach will add videos.</div>');
+    (all.length?all.map(mediaCard).join(''):'<div class="empty">Nothing assigned here yet — your coach will add videos.</div>');
 }
 function secPlaybook(){
   if(S.openDoc){
