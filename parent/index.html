@@ -106,6 +106,28 @@
     border:1px solid #1f6b45;color:#7ff0b4;font-weight:800;font-size:.8rem;padding:9px 18px;border-radius:999px;
     opacity:0;transition:.25s;pointer-events:none}
   .flag.show{opacity:1}
+  /* child switcher */
+  .kidbar{position:sticky;top:58px;z-index:57;background:rgba(10,6,18,.92);backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-s)}
+  .kidbar-in{max-width:680px;margin:0 auto;padding:9px 12px;display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+  .kidbar-in::-webkit-scrollbar{display:none}
+  .kid{display:flex;align-items:center;gap:7px;padding:6px 12px 6px 6px;border-radius:999px;flex-shrink:0;
+    border:1px solid var(--line);background:var(--card);color:var(--tx-m);font-weight:800;font-size:.83rem;transition:.14s}
+  .kid:hover{border-color:var(--pur);color:#fff}
+  .kid.on{background:linear-gradient(135deg,var(--pur),var(--pur-dp));border-color:transparent;color:#fff}
+  .kidj{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;
+    background:rgba(0,0,0,.3);font-family:var(--disp);font-size:.8rem}
+  .kid.add{padding:6px 14px;border-style:dashed;color:var(--pur-br)}
+  .ov{position:fixed;inset:0;z-index:200;background:rgba(4,2,9,.75);backdrop-filter:blur(6px);
+    display:flex;align-items:flex-start;justify-content:center;padding:6vh 14px 14px;overflow-y:auto}
+  .sheet{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    box-shadow:0 40px 90px -30px #000}
+  .sh-h{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .sh-h h3{font-family:var(--disp);font-size:1.2rem;letter-spacing:.02em;flex:1}
+  .sh-x{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);color:var(--tx-m);display:grid;place-items:center}
+  .sh-b{padding:18px}
+  .topnav{position:sticky;top:58px;z-index:55;background:rgba(10,6,18,.9);backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-s)}
   /* top nav — mirrors the Warriors portal */
   .topnav{position:sticky;top:58px;z-index:55;background:rgba(10,6,18,.9);backdrop-filter:blur(12px);
     -webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-s)}
@@ -240,7 +262,8 @@ const KEY='jag_parent_code';
 const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
   coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],welcome:[],reads:[],
-  view:'home',openDoc:null,openCat:null,openVid:null};
+  view:'home',openDoc:null,openCat:null,openVid:null,
+  household:null,kids:[]};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
   clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
@@ -253,6 +276,51 @@ function derivedCode(pid){
   const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let n=Math.abs(h),o='';
   for(let i=0;i<4;i++){o+=A[n%A.length];n=Math.floor(n/A.length);}
   return 'JAG-'+o;
+}
+
+/* ---------- household helpers ---------- */
+const HKEY='jag_parent_household';
+async function playerIdForCode(code){
+  code=String(code||'').trim().toUpperCase();
+  try{
+    const {data,error}=await sb.from('pd_access').select('player_id').eq('code',code).is('revoked_at',null).limit(1);
+    if(!error&&data&&data.length) return data[0].player_id;
+  }catch(e){}
+  const {data:ps}=await sb.from('tryout_players').select('id');
+  const m=(ps||[]).find(x=>derivedCode(x.id)===code);
+  return m?m.id:null;
+}
+/* every athlete this family can see */
+async function resolveKids(pid){
+  const {data:mem}=await sb.from('pd_household_members').select('household_id').eq('player_id',pid).limit(1);
+  let hid=mem&&mem.length?mem[0].household_id:null;
+  let ids=[pid];
+  if(hid){
+    const {data:all}=await sb.from('pd_household_members').select('player_id').eq('household_id',hid);
+    ids=[...new Set((all||[]).map(x=>x.player_id))];
+    if(!ids.includes(pid))ids.push(pid);
+  }
+  const {data:ps}=await sb.from('tryout_players').select('*').in('id',ids);
+  return {hid,kids:(ps||[]).sort((a,b)=>(a.name||'').localeCompare(b.name||''))};
+}
+/* link another athlete into this family */
+async function addAthlete(code){
+  const pid=await playerIdForCode(code);
+  if(!pid) return {ok:false,msg:'That code isn\u2019t valid. Check with your coach.'};
+  if(S.kids.some(k=>k.id===pid)) return {ok:false,msg:'That athlete is already on your account.'};
+  let hid=S.household;
+  if(!hid){
+    const {data:h,error}=await sb.from('pd_households').insert({label:null}).select().single();
+    if(error) return {ok:false,msg:'Could not link right now. Try again.'};
+    hid=h.id;
+    // bring the athlete already signed in along
+    await sb.from('pd_household_members').insert({household_id:hid,player_id:S.player.id});
+  }
+  const {error:e2}=await sb.from('pd_household_members').insert({household_id:hid,player_id:pid});
+  if(e2&&e2.code!=='23505') return {ok:false,msg:'Could not link right now. Try again.'};
+  S.household=hid;
+  try{localStorage.setItem(HKEY,hid);}catch(e){}
+  return {ok:true,pid};
 }
 
 /* ---------- load ---------- */
@@ -289,6 +357,9 @@ async function loadFor(code){
   S.comments=r[12].data||[];S.replies=r[13].data||[];S.stats=r[14].data||[];S.games=r[15].data||[];
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
+  const fam=await resolveKids(pid);
+  S.household=fam.hid; S.kids=fam.kids.length?fam.kids:[S.player];
+  if(fam.hid){try{localStorage.setItem(HKEY,fam.hid);}catch(e){}}
   S.objectives=r[18].data||[];S.tasks=r[19].data||[];S.lists=r[20].data||[];S.listItems=r[21].data||[];S.itemState=r[22].data||[];
   S.videos=r[23].data||[];S.docs=r[24].data||[];S.welcome=r[25].data||[];S.reads=r[26].data||[];
   return !!S.player;
@@ -530,6 +601,11 @@ function renderPortal(){
     '<div class="bname"><b>JAGUARS</b><span>'+esc(p.name)+'</span></div>'+
     '<button class="out" id="signout">Sign out</button>'+
   '</div></div>'+
+  ('<div class="kidbar"><div class="kidbar-in">'+
+    S.kids.map(k=>'<button class="kid '+(k.id===p.id?'on':'')+'" data-kid="'+k.id+'">'+
+      '<span class="kidj">'+(k.number==null?'–':k.number)+'</span>'+esc(k.name.split(' ')[0])+'</button>').join('')+
+    '<button class="kid add" data-addkid>＋ Add athlete</button>'+
+  '</div></div>')+
   '<div class="topnav"><div class="topnav-in">'+
     NAV.map(n=>'<button class="nlink '+(v===n.key?'on':'')+'" data-view="'+n.key+'">'+
       '<span class="nico">'+n.icon+'</span>'+n.label+
@@ -546,6 +622,12 @@ function renderPortal(){
   )+'</div>';
   if(v==='messages') markAllRead(msgs);
 
+  document.querySelectorAll('[data-kid]').forEach(b=>b.onclick=async()=>{
+    const k=S.kids.find(x=>x.id===b.dataset.kid); if(!k||k.id===S.player.id)return;
+    const code=await codeForPlayer(k.id);
+    if(code){ await loadFor(code); S.view='home'; S.openVid=null; renderPortal(); window.scrollTo(0,0); }
+  });
+  const ak=document.querySelector('[data-addkid]'); if(ak)ak.onclick=addKidModal;
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{
     S.view=b.dataset.view;S.openDoc=null;S.openCat=null;renderPortal();window.scrollTo(0,0);});
   document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>markWatched(b.dataset.watch));
@@ -886,6 +968,43 @@ function secMessages(msgs){
           '<button class="btn btn-g btn-s" style="margin-top:7px" data-send="'+c.id+'">Send reply</button>'+
         '</div>'+
       '</div>';}).join(''):'<div class="empty">No messages yet.</div>');
+}
+
+async function codeForPlayer(pid){
+  try{
+    const {data}=await sb.from('pd_access').select('code').eq('player_id',pid).is('revoked_at',null).limit(1);
+    if(data&&data.length)return data[0].code;
+  }catch(e){}
+  return derivedCode(pid);
+}
+function addKidModal(){
+  const host=document.createElement('div');
+  host.className='ov'; host.id='ov';
+  host.innerHTML='<div class="sheet"><div class="sh-h"><h3>Add another athlete</h3>'+
+    '<button class="sh-x" id="ax">✕</button></div><div class="sh-b">'+
+    '<p style="color:var(--tx-m);margin:0 0 14px;font-size:.9rem">Enter the code your coach gave you for your other athlete. They\u2019ll be added to this same login.</p>'+
+    '<input class="codein" id="akcode" placeholder="JAG-••••" maxlength="8" autocomplete="off">'+
+    '<div class="err" id="akerr"></div>'+
+    '<button class="btn btn-p btn-block" id="akgo">Add athlete</button>'+
+    '</div></div>';
+  document.body.appendChild(host);
+  const close=()=>host.remove();
+  host.onclick=e=>{if(e.target===host)close();};
+  host.querySelector('#ax').onclick=close;
+  const go=async()=>{
+    const c=host.querySelector('#akcode').value.trim();
+    if(!c)return;
+    host.querySelector('#akerr').textContent='Checking…';
+    const res=await addAthlete(c);
+    if(!res.ok){host.querySelector('#akerr').textContent=res.msg;return;}
+    close();
+    const code=await codeForPlayer(res.pid);
+    await loadFor(code); S.view='home'; renderPortal(); flag('Athlete added');
+  };
+  host.querySelector('#akgo').onclick=go;
+  const inp=host.querySelector('#akcode');
+  inp.onkeydown=e=>{if(e.key==='Enter')go();};
+  inp.focus();
 }
 
 /* ---------- auto watch detection ---------- */
