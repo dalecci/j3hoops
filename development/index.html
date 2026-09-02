@@ -218,6 +218,37 @@
     .printfoot{display:flex !important;justify-content:space-between;margin-top:10px;padding-top:7px;
       border-top:0.7pt solid #b9b2c6;font-family:Helvetica,Arial,sans-serif;font-size:8pt;color:#6b6478 !important}
   }
+
+/* ---- media library ---- */
+.libhead{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.libstat{flex:1;min-width:110px;background:var(--pan);border:1px solid var(--ln);border-radius:14px;padding:12px 14px}
+.libstat b{display:block;font-size:1.5rem;font-weight:900;color:#fff;line-height:1}
+.libstat span{font-size:.7rem;text-transform:uppercase;letter-spacing:.09em;color:var(--tx-d);font-weight:800}
+.libstat.warn b{color:#ffb84d}
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:14px}
+.libcard{position:relative;background:var(--pan);border:1px solid var(--ln);border-radius:15px;overflow:hidden;transition:border-color .15s,transform .15s}
+.libcard:hover{border-color:var(--pur-br);transform:translateY(-2px)}
+.libcard.on{border-color:var(--gold,#F0A83C);box-shadow:0 0 0 1px var(--gold,#F0A83C) inset}
+.libcard .pick{position:absolute;top:8px;left:8px;z-index:3}
+.libthumb{position:relative;aspect-ratio:16/9;background:#120a22;display:flex;align-items:center;justify-content:center}
+.libthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.libnone{font-size:1.5rem;color:#4a3a66}
+.libplay{position:absolute;inset:0;width:100%;border:0;background:rgba(10,6,18,.35);color:#fff;font-size:1.4rem;cursor:pointer;opacity:0;transition:opacity .15s}
+.libcard:hover .libplay{opacity:1}
+.libbody{padding:11px 12px 12px}
+.libname{font-weight:800;color:#fff;font-size:.92rem;line-height:1.3;margin-bottom:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.libmeta{margin-bottom:7px}
+.chip.warriors{background:rgba(240,168,60,.14);color:#F0A83C;border-color:rgba(240,168,60,.35)}
+.libtags{margin-bottom:9px;min-height:20px}
+.libwarn{font-size:.72rem;color:#ffb84d;font-weight:700}
+.librow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.libuse{font-size:.72rem;color:var(--tx-d);font-weight:700}
+.empty{padding:34px;text-align:center;color:var(--tx-d);background:var(--pan);border:1px dashed var(--ln);border-radius:15px}
+.dz{margin-top:16px;padding-top:14px;border-top:1px solid var(--ln);display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.dzn{font-size:.76rem;color:var(--tx-d);font-weight:600}
+.btn-d{background:rgba(226,74,74,.12);border-color:rgba(226,74,74,.4);color:#ff8080}
+.btn-d:hover{background:rgba(226,74,74,.22)}
+@media(max-width:520px){.libgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
 </style>
 </head>
 <body>
@@ -242,7 +273,7 @@ const S={players:[],drills:[],coachScores:[],coaches:[],
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
   objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
-  videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[]};
+  videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[],libQ:'',libCat:'all',libSort:'name'};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -533,9 +564,10 @@ function vTesting(){
 function vAssign(){
   const sub=S.assignSub||'videos';
   const nav='<div class="row" style="margin-bottom:16px">'+
-    [['videos','Videos'],['lists','Lists']].map(([k,lbl])=>
+    [['videos','Videos'],['lists','Lists'],['library','🎬 Library']].map(([k,lbl])=>
       '<button class="btn '+(sub===k?'btn-p':'btn-g')+' btn-s" data-asub="'+k+'">'+lbl+'</button>').join('')+'</div>';
   if(sub==='lists') return '<div class="sec"><h2>ASSIGN</h2><div class="rule"></div></div>'+nav+vLists();
+  if(sub==='library') return '<div class="sec"><h2>ASSIGN</h2><div class="rule"></div></div>'+nav+vLibrary();
   const q=(S.assignFilter||'').toLowerCase();
   let lib=allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   const acat=S.assignCat||'all';
@@ -1431,31 +1463,147 @@ function previewModal(mid){
     '<div class="field"><label>Title</label><input class="inp" id="pv-title" value="'+esc(m.name)+'"></div>'+
     '<div class="field"><label>Description</label><textarea class="inp" id="pv-desc" rows="3">'+esc(m.desc||'')+'</textarea></div>'+
     '<div class="field"><label>Tags (comma separated)</label><input class="inp" id="pv-tags" value="'+esc((m.tags||[]).join(', '))+'"></div>'+
+    '<div class="g2"><div class="field"><label>Category</label><select class="inp" id="pv-cat">'+catOptions(m.cat)+'</select></div>'+
+    '<div class="field"><label>Video link</label><input class="inp" id="pv-url" value="'+esc(m.url||'')+'" placeholder="YouTube or .mp4"></div></div>'+
     (isVid?'<p class="lead" style="margin:-4px 2px 12px">This is a Warriors library video — renaming it here also renames it in the Warriors portal.</p>':'')+
     '<div class="row"><button class="btn btn-g" id="pv-save" style="flex:1">Save changes</button>'+
-    '<button class="btn btn-p" id="pv-assign" style="flex:1">Assign this →</button></div>', true);
+    '<button class="btn btn-p" id="pv-assign" style="flex:1">Assign this →</button></div>'+
+    '<div class="dz"><button class="btn btn-d btn-s" id="pv-del">🗑 Delete from library</button>'+
+    '<span class="dzn">'+(assignsForMedia(m).length?'Used in '+assignsForMedia(m).length+' assignment(s) — those are removed too.':'Not assigned anywhere.')+'</span></div>', true);
   const a=$('pv-assign'); if(a)a.onclick=()=>{closeModal();assignModal(mid);};
   $('pv-save').onclick=async()=>{
     const title=$('pv-title').value.trim(); if(!title)return;
     const tags=$('pv-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
     const desc=$('pv-desc').value.trim()||null;
+    const cat=$('pv-cat')?$('pv-cat').value:null;
+    const url=$('pv-url')?$('pv-url').value.trim()||null:null;
     const [k,id]=mid.split(':');
     if(k==='v'){
-      const row={title,summary:desc,tags};
+      const row={title,summary:desc,tags}; if(cat)row.category=cat;
       const raw=S.videos.find(x=>x.id===id); if(raw)Object.assign(raw,row);
       await patch('training_videos',id,row);
     }else{
-      const row={name:title,description:desc,tags};
+      const row={name:title,description:desc,tags,video_url:url}; if(cat)row.kind=cat;
       const raw=S.drills.find(x=>x.id===id); if(raw)Object.assign(raw,row);
       await patch('tryout_drills',id,row);
     }
-    closeModal(); render(); flag('Renamed');
+    closeModal(); render(); flag('Saved');
+  };
+  const dl=$('pv-del'); if(dl)dl.onclick=async()=>{
+    if(!confirm('Delete "'+m.name+'" from the library? This cannot be undone.'))return;
+    const [k,id]=mid.split(':');
+    for(const a of assignsForMedia(m)){ await del('pd_assignments',a.id); S.assigns=S.assigns.filter(x=>x.id!==a.id); }
+    if(k==='v'){ await del('training_videos',id); S.videos=S.videos.filter(x=>x.id!==id); }
+    else { await del('tryout_drills',id); S.drills=S.drills.filter(x=>x.id!==id); }
+    S.picked=S.picked.filter(x=>x!==mid);
+    closeModal(); render(); flag('Deleted');
   };
 }
 function allMedia(){
   return S.drills.map(d=>asMedia(d,'drill')).concat(S.videos.map(v=>asMedia(v,'video')));
 }
-const CAT_LABEL={practice:'Practice',gamebreakdown:'Game Breakdown',drill:'Drill',breakdown:'Breakdown',film:'Film'};
+const CAT_LABEL={practice:'Practice',gamebreakdown:'Game Breakdown',drill:'Drill',breakdown:'Breakdown',film:'Film',skill:'Skill Work',install:'Install / Playbook'};
+/* the ONE list every add/edit form uses, so a new video always lands in a bucket the portal filters on */
+const CATS=[['practice','Practice'],['gamebreakdown','Game Breakdown'],['drill','Drill'],['skill','Skill Work'],['install','Install / Playbook'],['film','Game Film']];
+const catOptions=(sel)=>CATS.map(([v,l])=>'<option value="'+v+'"'+(sel===v?' selected':'')+'>'+l+'</option>').join('');
+function libStats(){
+  const all=allMedia();
+  return {total:all.length, untagged:all.filter(m=>!(m.tags||[]).length).length,
+    broken:all.filter(m=>!m.url).length, unassigned:all.filter(m=>!assignsForMedia(m).length).length};
+}
+function assignsForMedia(m){
+  return S.assigns.filter(a=>(m.did&&a.drill_id===m.did)||(m.vid&&a.video_id===m.vid));
+}
+
+
+/* ================= MEDIA LIBRARY ================= */
+function vLibrary(){
+  const st=libStats(), q=(S.libQ||'').toLowerCase(), cat=S.libCat||'all';
+  let lib=allMedia();
+  if(cat==='untagged') lib=lib.filter(m=>!(m.tags||[]).length);
+  else if(cat==='broken') lib=lib.filter(m=>!m.url);
+  else if(cat!=='all') lib=lib.filter(m=>m.cat===cat);
+  const realTags=S.assignTags.filter(k=>k!=='__none');
+  if(realTags.length) lib=lib.filter(m=>realTags.every(k=>hasTag(m,k)));
+  if(q) lib=lib.filter(m=>(m.name||'').toLowerCase().includes(q)||(m.desc||'').toLowerCase().includes(q)||(m.tags||[]).some(t=>String(t).toLowerCase().includes(q)));
+  const sort=S.libSort||'name';
+  lib.sort((a,b)=> sort==='cat' ? String(a.cat).localeCompare(String(b.cat))||a.name.localeCompare(b.name)
+    : sort==='use' ? assignsForMedia(b).length-assignsForMedia(a).length
+    : (a.name||'').localeCompare(b.name||''));
+
+  const counts={}; allMedia().forEach(m=>{counts[m.cat]=(counts[m.cat]||0)+1;});
+  const chip=(k,l,n)=>'<button class="gchip '+(cat===k?'on':'')+'" data-lcat="'+k+'">'+l+' <span style="opacity:.6">'+n+'</span></button>';
+
+  return `<div class="libhead">
+      <div class="libstat"><b>${st.total}</b><span>in library</span></div>
+      <div class="libstat"><b>${st.untagged}</b><span>untagged</span></div>
+      <div class="libstat"><b>${st.unassigned}</b><span>never assigned</span></div>
+      <div class="libstat ${st.broken?'warn':''}"><b>${st.broken}</b><span>no video link</span></div>
+    </div>
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn btn-p btn-s" data-act="new-drill">＋ Add video</button>
+      <button class="btn btn-g btn-s" data-act="bulk-import">⇪ Bulk import</button>
+      <button class="btn btn-g btn-s" data-act="lib-export">⇩ Export CSV</button>
+    </div>
+    <p class="lead">Everything the program owns — practice clips, breakdowns, drills, installs. Add once here, then assign it anywhere.</p>
+    <div class="row" style="margin-bottom:12px">${chip('all','All',st.total)}${CATS.map(([k,l])=>chip(k,l,counts[k]||0)).join('')}${chip('untagged','⚠ Untagged',st.untagged)}${st.broken?chip('broken','⚠ No link',st.broken):''}</div>
+    ${tagChips()}
+    <div class="row" style="margin-bottom:14px">
+      <input class="inp" id="libq" placeholder="Search title, description or tag…" value="${esc(S.libQ||'')}" style="flex:1;min-width:200px">
+      <select class="inp" id="libsort" style="max-width:170px">
+        <option value="name"${sort==='name'?' selected':''}>A → Z</option>
+        <option value="cat"${sort==='cat'?' selected':''}>By category</option>
+        <option value="use"${sort==='use'?' selected':''}>Most assigned</option>
+      </select>
+    </div>
+    ${bulkBar()}
+    ${lib.length?'<div class="libgrid">'+lib.map(m=>{
+      const nA=assignsForMedia(m).length, on=S.picked.includes(m.mid);
+      return `<div class="libcard ${on?'on':''}">
+        <button class="pick ${on?'on':''}" data-pick="${m.mid}">${on?'✓':''}</button>
+        <div class="libthumb">${m.thumb?'<img src="'+esc(m.thumb)+'" alt="" loading="lazy">':'<span class="libnone">'+(m.url?'▶':'—')+'</span>'}
+          <button class="libplay" data-preview="${m.mid}">▶</button></div>
+        <div class="libbody">
+          <div class="libname">${esc(m.name)}</div>
+          <div class="libmeta"><span class="chip">${esc(CAT_LABEL[m.cat]||m.cat||'drill')}</span>${m.mid.startsWith('v:')?'<span class="chip warriors">Warriors</span>':''}</div>
+          <div class="libtags">${(m.tags||[]).slice(0,4).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')||'<span class="libwarn">no tags</span>'}</div>
+          <div class="librow"><span class="libuse">${nA?nA+' assignment'+(nA===1?'':'s'):'not assigned'}</span>
+            <button class="btn btn-g btn-s" data-preview="${m.mid}">Edit</button></div>
+        </div></div>`}).join('')+'</div>'
+      :'<div class="empty">Nothing matches. <button class="btn btn-g btn-s" data-act="lib-reset">Clear filters</button></div>'}`;
+}
+function bulkImportModal(){
+  modal('Bulk import videos',
+    '<p class="lead" style="margin:0 2px 14px">Paste one video per line. Add a title with a <b>|</b> — for example<br><code>https://youtu.be/abc123 | Closeout drill</code>. Untitled links get named from the video.</p>'+
+    '<div class="field"><label>Links</label><textarea class="inp" id="bi-urls" rows="9" placeholder="https://youtu.be/xxxx | Shell drill&#10;https://youtu.be/yyyy | Zone offense install"></textarea></div>'+
+    '<div class="g2"><div class="field"><label>Category for all</label><select class="inp" id="bi-cat">'+catOptions('practice')+'</select></div>'+
+    '<div class="field"><label>Tags for all</label><input class="inp" id="bi-tags" placeholder="defense, shell"></div></div>'+
+    '<button class="btn btn-p btn-block" id="bi-save">Import</button>', true);
+  $('bi-save').onclick=async()=>{
+    const lines=$('bi-urls').value.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length)return;
+    const kind=$('bi-cat').value, tags=$('bi-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    closeModal(); flag('Importing '+lines.length+'…');
+    let n=0;
+    for(const line of lines){
+      const [rawUrl,rawName]=line.split('|').map(x=>(x||'').trim());
+      if(!rawUrl)continue;
+      const yt=ytId(rawUrl);
+      const row={name:rawName||(yt?'Video '+yt:rawUrl.split('/').pop()||'Untitled'),kind,description:null,video_url:rawUrl,tags};
+      const saved=await put('tryout_drills',row);
+      S.drills.push(saved||{id:uuid(),...row}); n++;
+    }
+    render(); flag('Imported '+n+' video'+(n===1?'':'s'));
+  };
+}
+function libExport(){
+  const rows=[['Title','Category','Tags','Description','Video URL','Assignments']]
+    .concat(allMedia().map(m=>[m.name,CAT_LABEL[m.cat]||m.cat||'',(m.tags||[]).join('; '),m.desc||'',m.url||'',assignsForMedia(m).length]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='jaguars-video-library.csv'; a.click(); flag('Exported');
+}
 
 /* ================= video lists ================= */
 function listDrills(lid){
@@ -1617,23 +1765,29 @@ function assignModal(mid,listId){
 }
 
 function drillModal(){
-  modal('New Video / Drill',`
-    <div class="field"><label>Name</label><input class="inp" id="d-name" placeholder="Closeout Breakdown"></div>
+  modal('Add a video',`
+    <div class="field"><label>Title</label><input class="inp" id="d-name" placeholder="Closeout breakdown"></div>
+    <div class="field"><label>Video link</label><input class="inp" id="d-video" placeholder="YouTube, Vimeo or .mp4 URL">
+      <p class="lead" style="margin:6px 2px 0">Paste a YouTube link and the thumbnail is pulled automatically.</p></div>
     <div class="g2">
-      <div class="field"><label>Kind</label><select class="inp" id="d-kind">
-        <option value="drill">Drill</option><option value="breakdown">Breakdown video</option><option value="film">Game film</option></select></div>
+      <div class="field"><label>Category</label><select class="inp" id="d-kind">${catOptions('practice')}</select></div>
       <div class="field"><label>Tags (comma separated)</label><input class="inp" id="d-tags" placeholder="defense, closeout"></div>
     </div>
     <div class="field"><label>Description</label><textarea class="inp" id="d-desc" rows="3" placeholder="How it's run, what to look for…"></textarea></div>
-    <div class="field"><label>Video link</label><input class="inp" id="d-video" placeholder="YouTube or .mp4 URL"></div>
-    <button class="btn btn-p btn-block" id="d-save">Add to library</button>`);
-  $('d-save').onclick=async()=>{
-    const name=$('d-name').value.trim(); if(!name)return;
+    <div class="row"><button class="btn btn-g" id="d-save2" style="flex:1">Save &amp; add another</button>
+      <button class="btn btn-p" id="d-save" style="flex:1">Save</button></div>`);
+  const save=async(again)=>{
+    const name=$('d-name').value.trim(); if(!name){flag('Give it a title');return;}
     const row={name,kind:$('d-kind').value,description:$('d-desc').value.trim()||null,
       video_url:$('d-video').value.trim()||null,
       tags:$('d-tags').value.split(',').map(t=>t.trim()).filter(Boolean)};
     const saved=await put('tryout_drills',row); S.drills.push(saved||{id:uuid(),...row});
-    closeModal(); render(); flag('Added');};
+    if(again){['d-name','d-video','d-desc'].forEach(id=>$(id).value=''); $('d-name').focus(); flag('Added — next one');}
+    else {closeModal(); flag('Added to library');}
+    render();
+  };
+  $('d-save').onclick=()=>save(false);
+  $('d-save2').onclick=()=>save(true);
 }
 function groupModal(gid){
   const g=gid?S.groups.find(x=>x.id===gid):null;
@@ -1763,6 +1917,9 @@ function wire(){
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
   const pr=document.querySelector('[data-act="print-reports"]'); if(pr)pr.onclick=()=>window.print();
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
+  document.querySelectorAll('[data-lcat]').forEach(b=>b.onclick=()=>{S.libCat=b.dataset.lcat;render();});
+  const lq=$('libq'); if(lq){lq.oninput=()=>{S.libQ=lq.value;clearTimeout(window._lqt);window._lqt=setTimeout(()=>{const p=lq.selectionStart;render();const n=$('libq');if(n){n.focus();n.setSelectionRange(p,p);}},260);};}
+  const ls=$('libsort'); if(ls)ls.onchange=()=>{S.libSort=ls.value;render();};
   document.querySelectorAll('[data-atag]').forEach(b=>b.onclick=e=>{e.stopPropagation();
     const k=b.dataset.atag;
     if(k==='__clear'){S.assignTags=[];}
@@ -1850,6 +2007,9 @@ function wire(){
     'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
     'clear-week':()=>clearWeekModal(),
     'bulk-tag':()=>bulkTagModal(),
+    'bulk-import':()=>bulkImportModal(),
+    'lib-export':()=>libExport(),
+    'lib-reset':()=>{S.libQ='';S.libCat='all';S.assignTags=[];render();},
     'bulk-clear':()=>{S.picked=[];render();},
     'bulk-assign':()=>{ if(S.picked.length) assignModal(S.picked[0]); },
     'edit-creed':()=>creedModal(),'new-welcome':()=>welcomeModal(),'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
