@@ -187,7 +187,8 @@ const S={players:[],drills:[],coachScores:[],coaches:[],
   groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
-  objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null};
+  objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
+  videos:[],docs:[],docEdit:null};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -204,9 +205,12 @@ async function loadAll(){
     const set={}; (r[16].data||[]).forEach(x=>set[x.key]=x.value); S.settings=set;
     // optional tables — a missing one must never knock the whole app into demo mode
     const opt=await Promise.all([q('pd_comments'),q('pd_replies'),q('pd_access'),
-      q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items')]);
+      q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),
+      sb.from('training_videos').select('*').neq('category','fullgame'),
+      sb.from('training_documents').select('*')]);
     S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
     S.objectives=opt[3].data||[]; S.tasks=opt[4].data||[]; S.lists=opt[5].data||[]; S.listItems=opt[6].data||[];
+    S.videos=opt[7].data||[]; S.docs=opt[8].data||[];
     MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
     GOALS_OK=!opt[3].error && !opt[4].error; LISTS_OK=!opt[5].error && !opt[6].error;
     if(!MSG_OK||!CODES_OK) console.warn('Messages/Parent-code tables not created yet — run the pd_access/pd_comments/pd_replies schema.');
@@ -248,7 +252,7 @@ function seedDemo(){
     {id:uuid(),name:'Cone Dribble Series',description:'Weave both hands.',tags:['handle'],kind:'drill',video_url:''},
     {id:uuid(),name:'Closeout Breakdown',description:'Film breakdown of closeouts.',tags:['defense'],kind:'breakdown',video_url:''}];
   S.groups=[{id:uuid(),name:'Guards',color:'#8B43E0'},{id:uuid(),name:'Bigs',color:'#E3AE33'}];
-  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];S.objectives=[];S.tasks=[];S.lists=[];S.listItems=[];
+  S.members=[];S.assigns=[];S.itemState=[];S.games=[];S.stats=[];S.snaps=[];S.comments=[];S.replies=[];S.access=[];S.objectives=[];S.tasks=[];S.lists=[];S.listItems=[];S.videos=[];S.docs=[];
   S.settings={scale:{mid:70,spread:10,floor:35,cap:99,k:10},provisional_min_inputs:2};
 }
 function subscribe(){ if(DEMO)return;
@@ -460,26 +464,33 @@ function vAssign(){
       '<button class="btn '+(sub===k?'btn-p':'btn-g')+' btn-s" data-asub="'+k+'">'+lbl+'</button>').join('')+'</div>';
   if(sub==='lists') return '<div class="sec"><h2>ASSIGN</h2><div class="rule"></div></div>'+nav+vLists();
   const q=(S.assignFilter||'').toLowerCase();
-  let lib=S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  if(q)lib=lib.filter(d=>(d.name||'').toLowerCase().includes(q)||(d.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  let lib=allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const acat=S.assignCat||'all';
+  if(acat!=='all') lib=lib.filter(m=>acat==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===acat);
+  if(q)lib=lib.filter(m=>(m.name||'').toLowerCase().includes(q)||(m.tags||[]).some(t=>String(t).toLowerCase().includes(q)));
+  const catChips='<div class="row" style="margin-bottom:13px">'+
+    [['all','All'],['practice','Practice'],['gamebreakdown','Game Breakdown'],['drill','My Drills']].map(c=>
+      '<button class="gchip '+(acat===c[0]?'on':'')+'" data-acat="'+c[0]+'">'+c[1]+
+      ' <span style="opacity:.6">'+(c[0]==='all'?allMedia().length:allMedia().filter(m=>c[0]==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===c[0]).length)+'</span></button>').join('')+'</div>';
   return `<div class="sec"><h2>ASSIGN</h2><div class="rule"></div>
       <button class="btn btn-g btn-s" data-act="new-group">＋ Group</button>
       <button class="btn btn-p btn-s" data-act="new-drill">＋ Video / Drill</button></div>
     <p class="lead">Assign any video, breakdown or drill to <b>one kid, several kids, a group, or a whole grade</b>.</p>
     ${nav}
+    ${catChips}
     <div class="row" style="margin-bottom:14px">
       <input class="inp" id="afilter" placeholder="🔎 Search library…" value="${esc(S.assignFilter||'')}" style="max-width:340px">
       ${S.groups.map(g=>`<span class="chip" style="border-color:${g.color}55"><b style="color:${g.color}">${esc(g.name)}</b> ${S.members.filter(m=>m.group_id===g.id).length}</span>`).join('')}
     </div>
     ${lib.length?`<div class="wrap"><div class="scroll"><table>
       <thead><tr><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
-      ${lib.map(d=>{const as=S.assigns.filter(a=>a.drill_id===d.id);
+      ${lib.map(d=>{const as=S.assigns.filter(a=>d.did?a.drill_id===d.did:a.video_id===d.vid);
         return `<tr><td><div class="cell l"><b>${esc(d.name)}</b>
-            ${d.description?`<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:340px">${esc(String(d.description).slice(0,90))}${String(d.description).length>90?'…':''}</div>`:''}</div></td>
-          <td><div class="cell"><span class="chip">${esc(d.kind||'drill')}</span></div></td>
+            ${d.desc?`<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:340px">${esc(String(d.desc).slice(0,90))}${String(d.desc).length>90?'…':''}</div>`:''}</div></td>
+          <td><div class="cell"><span class="chip">${esc(CAT_LABEL[d.cat]||d.cat||'drill')}</span></div></td>
           <td><div class="cell">${(d.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
           <td><div class="cell">${as.length?as.map(a=>`<span class="chip">${scopeLabel(a)}</span>`).join(' '):'<span style="color:var(--tx-d)">not assigned</span>'}</div></td>
-          <td><div class="cell"><button class="btn btn-g btn-s" data-assign="${d.id}">Assign →</button></div></td></tr>`}).join('')}
+          <td><div class="cell"><button class="btn btn-g btn-s" data-assignmid="${d.mid}">Assign →</button></div></td></tr>`}).join('')}
       </tbody></table></div></div>`
       :`<div class="empty"><div class="ico">🎬</div><div>No videos or drills yet. Tap <b>＋ Video / Drill</b>.</div></div>`}`;
 }
@@ -573,12 +584,12 @@ function weakest(pid,ratings){
 /* ---- Admin ---- */
 function vAdmin(){
   const t=S.adminTab;
-  const tabs=[['players','Players'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['access','Parent Codes'],['scale','Scale']];
+  const tabs=[['players','Players'],['playbook','Playbook'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['groups','Groups'],['access','Parent Codes'],['scale','Scale']];
   return `<div class="sec"><h2>ADMIN</h2><div class="rule"></div></div>
     <p class="lead">Full control. Everything here is editable at any time — nothing resets your data.</p>
     <div class="row" style="margin-bottom:16px">${tabs.map(([k,l])=>
       `<button class="btn ${t===k?'btn-p':'btn-g'} btn-s" data-atab="${k}">${l}</button>`).join('')}</div>
-    ${t==='players'?adminPlayers():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():t==='access'?adminAccess():adminScale()}`;
+    ${t==='players'?adminPlayers():t==='playbook'?adminPlaybook():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='groups'?adminGroups():t==='access'?adminAccess():adminScale()}`;
 }
 function adminAttrs(){
   return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-attr">＋ Add Attribute</button></div>
@@ -778,6 +789,49 @@ function bulkPlayerModal(){
     closeModal(); render(); flag(n+' players added');};
 }
 
+/* ---- Admin: playbook documents (shared with the Warriors portal) ---- */
+const PB_CATS=[['standards','Team Standards'],['terminology','Terminology'],['defensive_calls','Defensive Calls'],
+  ['defensive_sets','Defensive Sets'],['offensive_sets','Offensive Sets']];
+function adminPlaybook(){
+  const ds=S.docs.slice().sort((a,b)=>(a.order_idx||0)-(b.order_idx||0));
+  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-doc">＋ Add Page</button></div>'+
+    '<p class="lead" style="margin-top:0">These are the same playbook pages as the Warriors portal — editing here updates both, and athletes read them in the parent portal.</p>'+
+    (ds.length?'<div class="wrap"><div class="scroll"><table>'+
+      '<thead><tr><th class="l">Page</th><th>Section</th><th>Order</th><th></th></tr></thead><tbody>'+
+      ds.map(d=>'<tr><td><div class="cell l"><b>'+esc(d.title)+'</b>'+
+        (d.summary?'<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:380px">'+esc(d.summary)+'</div>':'')+'</div></td>'+
+        '<td><div class="cell"><span class="chip">'+esc((PB_CATS.find(c=>c[0]===d.sub_cat)||[,d.sub_cat||'—'])[1])+'</span></div></td>'+
+        '<td><div class="cell">'+(d.order_idx||0)+'</div></td>'+
+        '<td><div class="cell"><button class="btn btn-g btn-s" data-edoc="'+d.id+'">Edit</button></div></td></tr>').join('')+
+      '</tbody></table></div></div>'
+      :'<div class="empty"><div class="ico">📘</div><div>No playbook pages yet.</div></div>');
+}
+function docModal(id){
+  const d=id?S.docs.find(x=>x.id===id):null;
+  modal(d?'Edit Page':'New Page',
+    '<div class="field"><label>Title</label><input class="inp" id="pb-title" value="'+(d?esc(d.title):'')+'" placeholder="Defensive Calls"></div>'+
+    '<div class="g2">'+
+      '<div class="field"><label>Section</label><select class="inp" id="pb-cat">'+
+        PB_CATS.map(c=>'<option value="'+c[0]+'" '+(d&&d.sub_cat===c[0]?'selected':'')+'>'+c[1]+'</option>').join('')+'</select></div>'+
+      '<div class="field"><label>Order</label><input class="inp" id="pb-order" inputmode="numeric" value="'+(d?(d.order_idx||0):(S.docs.length+1)*100)+'"></div>'+
+    '</div>'+
+    '<div class="field"><label>One-line summary</label><input class="inp" id="pb-sum" value="'+(d?esc(d.summary||''):'')+'" placeholder="What to say and when to say it."></div>'+
+    '<div class="field"><label>Body</label><textarea class="inp" id="pb-body" rows="12" placeholder="# Heading&#10;- bullet point&#10;**bold** text">'+(d?esc(d.body||''):'')+'</textarea>'+
+      '<div style="font-size:.73rem;color:var(--tx-d);margin-top:6px"># for headings, - for bullets, **bold**. Renders cleanly in the athlete portal.</div></div>'+
+    (d?'<button class="btn btn-g btn-s btn-dz" id="pb-del">Delete page</button>':'')+
+    '<button class="btn btn-p btn-block" id="pb-save" style="margin-top:12px">'+(d?'Save':'Add page')+'</button>');
+  $('pb-save').onclick=async()=>{
+    const title=$('pb-title').value.trim(); if(!title)return;
+    const row={title,sub_cat:$('pb-cat').value,order_idx:+$('pb-order').value||0,
+      summary:$('pb-sum').value.trim()||null,body:$('pb-body').value};
+    if(d){Object.assign(d,row); await patch('training_documents',d.id,row);}
+    else{const sv=await put('training_documents',row); S.docs.push(sv||Object.assign({id:uuid()},row));}
+    closeModal(); render(); flag('Saved');};
+  const del=$('pb-del'); if(del)del.onclick=async()=>{
+    S.docs=S.docs.filter(x=>x.id!==d.id); await del2('training_documents',d.id); closeModal(); render();};
+}
+const del2=(t,id)=>del(t,id);
+
 /* ---- Admin: parent access codes ---- */
 function randCode(){const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';let o='';for(let i=0;i<4;i++)o+=A[Math.floor(Math.random()*A.length)];return 'JAG-'+o;}
 /* A stable code derived from the player id, so parent codes work even before
@@ -815,9 +869,14 @@ async function makeCode(pid){
 
 
 /* ================= Goals: objectives + to-dos ================= */
-function watched(pid,did){const st=S.itemState.find(x=>x.player_id===pid&&x.drill_id===did);
+function watched(pid,did,vid){const st=S.itemState.find(x=>x.player_id===pid&&(vid?x.video_id===vid:x.drill_id===did));
   return !!st&&(st.status==='watched'||st.status==='done');}
-function taskDone(t){return t.done||(t.auto_on_watch&&t.drill_id&&watched(t.player_id,t.drill_id));}
+function taskDone(t){
+  if(t.done)return true;
+  if(!t.auto_on_watch)return false;
+  if(t.video_id)return watched(t.player_id,null,t.video_id);
+  if(t.drill_id)return watched(t.player_id,t.drill_id,null);
+  return false;}
 function objFor(pid){return S.objectives.filter(o=>o.player_id===pid)
   .sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));}
 function tasksFor(pid){return S.tasks.filter(t=>t.player_id===pid)
@@ -867,8 +926,10 @@ function vGoals(){
       :'<div class="empty" style="padding:26px"><div>No objectives yet.</div></div>')+
     '<div class="sec" style="margin-top:22px"><h2 style="font-size:1.1rem">TO-DOS</h2><div class="rule"></div></div>'+
     (tks.length?tks.map(t=>{const d=taskDone(t);
-      const dr=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
-      const auto=t.auto_on_watch&&t.drill_id&&!t.done&&d;
+      const rv=t.video_id?S.videos.find(x=>x.id===t.video_id):null;
+      const rd=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
+      const dr=rv?asMedia(rv,'video'):(rd?asMedia(rd,'drill'):null);
+      const auto=t.auto_on_watch&&(t.drill_id||t.video_id)&&!t.done&&d;
       return '<div class="note" style="'+(d?'border-color:rgba(94,230,160,.35)':'')+'">'+
       '<div class="row" style="align-items:flex-start;gap:12px">'+
         '<button class="chkbox '+(d?'on':'')+'" data-tasktog="'+t.id+'">'+(d?'✓':'')+'</button>'+
@@ -876,7 +937,7 @@ function vGoals(){
           '<div style="font-weight:800;'+(d?'color:var(--tx-m);text-decoration:line-through':'')+'">'+esc(t.title)+'</div>'+
           '<div style="margin-top:7px">'+dueChip(t.due_date)+
             (dr?'<span class="chip">🎬 '+esc(dr.name)+'</span>':'')+
-            (t.auto_on_watch&&t.drill_id?'<span class="chip" style="color:var(--pur-br)">auto-checks on watch</span>':'')+
+            (t.auto_on_watch&&(t.drill_id||t.video_id)?'<span class="chip" style="color:var(--pur-br)">auto-checks on watch</span>':'')+
             (auto?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':'')+'</div>'+
         '</div>'+
         '<button class="btn btn-g btn-s btn-dz" data-taskdel="'+t.id+'">✕</button>'+
@@ -918,11 +979,11 @@ function objModal(){
     closeModal(); render(); flag(targets.length+' objective'+(targets.length===1?'':'s')+' added');};
 }
 function taskModal(){
-  const dr=S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const dr=allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).slice(0,150);
   modal('New To-do',
     '<div class="field"><label>What to do</label><input class="inp" id="t-title" placeholder="Watch the closeout breakdown"></div>'+
     '<div class="field"><label>Linked video (optional)</label><select class="inp" id="t-drill">'+
-      '<option value="">— none —</option>'+dr.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join('')+'</select>'+
+      '<option value="">— none —</option>'+dr.map(d=>'<option value="'+d.mid+'">'+esc(d.name)+' · '+esc(CAT_LABEL[d.cat]||d.cat||'drill')+'</option>').join('')+'</select>'+
       '<div style="font-size:.74rem;color:var(--tx-d);margin-top:6px">If a video is linked, the to-do checks itself off once the athlete watches it.</div></div>'+
     '<div class="field"><label>Due date</label><input class="inp" id="t-due" type="date"></div>'+
     '<div class="field"><label>Give it to</label><select class="inp" id="t-scope">'+
@@ -939,10 +1000,12 @@ function taskModal(){
   $('t-scope').onchange=tgt; tgt();
   $('t-save').onclick=async()=>{
     const title=$('t-title').value.trim(); if(!title)return;
-    const did=$('t-drill').value||null, due=$('t-due').value||null;
+    const mid=$('t-drill').value||null, due=$('t-due').value||null;
+    const mk=mid?mid.split(':'):null;
     const targets=scopeToPlayers($('t-scope').value, $('t-val')?$('t-val').value:null);
     for(const pid of targets){
-      const row={player_id:pid,title,drill_id:did,due_date:due,done:false,auto_on_watch:!!did};
+      const row=Object.assign({player_id:pid,title,due_date:due,done:false,auto_on_watch:!!mid},
+        mk?(mk[0]==='v'?{video_id:mk[1]}:{drill_id:mk[1]}):{});
       const sv=await put('pd_tasks',row); S.tasks.push(sv||Object.assign({id:uuid()},row));}
     closeModal(); render(); flag(targets.length+' to-do'+(targets.length===1?'':'s')+' added');};
 }
@@ -953,10 +1016,23 @@ function scopeToPlayers(scope,val){
   const cur=currentGoalPlayer(); return cur?[cur]:[];
 }
 
+/* one shape for a local drill or a Warriors training video */
+function vidUrl(v){return v.youtube_id?('https://www.youtube.com/watch?v='+v.youtube_id):null;}
+function asMedia(x,kind){
+  return kind==='video'
+    ? {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary, url:vidUrl(x), tags:x.tags||[], cat:x.category}
+    : {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description, url:x.video_url, tags:x.tags||[], cat:x.kind||'drill'};
+}
+function allMedia(){
+  return S.drills.map(d=>asMedia(d,'drill')).concat(S.videos.map(v=>asMedia(v,'video')));
+}
+const CAT_LABEL={practice:'Practice',gamebreakdown:'Game Breakdown',drill:'Drill',breakdown:'Breakdown',film:'Film'};
+
 /* ================= video lists ================= */
 function listDrills(lid){
   return S.listItems.filter(i=>i.list_id===lid).sort((a,b)=>(a.order_idx??0)-(b.order_idx??0))
-    .map(i=>S.drills.find(d=>d.id===i.drill_id)).filter(Boolean);
+    .map(i=>{ if(i.video_id){const v=S.videos.find(x=>x.id===i.video_id); return v?asMedia(v,'video'):null;}
+      const d=S.drills.find(x=>x.id===i.drill_id); return d?asMedia(d,'drill'):null; }).filter(Boolean);
 }
 function vLists(){
   if(!LISTS_OK) return setupNotice('video list');
@@ -975,7 +1051,7 @@ function vLists(){
 }
 function listEditor(lid){
   const l=S.lists.find(x=>x.id===lid); if(!l){S.openList=null;return vLists();}
-  const inList=new Set(S.listItems.filter(i=>i.list_id===lid).map(i=>i.drill_id));
+  const inList=new Set(S.listItems.filter(i=>i.list_id===lid).map(i=>i.video_id?('v:'+i.video_id):('d:'+i.drill_id)));
   const items=listDrills(lid);
   return '<button class="btn btn-g btn-s" data-act="list-back">← All lists</button>'+
     '<div class="sec" style="margin-top:13px"><h2 style="font-size:1.3rem">'+esc(l.name)+'</h2><div class="rule"></div>'+
@@ -983,15 +1059,16 @@ function listEditor(lid){
       '<button class="btn btn-g btn-s btn-dz" data-listdel="'+lid+'">Delete</button></div>'+
     (items.length?'<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Video</th><th>Kind</th><th></th></tr></thead><tbody>'+
       items.map(d=>'<tr><td><div class="cell l"><b>'+esc(d.name)+'</b></div></td>'+
-        '<td><div class="cell"><span class="chip">'+esc(d.kind||'drill')+'</span></div></td>'+
-        '<td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-listrm="'+lid+'|'+d.id+'">Remove</button></div></td></tr>').join('')+
+        '<td><div class="cell"><span class="chip">'+esc(CAT_LABEL[d.cat]||d.cat||'drill')+'</span></div></td>'+
+        '<td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-listrm="'+lid+'|'+d.mid+'">Remove</button></div></td></tr>').join('')+
       '</tbody></table></div></div>'
       :'<p class="lead">Empty list — add videos below.</p>')+
     '<div class="sec" style="margin-top:22px"><h2 style="font-size:1.05rem">ADD VIDEOS</h2><div class="rule"></div></div>'+
-    '<div class="cards">'+S.drills.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(d=>
+    '<div class="cards">'+allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).slice(0,120).map(d=>
       '<div class="note"><div style="font-weight:800">'+esc(d.name)+'</div>'+
-      '<div style="margin-top:8px">'+(inList.has(d.id)?'<span class="chip" style="color:#5ee6a0">✓ in list</span>'
-        :'<button class="btn btn-p btn-s" data-listadd="'+lid+'|'+d.id+'">＋ Add</button>')+'</div></div>').join('')+'</div>';
+      '<div style="margin-top:5px"><span class="chip">'+esc(CAT_LABEL[d.cat]||d.cat||'drill')+'</span></div>'+
+      '<div style="margin-top:8px">'+(inList.has(d.mid)?'<span class="chip" style="color:#5ee6a0">✓ in list</span>'
+        :'<button class="btn btn-p btn-s" data-listadd="'+lid+'|'+d.mid+'">＋ Add</button>')+'</div></div>').join('')+'</div>';
 }
 function listModal(){
   modal('New List',
@@ -1051,16 +1128,22 @@ function assignedFor(pid){
     ||(a.scope==='group'&&gids.includes(a.scope_value))
     ||(a.scope==='player'&&a.scope_value===pid));
   const ids=new Set();
-  mine.forEach(a=>{ if(a.drill_id) ids.add(a.drill_id);
-    if(a.list_id) listDrills(a.list_id).forEach(d=>ids.add(d.id)); });
-  return S.drills.filter(d=>ids.has(d.id));
+  const mids=new Set();
+  mine.forEach(a=>{ if(a.drill_id) mids.add('d:'+a.drill_id);
+    if(a.video_id) mids.add('v:'+a.video_id);
+    if(a.list_id) listDrills(a.list_id).forEach(m=>mids.add(m.mid)); });
+  return allMedia().filter(m=>mids.has(m.mid));
 }
 
-function assignModal(drillId,listId){
+function assignModal(mid,listId){
   const isList=!!listId;
-  const d=isList?S.lists.find(x=>x.id===listId):S.drills.find(x=>x.id===drillId);
+  let kind=null,rid=null,d=null;
+  if(isList){ d=S.lists.find(x=>x.id===listId); }
+  else { const parts=String(mid).split(':'); kind=parts[0]; rid=parts[1];
+    const raw=kind==='v'?S.videos.find(x=>x.id===rid):S.drills.find(x=>x.id===rid);
+    if(raw)d=asMedia(raw,kind==='v'?'video':'drill'); }
   if(!d)return;
-  const cur=S.assigns.filter(a=>isList?a.list_id===listId:a.drill_id===drillId);
+  const cur=S.assigns.filter(a=>isList?a.list_id===listId:(kind==='v'?a.video_id===rid:a.drill_id===rid));
   modal('Assign · '+esc(d.name),`
     <div class="field"><label>Assign to</label>
       <select class="inp" id="as-scope">
@@ -1094,7 +1177,7 @@ function assignModal(drillId,listId){
     const scope=$('as-scope').value;
     const reps=parseInt($('as-reps').value)||null, due=$('as-due').value||null;
     const mk=async v=>{const row=isList?{list_id:listId,scope,scope_value:v,reps_target:reps,due_date:due}
-      :{drill_id:drillId,scope,scope_value:v,reps_target:reps,due_date:due};
+      :Object.assign({scope,scope_value:v,reps_target:reps,due_date:due}, kind==='v'?{video_id:rid}:{drill_id:rid});
       const saved=await put('pd_assignments',row); S.assigns.push(saved||{id:uuid(),...row});};
     if(scope==='player'){const picks=[...document.querySelectorAll('[data-pick].on')].map(b=>b.dataset.pick);
       if(!picks.length)return; for(const p of picks) await mk(p);}
@@ -1248,7 +1331,9 @@ function wire(){
     render();});
   document.querySelectorAll('[data-p]').forEach(el=>el.onclick=()=>playerModal(el.dataset.p));
   document.querySelectorAll('[data-atab]').forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.atab;render();});
-  document.querySelectorAll('[data-assign]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assign));
+  document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
+  document.querySelectorAll('[data-acat]').forEach(b=>b.onclick=()=>{S.assignCat=b.dataset.acat;render();});
+  document.querySelectorAll('[data-edoc]').forEach(b=>b.onclick=()=>docModal(b.dataset.edoc));
   document.querySelectorAll('[data-eattr]').forEach(b=>b.onclick=()=>attrModal(b.dataset.eattr));
   document.querySelectorAll('[data-etest]').forEach(b=>b.onclick=()=>testModal(b.dataset.etest));
   document.querySelectorAll('[data-egroup]').forEach(b=>b.onclick=()=>groupModal(b.dataset.egroup));
@@ -1280,14 +1365,16 @@ function wire(){
   document.querySelectorAll('[data-openlist]').forEach(b=>b.onclick=()=>{S.openList=b.dataset.openlist;render();});
   document.querySelectorAll('[data-assignlist]').forEach(b=>b.onclick=()=>assignModal(null,b.dataset.assignlist));
   document.querySelectorAll('[data-listadd]').forEach(b=>b.onclick=async()=>{
-    const [lid,did]=b.dataset.listadd.split('|');
+    const [lid,mid]=b.dataset.listadd.split('|');
+    const [k,rid]=mid.split(':');
     const maxo=S.listItems.filter(i=>i.list_id===lid).reduce((m,x)=>Math.max(m,x.order_idx||0),0);
-    const row={list_id:lid,drill_id:did,order_idx:maxo+10};
-    const sv=await put('pd_list_items',row,'list_id,drill_id'); S.listItems.push(sv||Object.assign({id:uuid()},row));
+    const row=Object.assign({list_id:lid,order_idx:maxo+10}, k==='v'?{video_id:rid}:{drill_id:rid});
+    const sv=await put('pd_list_items',row); S.listItems.push(sv||Object.assign({id:uuid()},row));
     render(); flag('Added to list');});
   document.querySelectorAll('[data-listrm]').forEach(b=>b.onclick=async()=>{
-    const [lid,did]=b.dataset.listrm.split('|');
-    const it=S.listItems.find(i=>i.list_id===lid&&i.drill_id===did); if(!it)return;
+    const [lid,mid]=b.dataset.listrm.split('|');
+    const [k,rid]=mid.split(':');
+    const it=S.listItems.find(i=>i.list_id===lid&&(k==='v'?i.video_id===rid:i.drill_id===rid)); if(!it)return;
     S.listItems=S.listItems.filter(i=>i.id!==it.id); await del('pd_list_items',it.id); render(); flag('Removed');});
   document.querySelectorAll('[data-listdel]').forEach(b=>b.onclick=async()=>{
     const id=b.dataset.listdel; S.lists=S.lists.filter(l=>l.id!==id);
@@ -1310,7 +1397,7 @@ function wire(){
     'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
     'snap':saveCheckpoint,'save-scale':saveScale,
     'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
-    'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
+    'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
     'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
