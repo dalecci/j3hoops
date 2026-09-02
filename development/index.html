@@ -146,6 +146,15 @@
   .chip b{color:var(--gold-br)}
   .tag{font-size:.64rem;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(227,174,51,.10);
     border:1px solid rgba(227,174,51,.28);color:var(--gold-br)}
+  .pick{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);background:rgba(255,255,255,.03);
+    color:#fff;font-weight:900;font-size:.72rem;display:grid;place-items:center;transition:.12s}
+  .pick:hover{border-color:var(--pur)}
+  .pick.on{background:linear-gradient(135deg,var(--pur),var(--pur-dp));border-color:transparent}
+  .pickall{color:var(--tx-m);font-size:.95rem;padding:0 4px}
+  .pickall:hover{color:#fff}
+  .bulkbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 2px 13px;padding:10px 14px;
+    border-radius:12px;background:var(--pur-soft);border:1px solid rgba(166,107,242,.4)}
+  .bulkbar b{color:var(--pur-br);font-size:.86rem}
   .thumb{position:relative;width:78px;height:46px;border-radius:8px;overflow:hidden;flex-shrink:0;
     border:1px solid var(--line);background:#000;display:block;padding:0;cursor:pointer;transition:.14s}
   .thumb:hover{border-color:var(--pur);transform:scale(1.04)}
@@ -198,7 +207,7 @@ const S={players:[],drills:[],coachScores:[],coaches:[],
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
   objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
-  videos:[],docs:[],docEdit:null};
+  videos:[],docs:[],docEdit:null,assignTags:[],picked:[]};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -477,6 +486,9 @@ function vAssign(){
   let lib=allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   const acat=S.assignCat||'all';
   if(acat!=='all') lib=lib.filter(m=>acat==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===acat);
+  if(S.assignTags.includes('__none')) lib=lib.filter(m=>!(m.tags||[]).length);
+  const realTags=S.assignTags.filter(k=>k!=='__none');
+  if(realTags.length) lib=lib.filter(m=>realTags.every(k=>hasTag(m,k)));
   if(q)lib=lib.filter(m=>(m.name||'').toLowerCase().includes(q)||(m.tags||[]).some(t=>String(t).toLowerCase().includes(q)));
   const catChips='<div class="row" style="margin-bottom:13px">'+
     [['all','All'],['practice','Practice'],['gamebreakdown','Game Breakdown'],['drill','My Drills']].map(c=>
@@ -488,21 +500,41 @@ function vAssign(){
     <p class="lead">Assign any video, breakdown or drill to <b>one kid, several kids, a group, or a whole grade</b>.</p>
     ${nav}
     ${catChips}
+    ${tagChips()}
+    ${bulkBar()}
     <div class="row" style="margin-bottom:14px">
       <input class="inp" id="afilter" placeholder="🔎 Search library…" value="${esc(S.assignFilter||'')}" style="max-width:340px">
       ${S.groups.map(g=>`<span class="chip" style="border-color:${g.color}55"><b style="color:${g.color}">${esc(g.name)}</b> ${S.members.filter(m=>m.group_id===g.id).length}</span>`).join('')}
     </div>
     ${lib.length?`<div class="wrap"><div class="scroll"><table>
-      <thead><tr><th></th><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
+      <thead><tr><th><button class="pickall" data-pickall>${lib.length&&lib.every(m=>S.picked.includes(m.mid))?'☑':'☐'}</button></th><th></th><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
       ${lib.map(d=>{const as=S.assigns.filter(a=>d.did?a.drill_id===d.did:a.video_id===d.vid);
-        return `<tr><td><div class="cell" style="padding:6px 4px 6px 10px">${thumbCell(d)}</div></td><td><div class="cell l"><b>${esc(d.name)}</b>
+        return `<tr><td><div class="cell" style="padding:6px 2px 6px 10px"><button class="pick ${S.picked.includes(d.mid)?'on':''}" data-pick="${d.mid}">${S.picked.includes(d.mid)?'✓':''}</button></div></td><td><div class="cell" style="padding:6px 4px">${thumbCell(d)}</div></td><td><div class="cell l"><b>${esc(d.name)}</b>
             ${d.desc?`<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:340px">${esc(String(d.desc).slice(0,90))}${String(d.desc).length>90?'…':''}</div>`:''}</div></td>
           <td><div class="cell"><span class="chip">${esc(CAT_LABEL[d.cat]||d.cat||'drill')}</span></div></td>
-          <td><div class="cell">${(d.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
+          <td><div class="cell">${(d.tags||[]).slice(0,3).map(t=>`<button class="tag" data-atag="${esc(String(t).trim().toLowerCase())}" style="cursor:pointer">${esc(t)}</button>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
           <td><div class="cell">${as.length?as.map(a=>`<span class="chip">${scopeLabel(a)}</span>`).join(' '):'<span style="color:var(--tx-d)">not assigned</span>'}</div></td>
           <td><div class="cell"><button class="btn btn-g btn-s" data-assignmid="${d.mid}">Assign →</button></div></td></tr>`}).join('')}
       </tbody></table></div></div>`
       :`<div class="empty"><div class="ico">🎬</div><div>No videos or drills yet. Tap <b>＋ Video / Drill</b>.</div></div>`}`;
+}
+function tagChips(){
+  const ti=tagIndex(); if(!ti.length)return '';
+  const untagged=allMedia().filter(m=>!(m.tags||[]).length).length;
+  return '<div class="tagfilter">'+
+    '<span class="gl" style="margin-right:4px">Tags</span>'+
+    ti.slice(0,18).map(t=>'<button class="tagchip '+(S.assignTags.includes(t.key)?'on':'')+'" data-atag="'+esc(t.key)+'">'+
+      esc(t.label)+' <span style="opacity:.55">'+t.n+'</span></button>').join('')+
+    (S.assignTags.length?'<button class="tagchip" data-atag="__clear">✕ clear</button>':'')+
+    (untagged?'<button class="tagchip '+(S.assignTags.includes('__none')?'on':'')+'" data-atag="__none">untagged <span style="opacity:.55">'+untagged+'</span></button>':'')+
+  '</div>';
+}
+function bulkBar(){
+  if(!S.picked.length)return '';
+  return '<div class="bulkbar"><b>'+S.picked.length+' selected</b>'+
+    '<button class="btn btn-p btn-s" data-act="bulk-tag">🏷 Tag selected</button>'+
+    '<button class="btn btn-g btn-s" data-act="bulk-assign">Assign selected →</button>'+
+    '<button class="btn btn-g btn-s" data-act="bulk-clear">Clear</button></div>';
 }
 function scopeLabel(a){
   if(a.scope==='all')return 'Everyone';
@@ -1041,6 +1073,49 @@ function asMedia(x,kind){
     tags:x.tags||[], cat:x.kind||'drill', yt,
     thumb:yt?'https://img.youtube.com/vi/'+yt+'/mqdefault.jpg':null};
 }
+/* tag index across the whole library, case-insensitive with a canonical label */
+function tagIndex(){
+  const m=new Map();
+  allMedia().forEach(x=>(x.tags||[]).forEach(t=>{
+    const k=String(t).trim().toLowerCase(); if(!k)return;
+    const e=m.get(k)||{label:String(t).trim(),n:0}; e.n++; m.set(k,e);}));
+  return [...m.entries()].map(([k,v])=>({key:k,label:v.label,n:v.n}))
+    .sort((a,b)=>b.n-a.n||a.label.localeCompare(b.label));
+}
+const hasTag=(m,k)=>(m.tags||[]).some(t=>String(t).trim().toLowerCase()===k);
+async function addTagsTo(mids,tags){
+  for(const mid of mids){
+    const [k,id]=mid.split(':');
+    const raw=k==='v'?S.videos.find(x=>x.id===id):S.drills.find(x=>x.id===id);
+    if(!raw)continue;
+    const cur=raw.tags||[];
+    const merged=cur.slice();
+    tags.forEach(t=>{ if(!cur.some(c=>String(c).trim().toLowerCase()===t.toLowerCase())) merged.push(t); });
+    raw.tags=merged;
+    await patch(k==='v'?'training_videos':'tryout_drills',id,{tags:merged});
+  }
+}
+function bulkTagModal(){
+  const n=S.picked.length;
+  modal('Tag '+n+' item'+(n===1?'':'s'),
+    '<div class="field"><label>Add these tags</label><input class="inp" id="bt-tags" placeholder="pick and roll, shooting"></div>'+
+    '<p class="lead" style="margin:-4px 2px 12px">Existing tags are kept — these are added on top.</p>'+
+    '<div style="margin-bottom:14px">'+tagIndex().slice(0,14).map(t=>
+      '<button class="tag" data-bt="'+esc(t.label)+'" style="cursor:pointer">+ '+esc(t.label)+'</button>').join('')+'</div>'+
+    '<button class="btn btn-p btn-block" id="bt-save">Apply to '+n+' item'+(n===1?'':'s')+'</button>');
+  document.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{
+    const i=$('bt-tags'); const cur=i.value.split(',').map(x=>x.trim()).filter(Boolean);
+    if(!cur.some(c=>c.toLowerCase()===b.dataset.bt.toLowerCase()))cur.push(b.dataset.bt);
+    i.value=cur.join(', ');});
+  $('bt-save').onclick=async()=>{
+    const tags=$('bt-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    if(!tags.length)return;
+    const mids=S.picked.slice();
+    closeModal(); flag('Tagging '+mids.length+'…');
+    await addTagsTo(mids,tags);
+    S.picked=[]; render(); flag('Tagged '+mids.length+' item'+(mids.length===1?'':'s'));};
+}
+
 /* small clickable preview square */
 function thumbCell(m){
   if(m.thumb) return '<button class="thumb" data-preview="'+m.mid+'" title="Preview"><img src="'+esc(m.thumb)+'" alt="" loading="lazy"><span class="thumb-play">▶</span></button>';
@@ -1399,6 +1474,19 @@ function wire(){
   document.querySelectorAll('[data-atab]').forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.atab;render();});
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
+  document.querySelectorAll('[data-atag]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const k=b.dataset.atag;
+    if(k==='__clear'){S.assignTags=[];}
+    else{const i=S.assignTags.indexOf(k); i>=0?S.assignTags.splice(i,1):S.assignTags.push(k);}
+    render();});
+  document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=e=>{e.stopPropagation();
+    const m=b.dataset.pick; const i=S.picked.indexOf(m); i>=0?S.picked.splice(i,1):S.picked.push(m); render();});
+  const pa=document.querySelector('[data-pickall]'); if(pa)pa.onclick=()=>{
+    const vis=[...document.querySelectorAll('[data-pick]')].map(b=>b.dataset.pick);
+    const allOn=vis.length&&vis.every(m=>S.picked.includes(m));
+    if(allOn) S.picked=S.picked.filter(m=>!vis.includes(m));
+    else vis.forEach(m=>{if(!S.picked.includes(m))S.picked.push(m);});
+    render();};
   document.querySelectorAll('[data-acat]').forEach(b=>b.onclick=()=>{S.assignCat=b.dataset.acat;render();});
   document.querySelectorAll('[data-edoc]').forEach(b=>b.onclick=()=>docModal(b.dataset.edoc));
   document.querySelectorAll('[data-eattr]').forEach(b=>b.onclick=()=>attrModal(b.dataset.eattr));
@@ -1464,6 +1552,9 @@ function wire(){
     'new-group':()=>groupModal(),'new-drill':()=>drillModal(),'new-game':()=>gameModal(),
     'snap':saveCheckpoint,'save-scale':saveScale,
     'new-msg':()=>msgModal(),'new-player':()=>playerEditModal(),'bulk-player':()=>bulkPlayerModal(),
+    'bulk-tag':()=>bulkTagModal(),
+    'bulk-clear':()=>{S.picked=[];render();},
+    'bulk-assign':()=>{ if(S.picked.length) assignModal(S.picked[0]); },
     'new-doc':()=>docModal(),'new-obj':()=>objModal(),'new-task':()=>taskModal(),'new-list':()=>listModal(),
     'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
