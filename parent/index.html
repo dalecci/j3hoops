@@ -106,6 +106,52 @@
     border:1px solid #1f6b45;color:#7ff0b4;font-weight:800;font-size:.8rem;padding:9px 18px;border-radius:999px;
     opacity:0;transition:.25s;pointer-events:none}
   .flag.show{opacity:1}
+  /* top nav — mirrors the Warriors portal */
+  .topnav{position:sticky;top:58px;z-index:55;background:rgba(10,6,18,.9);backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-s)}
+  .topnav-in{max-width:680px;margin:0 auto;padding:0 10px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .topnav-in::-webkit-scrollbar{display:none}
+  .nlink{position:relative;display:flex;align-items:center;gap:6px;padding:12px 12px;font-size:.78rem;
+    font-weight:800;color:var(--tx-m);white-space:nowrap;border-bottom:2.5px solid transparent;transition:.14s}
+  .nlink:hover{color:var(--tx-s)}
+  .nlink.on{color:var(--tx);border-bottom-color:var(--pur)}
+  .nico{font-size:1rem}
+  .nbadge{background:var(--pur);color:#fff;font-size:.62rem;font-weight:900;border-radius:99px;
+    padding:1px 6px;min-width:17px;text-align:center}
+  .nlink.on .nbadge{background:var(--gold);color:#241233}
+  /* tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:11px;margin:18px 0 4px}
+  .tile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:15px 15px;border-radius:15px;
+    border:1px solid var(--line);background:var(--card);text-align:left;transition:.15s}
+  .tile:hover{border-color:rgba(166,107,242,.55);transform:translateY(-2px)}
+  .tico{font-size:1.5rem;margin-bottom:3px}
+  .tlab{font-weight:800;font-size:.98rem}
+  .tsub{font-size:.76rem;color:var(--tx-d);font-weight:600}
+  /* playbook rows + reading view */
+  .docrow{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;border-radius:14px;
+    border:1px solid var(--line);background:var(--card);margin-bottom:10px;transition:.15s}
+  .docrow:hover{border-color:rgba(166,107,242,.5)}
+  .docttl{display:block;font-weight:800;font-size:1rem}
+  .docsum{display:block;color:var(--tx-m);font-size:.83rem;margin-top:3px}
+  .docgo{color:var(--pur-br);font-weight:800;font-size:.8rem;white-space:nowrap}
+  .doc{border:1px solid var(--line);border-radius:15px;background:var(--card);padding:20px 22px;line-height:1.65}
+  .doc h3{font-family:var(--disp);font-size:1.2rem;letter-spacing:.02em;margin:18px 0 8px;color:var(--gold-br)}
+  .doc h4{font-size:.95rem;font-weight:800;margin:15px 0 6px;color:var(--pur-br)}
+  .doc h5{font-size:.86rem;font-weight:800;margin:12px 0 5px;color:var(--tx-s)}
+  .doc h3:first-child,.doc h4:first-child{margin-top:0}
+  .doc p{margin:0 0 11px;color:var(--tx-s)}
+  .doc ul{margin:0 0 13px;padding-left:20px;color:var(--tx-s)}
+  .doc li{margin-bottom:6px}
+  .doc b{color:#fff}
+  .doc blockquote{margin:14px 0;padding:12px 16px;border-left:3px solid var(--gold);
+    background:rgba(227,174,51,.07);border-radius:0 10px 10px 0;color:var(--tx-s);font-style:italic}
+  .defs{display:flex;flex-direction:column;gap:11px;margin:4px 0 14px}
+  .def{display:flex;gap:12px;align-items:flex-start}
+  .defn{flex-shrink:0;width:25px;height:25px;border-radius:8px;display:grid;place-items:center;
+    background:rgba(139,67,224,.18);border:1px solid rgba(166,107,242,.35);
+    color:var(--pur-br);font-weight:900;font-size:.76rem}
+  .deft{font-weight:800;color:var(--gold-br);letter-spacing:.01em}
+  .defd{color:var(--tx-s);font-size:.9rem;margin-top:2px}
   .chkro{width:24px;height:24px;flex-shrink:0;border-radius:7px;border:2px solid var(--line);
     background:rgba(255,255,255,.03);color:#fff;font-weight:900;font-size:.9rem;display:grid;place-items:center}
   .chkro.on{background:linear-gradient(135deg,#2f9e6a,#1f7d51);border-color:transparent}
@@ -130,7 +176,8 @@ const KEY='jag_parent_code';
 
 const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
-  coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[]};
+  coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],
+  view:'home',openDoc:null,openCat:null};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
   clearTimeout(flag._t);flag._t=setTimeout(()=>f.classList.remove('show'),1400);}
@@ -168,7 +215,9 @@ async function loadFor(code){
     q('pd_snapshots'),q('tryout_players'),q('tryout_drills'),q('pd_assignments'),
     q('pd_groups'),q('pd_group_members'),q('pd_comments'),q('pd_replies'),
     q('pd_stats'),q('pd_games'),q('tryout_scores'),q('pd_settings'),
-    q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),q('pd_item_state')]);
+    q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),q('pd_item_state'),
+    sb.from('training_videos').select('*').neq('category','fullgame'),
+    sb.from('training_documents').select('*')]);
   S.player=r[0].data;
   S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
   S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
@@ -177,6 +226,7 @@ async function loadFor(code){
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
   S.objectives=r[18].data||[];S.tasks=r[19].data||[];S.lists=r[20].data||[];S.listItems=r[21].data||[];S.itemState=r[22].data||[];
+  S.videos=r[23].data||[];S.docs=r[24].data||[];
   return !!S.player;
 }
 
@@ -238,32 +288,69 @@ function ratingColor(v){if(v==null)return 'rgba(255,255,255,.2)';
 const dEl=d=>d==null?'':`<span class="delta ${d>0?'up':d<0?'down':'flat'}">${d>0?'▲'+d:d<0?'▼'+Math.abs(d):'–'}</span>`;
 
 /* ---------- assigned + messages for this player ---------- */
+const PLAYBOOK_CATS=[
+  {key:'standards',label:'Team Standards',icon:'🏅',desc:'How we carry ourselves.'},
+  {key:'terminology',label:'Terminology',icon:'📖',desc:'What we mean when we yell it.'},
+  {key:'defensive_calls',label:'Defensive Calls',icon:'📣',desc:'What to say and when to say it.'},
+  {key:'defensive_sets',label:'Defensive Sets',icon:'🛡️',desc:'Our defensive looks.'},
+  {key:'offensive_sets',label:'Offensive Sets',icon:'⚔️',desc:'Our offensive sets.'}
+];
+function vidUrl(v){return v.youtube_id?('https://www.youtube.com/watch?v='+v.youtube_id):null;}
+/* one shape for a drill or a Warriors training video */
+function asMedia(x,kind){
+  return kind==='video'
+    ? {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary,
+       url:vidUrl(x), tags:x.tags||[], cat:x.category}
+    : {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description,
+       url:x.video_url, tags:x.tags||[], cat:x.kind||'drill'};
+}
 function listDrills(lid){return S.listItems.filter(i=>i.list_id===lid)
   .sort((a,b)=>(a.order_idx??0)-(b.order_idx??0))
   .map(i=>S.drills.find(d=>d.id===i.drill_id)).filter(Boolean);}
-function myDrills(){
+function myMedia(){
   const p=S.player; if(!p)return[];
   const gids=S.members.filter(m=>m.player_id===p.id).map(m=>m.group_id);
   const mine=S.assigns.filter(a=>a.scope==='all'
     ||(a.scope==='grade'&&+a.scope_value===+p.grade)
     ||(a.scope==='group'&&gids.includes(a.scope_value))
     ||(a.scope==='player'&&a.scope_value===p.id));
-  const ids=new Set();
-  mine.forEach(a=>{ if(a.drill_id) ids.add(a.drill_id);
-    if(a.list_id) listDrills(a.list_id).forEach(d=>ids.add(d.id)); });
-  // videos referenced by a to-do also show up
-  S.tasks.filter(t=>t.player_id===p.id&&t.drill_id).forEach(t=>ids.add(t.drill_id));
-  return S.drills.filter(d=>ids.has(d.id));
+  const dids=new Set(), vids=new Set();
+  mine.forEach(a=>{
+    if(a.drill_id) dids.add(a.drill_id);
+    if(a.video_id) vids.add(a.video_id);
+    if(a.list_id) S.listItems.filter(i=>i.list_id===a.list_id).forEach(i=>{
+      if(i.drill_id)dids.add(i.drill_id); if(i.video_id)vids.add(i.video_id);});
+  });
+  S.tasks.filter(t=>t.player_id===p.id).forEach(t=>{
+    if(t.drill_id)dids.add(t.drill_id); if(t.video_id)vids.add(t.video_id);});
+  return [
+    ...S.drills.filter(d=>dids.has(d.id)).map(d=>asMedia(d,'drill')),
+    ...S.videos.filter(v=>vids.has(v.id)).map(v=>asMedia(v,'video'))
+  ];
 }
-function hasWatched(did){const st=S.itemState.find(x=>x.player_id===S.player.id&&x.drill_id===did);
-  return !!st&&(st.status==='watched'||st.status==='done');}
-function taskDone(t){return t.done||(t.auto_on_watch&&t.drill_id&&hasWatched(t.drill_id));}
-async function markWatched(did){
-  if(!S.player||hasWatched(did))return;
-  const row={player_id:S.player.id,drill_id:did,status:'watched',completed_at:new Date().toISOString()};
-  const {data}=await sb.from('pd_item_state').upsert(row,{onConflict:'drill_id,player_id'}).select().single();
-  const ex=S.itemState.find(x=>x.player_id===S.player.id&&x.drill_id===did);
-  if(ex)Object.assign(ex,row); else S.itemState.push(data||row);
+function mediaByCat(cat){return myMedia().filter(m=>cat==='drill'?!['practice','gamebreakdown'].includes(m.cat):m.cat===cat);}
+function hasWatchedMid(mid){
+  if(!S.player||!mid)return false;
+  const [k,id]=String(mid).split(':');
+  const st=S.itemState.find(x=>x.player_id===S.player.id&&(k==='v'?x.video_id===id:x.drill_id===id));
+  return !!st&&(st.status==='watched'||st.status==='done');
+}
+const hasWatched=did=>hasWatchedMid('d:'+did);
+function taskDone(t){
+  if(t.done)return true;
+  if(!t.auto_on_watch)return false;
+  if(t.drill_id)return hasWatchedMid('d:'+t.drill_id);
+  if(t.video_id)return hasWatchedMid('v:'+t.video_id);
+  return false;
+}
+async function markWatched(mid){
+  if(!S.player||!mid||hasWatchedMid(mid))return;
+  const [k,id]=String(mid).split(':');
+  const row={player_id:S.player.id,status:'watched',completed_at:new Date().toISOString()};
+  if(k==='v')row.video_id=id; else row.drill_id=id;
+  const {data}=await sb.from('pd_item_state')
+    .upsert(row,{onConflict:k==='v'?'video_id,player_id':'drill_id,player_id'}).select().single();
+  S.itemState.push(data||row);
   renderPortal(); flag('✓ Marked watched');
 }
 function myMessages(){
@@ -310,126 +397,277 @@ function renderGate(msg){
 }
 function renderPortal(){
   const p=S.player; const {ovr,ratings}=ovrOf(p.id);
-  const gains=[];
-  activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
-    if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
-      gains.push({t,from:+pr.value,to:+cur.value,better:t.lower_is_better?d<0:d>0});}});
-  const drills=myDrills(), msgs=myMessages();
+  const media=myMedia();
+  const nPractice=media.filter(m=>m.cat==='practice').length;
+  const nBreak=media.filter(m=>m.cat==='gamebreakdown').length;
+  const nDrill=media.filter(m=>!['practice','gamebreakdown'].includes(m.cat)).length;
   const objs=S.objectives.filter(o=>o.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
   const tks=S.tasks.filter(t=>t.player_id===p.id).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
   const objDone=objs.filter(o=>o.done).length, tkDone=tks.filter(taskDone).length;
-  const ln=S.stats.filter(s=>s.player_id===p.id);
-  const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
-  const f=v=>(Math.round(v*10)/10).toFixed(1);
+  const msgs=myMessages();
+  const openTk=tks.length-tkDone;
 
-  $('app').innerHTML=`
-  <div class="bar"><div class="bar-in">
-    <div class="badge">${paw(20)}</div>
-    <div class="bname"><b>JAGUARS</b><span>Athlete Portal</span></div>
-    <button class="out" id="signout">Sign out</button>
-  </div></div>
-  <div class="wrap">
-    <div class="hero ${ovr>=90?'elite':''}">
-      <div class="hero-top">
-        <div class="jersey">${p.number??'–'}</div>
-        <div style="min-width:0"><div class="pname">${esc(p.name)}</div>
-          <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(String(p.height)):''}</div></div>
-        <div class="ovrbox"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b>
-          <span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
-      </div>
-      <div class="bars">${activeAttrs().map(a=>{const v=ratings[a.key]?.rating;
-        return `<div class="brow"><span class="blab">${esc(a.label)}</span>
-          <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
-          <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
-    </div>
-    <p style="color:var(--tx-d);font-size:.78rem;margin:-6px 2px 4px">Ratings are 0–100 and compare athletes <b>within their own grade level</b>. Growth over time matters more than the number.</p>
+  const NAV=[
+    {key:'home',label:'Home',icon:'🏠'},
+    {key:'work',label:'My Work',icon:'🎯',badge:openTk||null},
+    {key:'practice',label:'Practice',icon:'🏀',badge:nPractice||null},
+    {key:'breakdown',label:'Breakdown',icon:'🎬',badge:nBreak||null},
+    {key:'playbook',label:'Playbook',icon:'📘'},
+    {key:'messages',label:'Coach',icon:'💬',badge:msgs.length||null}
+  ];
+  const v=S.view||'home';
 
-    ${gains.length?`<div class="sec"><h2>PROGRESS</h2><div class="rule"></div></div>
-      <div class="note"><div class="note-h">Improvement since last test</div>
-        ${gains.map(x=>`<span class="chip">${esc(x.t.label)} <b style="color:${x.better?'#5ee6a0':'#ff8f6b'}">${x.from} → ${x.to}</b></span>`).join('')}
-      </div>`:''}
+  $('app').innerHTML=
+  '<div class="bar"><div class="bar-in">'+
+    '<div class="badge">'+paw(20)+'</div>'+
+    '<div class="bname"><b>JAGUARS</b><span>'+esc(p.name)+'</span></div>'+
+    '<button class="out" id="signout">Sign out</button>'+
+  '</div></div>'+
+  '<div class="topnav"><div class="topnav-in">'+
+    NAV.map(n=>'<button class="nlink '+(v===n.key?'on':'')+'" data-view="'+n.key+'">'+
+      '<span class="nico">'+n.icon+'</span>'+n.label+
+      (n.badge?'<span class="nbadge">'+n.badge+'</span>':'')+'</button>').join('')+
+  '</div></div>'+
+  '<div class="wrap">'+(
+      v==='home'?secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill)
+    : v==='work'?secWork(objs,tks,objDone,tkDone)
+    : v==='practice'?secVideos('practice','Practice','Clips from our practices.')
+    : v==='breakdown'?secVideos('gamebreakdown','Game Breakdown','Film breakdowns from our games.')
+    : v==='playbook'?secPlaybook()
+    : secMessages(msgs)
+  )+'</div>';
 
-    ${objs.length?`<div class="sec"><h2>OBJECTIVES</h2><div class="rule"></div>
-        <span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">${objDone}/${objs.length}</span></div>
-      <div class="btrack" style="margin:0 2px 13px"><i class="bfill" style="width:${objs.length?Math.round(100*objDone/objs.length):0}%;background:${objDone===objs.length?'#5ee6a0':'var(--pur)'}"></i></div>
-      ${objs.map(o=>`<div class="note" style="${o.done?'border-color:rgba(94,230,160,.35)':''}">
-        <div style="display:flex;gap:12px;align-items:flex-start">
-          <span class="chkro ${o.done?'on':''}">${o.done?'✓':''}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:800;${o.done?'color:var(--tx-m);text-decoration:line-through':''}">${esc(o.title)}</div>
-            ${o.detail?`<div style="color:var(--tx-m);font-size:.87rem;margin-top:4px;white-space:pre-line">${esc(o.detail)}</div>`:''}
-            <div style="margin-top:7px">${o.due_date?`<span class="chip">target ${esc(String(o.due_date))}</span>`:''}${o.done?'<span class="chip" style="color:#5ee6a0">done</span>':''}</div>
-          </div></div></div>`).join('')}
-      <p style="color:var(--tx-d);font-size:.76rem;margin:-2px 2px 4px">Only your coach can tick these off.</p>`:''}
-
-    ${tks.length?`<div class="sec"><h2>TO-DO</h2><div class="rule"></div>
-        <span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">${tkDone}/${tks.length}</span></div>
-      ${tks.map(t=>{const d=taskDone(t);const dr=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
-        return `<div class="note" style="${d?'border-color:rgba(94,230,160,.35)':''}">
-        <div style="display:flex;gap:12px;align-items:flex-start">
-          <span class="chkro ${d?'on':''}">${d?'✓':''}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:800;${d?'color:var(--tx-m);text-decoration:line-through':''}">${esc(t.title)}</div>
-            <div style="margin-top:7px">${t.due_date?`<span class="chip">due ${esc(String(t.due_date))}</span>`:''}
-              ${dr?`<span class="chip">🎬 ${esc(dr.name)}</span>`:''}
-              ${(!d&&dr)?'<span class="chip" style="color:var(--pur-br)">watch the video to check this off</span>':''}</div>
-          </div></div>
-        ${dr?videoEmbed(dr.video_url,dr.id):''}
-        ${(dr&&!d)?`<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="${dr.id}">✓ I watched it</button>`:''}
-      </div>`;}).join('')}`:''}
-
-    <div class="sec"><h2>WORK ON THIS</h2><div class="rule"></div></div>
-    ${drills.length?drills.map(d=>`<div class="note">
-        <div style="display:flex;gap:9px;align-items:flex-start">
-          <b style="font-size:1rem;flex:1">${esc(d.name)}</b>
-          ${hasWatched(d.id)?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':''}
-        </div>
-        ${(d.tags&&d.tags.length)?`<div style="margin-top:6px">${d.tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
-        ${d.description?`<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">${esc(d.description)}</div>`:''}
-        ${videoEmbed(d.video_url,d.id)}
-        ${(d.video_url&&!hasWatched(d.id))?`<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="${d.id}">✓ I watched it</button>`:''}
-      </div>`).join(''):`<div class="empty">Nothing assigned yet — your coach will add drills here.</div>`}
-
-    ${g?`<div class="sec"><h2>SEASON STATS</h2><div class="rule"></div></div>
-      <div class="statgrid">
-        <div class="stat"><b>${g}</b><span>GP</span></div>
-        <div class="stat"><b>${f(sum('pts')/g)}</b><span>PPG</span></div>
-        <div class="stat"><b>${f((sum('oreb')+sum('dreb'))/g)}</b><span>RPG</span></div>
-        <div class="stat"><b>${f(sum('ast')/g)}</b><span>APG</span></div>
-        <div class="stat"><b>${f(sum('stl')/g)}</b><span>SPG</span></div>
-        <div class="stat"><b>${sum('fga')?f(100*sum('fgm')/sum('fga'))+'%':'–'}</b><span>FG%</span></div>
-      </div>`:''}
-
-    <div class="sec"><h2>FROM YOUR COACH</h2><div class="rule"></div></div>
-    ${msgs.length?msgs.map(c=>{
-      const reps=S.replies.filter(r=>r.comment_id===c.id&&r.player_id===p.id)
-        .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
-      return `<div class="note">
-        <div><span class="msg-from">${esc(c.author_name||'Coach')}</span>
-          <span class="msg-date">${esc(String(c.created_at||'').slice(0,10))}</span></div>
-        <div style="margin-top:7px;color:var(--tx-s);white-space:pre-line">${esc(c.body)}</div>
-        ${reps.map(r=>`<div class="reply"><b style="font-size:.78rem;color:var(--pur-br)">${esc(r.author_name||'You')}</b>
-          <div style="color:var(--tx-s);font-size:.87rem">${esc(r.body)}</div></div>`).join('')}
-        <div style="margin-top:11px">
-          <textarea class="inp" rows="2" placeholder="Reply to your coach…" data-rep="${c.id}"></textarea>
-          <button class="btn btn-g btn-s" style="margin-top:7px" data-send="${c.id}">Send reply</button>
-        </div>
-      </div>`}).join(''):`<div class="empty">No messages yet.</div>`}
-  </div>`;
-
+  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{
+    S.view=b.dataset.view;S.openDoc=null;S.openCat=null;renderPortal();window.scrollTo(0,0);});
   document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>markWatched(b.dataset.watch));
   document.querySelectorAll('[data-openvid]').forEach(a=>a.onclick=()=>setTimeout(()=>markWatched(a.dataset.openvid),1200));
+  document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{S.openCat=b.dataset.cat;renderPortal();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-doc]').forEach(b=>b.onclick=()=>{S.openDoc=b.dataset.doc;renderPortal();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{
+    if(S.openDoc)S.openDoc=null; else S.openCat=null; renderPortal();window.scrollTo(0,0);});
+  document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{S.view=b.dataset.goto;renderPortal();window.scrollTo(0,0);});
   attachWatchDetection();
-  $('signout').onclick=()=>{try{localStorage.removeItem(KEY);}catch(e){} S.player=null; renderGate();};
+  $('signout').onclick=()=>{try{localStorage.removeItem(KEY);}catch(e){} S.player=null; S.view='home'; renderGate();};
   document.querySelectorAll('[data-send]').forEach(b=>b.onclick=async()=>{
     const cid=b.dataset.send;
-    const ta=document.querySelector(`[data-rep="${cid}"]`);
+    const ta=document.querySelector('[data-rep="'+cid+'"]');
     const body=ta.value.trim(); if(!body)return;
     const row={comment_id:cid,player_id:S.player.id,author_name:S.player.name+"'s parent",body};
     const {data}=await sb.from('pd_replies').insert(row).select().single();
     S.replies.push(data||Object.assign({id:'tmp'+Date.now()},row,{created_at:new Date().toISOString()}));
     ta.value=''; renderPortal(); flag('Reply sent');
   });
+}
+
+/* ---------- sections ---------- */
+function secHome(p,ovr,ratings,objs,tks,objDone,tkDone,nPractice,nBreak,nDrill){
+  const gains=[];
+  activeTests().forEach(t=>{const cur=latestResult(p.id,t.key),pr=priorResult(p.id,t.key);
+    if(cur&&pr&&+cur.value!==+pr.value){const d=+cur.value-+pr.value;
+      gains.push({t,from:+pr.value,to:+cur.value,better:t.lower_is_better?d<0:d>0});}});
+  const ln=S.stats.filter(x=>x.player_id===p.id);
+  const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
+  const f=x=>(Math.round(x*10)/10).toFixed(1);
+  return '<div class="hero '+(ovr>=90?'elite':'')+'">'+
+      '<div class="hero-top">'+
+        '<div class="jersey">'+(p.number==null?'–':p.number)+'</div>'+
+        '<div style="min-width:0"><div class="pname">'+esc(p.name)+'</div>'+
+          '<div class="pmeta">Grade '+(p.grade==null?'–':p.grade)+(p.height?' · '+esc(String(p.height)):'')+'</div></div>'+
+        '<div class="ovrbox"><b style="color:'+ratingColor(ovr)+'">'+(ovr==null?'–':ovr)+'</b>'+
+          '<span>OVR'+dEl(deltaFor(p.id,'ovr',ovr))+'</span></div>'+
+      '</div>'+
+      '<div class="bars">'+activeAttrs().map(a=>{const val=ratings[a.key]?ratings[a.key].rating:null;
+        return '<div class="brow"><span class="blab">'+esc(a.label)+'</span>'+
+          '<span class="btrack"><i class="bfill" style="width:'+(val==null?0:val)+'%;background:'+ratingColor(val)+'"></i></span>'+
+          '<span class="bval" style="color:'+ratingColor(val)+'">'+(val==null?'–':val)+'</span></div>';}).join('')+'</div>'+
+    '</div>'+
+    '<p style="color:var(--tx-d);font-size:.78rem;margin:-6px 2px 6px">Ratings are 0–100 compared with athletes <b>in the same grade</b>. Growth matters more than the number.</p>'+
+    '<div class="tiles">'+
+      tile('work','🎯','My Work',(objs.length+tks.length)?((objDone+tkDone)+'/'+(objs.length+tks.length)+' done'):'Nothing yet')+
+      tile('practice','🏀','Practice',nPractice?nPractice+' video'+(nPractice===1?'':'s'):'None yet')+
+      tile('breakdown','🎬','Breakdown',nBreak?nBreak+' video'+(nBreak===1?'':'s'):'None yet')+
+      tile('playbook','📘','Playbook',S.docs.length+' pages')+
+    '</div>'+
+    (gains.length?'<div class="sec"><h2>PROGRESS</h2><div class="rule"></div></div>'+
+      '<div class="note"><div class="note-h">Improvement since last test</div>'+
+        gains.map(x=>'<span class="chip">'+esc(x.t.label)+' <b style="color:'+(x.better?'#5ee6a0':'#ff8f6b')+'">'+x.from+' → '+x.to+'</b></span>').join('')+'</div>':'')+
+    (g?'<div class="sec"><h2>SEASON STATS</h2><div class="rule"></div></div>'+
+      '<div class="statgrid">'+
+        '<div class="stat"><b>'+g+'</b><span>GP</span></div>'+
+        '<div class="stat"><b>'+f(sum('pts')/g)+'</b><span>PPG</span></div>'+
+        '<div class="stat"><b>'+f((sum('oreb')+sum('dreb'))/g)+'</b><span>RPG</span></div>'+
+        '<div class="stat"><b>'+f(sum('ast')/g)+'</b><span>APG</span></div>'+
+        '<div class="stat"><b>'+f(sum('stl')/g)+'</b><span>SPG</span></div>'+
+        '<div class="stat"><b>'+(sum('fga')?f(100*sum('fgm')/sum('fga'))+'%':'–')+'</b><span>FG%</span></div>'+
+      '</div>':'');
+}
+function tile(goto,icon,label,sub){
+  return '<button class="tile" data-goto="'+goto+'">'+
+    '<span class="tico">'+icon+'</span>'+
+    '<span class="tlab">'+label+'</span>'+
+    '<span class="tsub">'+esc(sub)+'</span></button>';
+}
+function secWork(objs,tks,objDone,tkDone){
+  return '<div class="sec"><h2>OBJECTIVES</h2><div class="rule"></div>'+
+      '<span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">'+objDone+'/'+objs.length+'</span></div>'+
+    (objs.length?'<div class="btrack" style="margin:0 2px 13px"><i class="bfill" style="width:'+(objs.length?Math.round(100*objDone/objs.length):0)+'%;background:'+(objDone===objs.length?'#5ee6a0':'var(--pur)')+'"></i></div>'+
+      objs.map(o=>'<div class="note" style="'+(o.done?'border-color:rgba(94,230,160,.35)':'')+'">'+
+        '<div style="display:flex;gap:12px;align-items:flex-start">'+
+          '<span class="chkro '+(o.done?'on':'')+'">'+(o.done?'✓':'')+'</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:800;'+(o.done?'color:var(--tx-m);text-decoration:line-through':'')+'">'+esc(o.title)+'</div>'+
+            (o.detail?'<div style="color:var(--tx-m);font-size:.87rem;margin-top:4px;white-space:pre-line">'+esc(o.detail)+'</div>':'')+
+            '<div style="margin-top:7px">'+(o.due_date?'<span class="chip">target '+esc(String(o.due_date))+'</span>':'')+(o.done?'<span class="chip" style="color:#5ee6a0">done</span>':'')+'</div>'+
+          '</div></div></div>').join('')+
+      '<p style="color:var(--tx-d);font-size:.76rem;margin:-2px 2px 4px">Only your coach can tick these off.</p>'
+      :'<div class="empty">No objectives yet.</div>')+
+    '<div class="sec"><h2>TO-DO</h2><div class="rule"></div>'+
+      '<span style="font-size:.76rem;font-weight:800;color:var(--pur-br)">'+tkDone+'/'+tks.length+'</span></div>'+
+    (tks.length?tks.map(t=>{const d=taskDone(t);
+      const rawV=t.video_id?S.videos.find(x=>x.id===t.video_id):null;
+      const rawD=t.drill_id?S.drills.find(x=>x.id===t.drill_id):null;
+      const m=rawV?asMedia(rawV,'video'):(rawD?asMedia(rawD,'drill'):null);
+      return '<div class="note" style="'+(d?'border-color:rgba(94,230,160,.35)':'')+'">'+
+        '<div style="display:flex;gap:12px;align-items:flex-start">'+
+          '<span class="chkro '+(d?'on':'')+'">'+(d?'✓':'')+'</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:800;'+(d?'color:var(--tx-m);text-decoration:line-through':'')+'">'+esc(t.title)+'</div>'+
+            '<div style="margin-top:7px">'+(t.due_date?'<span class="chip">due '+esc(String(t.due_date))+'</span>':'')+
+              (m?'<span class="chip">🎬 '+esc(m.name)+'</span>':'')+
+              ((!d&&m)?'<span class="chip" style="color:var(--pur-br)">watch it to check this off</span>':'')+'</div>'+
+          '</div></div>'+
+        (m?videoEmbed(m.url,m.mid):'')+
+        ((m&&!d)?'<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="'+m.mid+'">✓ I watched it</button>':'')+
+      '</div>';}).join(''):'<div class="empty">Nothing to do right now.</div>');
+}
+function secVideos(cat,title,blurb){
+  const items=myMedia().filter(m=>m.cat===cat);
+  const extra=cat==='practice'?myMedia().filter(m=>!['practice','gamebreakdown'].includes(m.cat)):[];
+  const all=items.concat(extra);
+  return '<div class="sec"><h2>'+title.toUpperCase()+'</h2><div class="rule"></div>'+
+      '<span style="font-size:.76rem;color:var(--tx-d)">'+all.length+'</span></div>'+
+    '<p style="color:var(--tx-m);font-size:.88rem;margin:-6px 2px 14px">'+blurb+'</p>'+
+    (all.length?all.map(m=>'<div class="note">'+
+        '<div style="display:flex;gap:9px;align-items:flex-start">'+
+          '<b style="font-size:1rem;flex:1">'+esc(m.name)+'</b>'+
+          (hasWatchedMid(m.mid)?'<span class="chip" style="color:#5ee6a0">✓ watched</span>':'')+
+        '</div>'+
+        ((m.tags&&m.tags.length)?'<div style="margin-top:6px">'+m.tags.slice(0,4).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>':'')+
+        (m.desc?'<div style="margin-top:8px;color:var(--tx-s);font-size:.88rem;white-space:pre-line">'+esc(m.desc)+'</div>':'')+
+        videoEmbed(m.url,m.mid)+
+        ((m.url&&!hasWatchedMid(m.mid))?'<button class="btn btn-g btn-s" style="margin-top:9px" data-watch="'+m.mid+'">✓ I watched it</button>':'')+
+      '</div>').join(''):'<div class="empty">Nothing assigned here yet — your coach will add videos.</div>');
+}
+function secPlaybook(){
+  if(S.openDoc){
+    const d=S.docs.find(x=>x.id===S.openDoc);
+    if(!d){S.openDoc=null;return secPlaybook();}
+    return '<button class="btn btn-g btn-s" data-back>← Back</button>'+
+      '<div class="sec" style="margin-top:14px"><h2>'+esc(d.title)+'</h2><div class="rule"></div></div>'+
+      (d.summary?'<p style="color:var(--tx-m);margin:-6px 2px 14px">'+esc(d.summary)+'</p>':'')+
+      '<div class="doc">'+docHTML(d.body||'')+'</div>';
+  }
+  if(S.openCat){
+    const c=PLAYBOOK_CATS.find(x=>x.key===S.openCat)||{label:'Playbook'};
+    const ds=S.docs.filter(d=>d.sub_cat===S.openCat).sort((a,b)=>(a.order_idx||0)-(b.order_idx||0));
+    return '<button class="btn btn-g btn-s" data-back>← Back</button>'+
+      '<div class="sec" style="margin-top:14px"><h2>'+esc(c.label).toUpperCase()+'</h2><div class="rule"></div></div>'+
+      (ds.length?ds.map(d=>docRow(d)).join(''):'<div class="empty">Nothing here yet.</div>');
+  }
+  const cats=PLAYBOOK_CATS.filter(c=>S.docs.some(d=>d.sub_cat===c.key));
+  const other=S.docs.filter(d=>!PLAYBOOK_CATS.some(c=>c.key===d.sub_cat));
+  return '<div class="sec"><h2>PLAYBOOK</h2><div class="rule"></div></div>'+
+    '<p style="color:var(--tx-m);font-size:.88rem;margin:-6px 2px 14px">Everything we run, in your pocket.</p>'+
+    '<div class="tiles">'+cats.map(c=>{const n=S.docs.filter(d=>d.sub_cat===c.key).length;
+      return '<button class="tile" data-cat="'+c.key+'">'+
+      '<span class="tico">'+c.icon+'</span><span class="tlab">'+c.label+'</span>'+
+      '<span class="tsub">'+n+' page'+(n===1?'':'s')+'</span></button>';}).join('')+'</div>'+
+    (other.length?'<div class="sec"><h2 style="font-size:1rem">MORE</h2><div class="rule"></div></div>'+other.map(docRow).join(''):'');
+}
+function docRow(d){
+  return '<button class="docrow" data-doc="'+d.id+'">'+
+    '<span style="flex:1;min-width:0;text-align:left">'+
+      '<span class="docttl">'+esc(d.title)+'</span>'+
+      (d.summary?'<span class="docsum">'+esc(d.summary)+'</span>':'')+
+    '</span><span class="docgo">Read →</span></button>';
+}
+/* Renders the playbook bodies the coaching staff actually write:
+   ALL-CAPS section headers, numbered TERM lines with an indented definition
+   underneath, quotes, bullets, and plain paragraphs. */
+function docHTML(body){
+  const raw=String(body||'').replace(/\r/g,'').split('\n');
+  const inline=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>');
+  let out='',inList=false,inDefs=false;
+  const closeList=()=>{if(inList){out+='</ul>';inList=false;}};
+  const closeDefs=()=>{if(inDefs){out+='</div>';inDefs=false;}};
+  const closeAll=()=>{closeList();closeDefs();};
+  const isCapsHead=t=>/^[A-Z0-9][A-Z0-9 '’&/\-—,!?.()]*$/.test(t)&&t.length<=64&&/[A-Z]{2}/.test(t);
+
+  for(let i=0;i<raw.length;i++){
+    const line=raw[i];
+    const t=line.trim();
+    if(!t){continue;}
+
+    // markdown heading
+    const h=t.match(/^(#{1,3})\s+(.*)$/);
+    if(h){closeAll();out+='<h3>'+inline(h[2])+'</h3>';continue;}
+
+    // numbered term, e.g.  1. BALL!   with an indented definition on the next line
+    const num=t.match(/^(\d+)[.)]\s+(.*)$/);
+    if(num){
+      closeList();
+      if(!inDefs){out+='<div class="defs">';inDefs=true;}
+      let desc='';
+      const nxt=raw[i+1];
+      if(nxt&&nxt.trim()&&/^\s{2,}/.test(nxt)&&!/^\s*\d+[.)]/.test(nxt)){desc=nxt.trim();i++;}
+      out+='<div class="def"><span class="defn">'+num[1]+'</span><div><div class="deft">'+inline(num[2])+'</div>'+
+        (desc?'<div class="defd">'+inline(desc)+'</div>':'')+'</div></div>';
+      continue;
+    }
+
+    // bullets
+    const li=t.match(/^[-*•]\s+(.*)$/);
+    if(li){closeDefs();if(!inList){out+='<ul>';inList=true;}out+='<li>'+inline(li[1])+'</li>';continue;}
+
+    // pull-quote
+    if(/^[“"']/.test(t)){closeAll();out+='<blockquote>'+inline(t.replace(/^[“"']|[”"']$/g,''))+'</blockquote>';continue;}
+
+    // ALL CAPS section header
+    if(isCapsHead(t)){closeAll();out+='<h3>'+inline(t)+'</h3>';continue;}
+
+    // "Term — definition" on one line (e.g. Push — Fast break)
+    const dash=t.match(/^(.{2,32}?)\s+[—–]\s+(.+)$/)||t.match(/^(.{2,32}?)\s+-\s+(.+)$/);
+    if(dash&&!/[.!?:]$/.test(dash[1])){
+      closeList();
+      if(!inDefs){out+='<div class="defs">';inDefs=true;}
+      out+='<div class="def"><span class="defn">•</span><div><div class="deft">'+inline(dash[1])+'</div>'+
+        '<div class="defd">'+inline(dash[2])+'</div></div></div>';
+      continue;
+    }
+
+    closeAll();out+='<p>'+inline(t)+'</p>';
+  }
+  closeAll();
+  return out||'<p style="color:var(--tx-d)">Nothing written yet.</p>';
+}
+
+function secMessages(msgs){
+  const p=S.player;
+  return '<div class="sec"><h2>FROM YOUR COACH</h2><div class="rule"></div></div>'+
+    (msgs.length?msgs.map(c=>{
+      const reps=S.replies.filter(r=>r.comment_id===c.id&&r.player_id===p.id)
+        .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+      return '<div class="note">'+
+        '<div><span class="msg-from">'+esc(c.author_name||'Coach')+'</span>'+
+          '<span class="msg-date">'+esc(String(c.created_at||'').slice(0,10))+'</span></div>'+
+        '<div style="margin-top:7px;color:var(--tx-s);white-space:pre-line">'+esc(c.body)+'</div>'+
+        reps.map(r=>'<div class="reply"><b style="font-size:.78rem;color:var(--pur-br)">'+esc(r.author_name||'You')+'</b>'+
+          '<div style="color:var(--tx-s);font-size:.87rem">'+esc(r.body)+'</div></div>').join('')+
+        '<div style="margin-top:11px">'+
+          '<textarea class="inp" rows="2" placeholder="Reply to your coach…" data-rep="'+c.id+'"></textarea>'+
+          '<button class="btn btn-g btn-s" style="margin-top:7px" data-send="'+c.id+'">Send reply</button>'+
+        '</div>'+
+      '</div>';}).join(''):'<div class="empty">No messages yet.</div>');
 }
 
 /* ---------- auto watch detection ---------- */
