@@ -146,6 +146,16 @@
   .chip b{color:var(--gold-br)}
   .tag{font-size:.64rem;font-weight:800;padding:3px 9px;border-radius:999px;background:rgba(227,174,51,.10);
     border:1px solid rgba(227,174,51,.28);color:var(--gold-br)}
+  .thumb{position:relative;width:78px;height:46px;border-radius:8px;overflow:hidden;flex-shrink:0;
+    border:1px solid var(--line);background:#000;display:block;padding:0;cursor:pointer;transition:.14s}
+  .thumb:hover{border-color:var(--pur);transform:scale(1.04)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb-play{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:.9rem;
+    text-shadow:0 2px 6px #000;background:rgba(0,0,0,.18)}
+  .thumb.noimg{display:grid;place-items:center;color:var(--tx-d);font-size:1rem;background:var(--card2)}
+  .thumb.noimg.empty{cursor:default;border-style:dashed}
+  .pv{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}
+  .pv iframe,.pv video{position:absolute;inset:0;width:100%;height:100%;border:0}
   .chkbox{width:26px;height:26px;flex-shrink:0;border-radius:8px;border:2px solid var(--line);
     background:rgba(255,255,255,.03);color:#fff;font-weight:900;font-size:.95rem;display:grid;place-items:center;transition:.14s}
   .chkbox:hover{border-color:var(--pur)}
@@ -483,9 +493,9 @@ function vAssign(){
       ${S.groups.map(g=>`<span class="chip" style="border-color:${g.color}55"><b style="color:${g.color}">${esc(g.name)}</b> ${S.members.filter(m=>m.group_id===g.id).length}</span>`).join('')}
     </div>
     ${lib.length?`<div class="wrap"><div class="scroll"><table>
-      <thead><tr><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
+      <thead><tr><th></th><th class="l">Item</th><th>Kind</th><th>Tags</th><th>Assigned to</th><th></th></tr></thead><tbody>
       ${lib.map(d=>{const as=S.assigns.filter(a=>d.did?a.drill_id===d.did:a.video_id===d.vid);
-        return `<tr><td><div class="cell l"><b>${esc(d.name)}</b>
+        return `<tr><td><div class="cell" style="padding:6px 4px 6px 10px">${thumbCell(d)}</div></td><td><div class="cell l"><b>${esc(d.name)}</b>
             ${d.desc?`<div style="color:var(--tx-d);font-size:.8em;font-weight:500;max-width:340px">${esc(String(d.desc).slice(0,90))}${String(d.desc).length>90?'…':''}</div>`:''}</div></td>
           <td><div class="cell"><span class="chip">${esc(CAT_LABEL[d.cat]||d.cat||'drill')}</span></div></td>
           <td><div class="cell">${(d.tags||[]).slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join(' ')||'<span style="color:var(--tx-d)">–</span>'}</div></td>
@@ -1018,10 +1028,66 @@ function scopeToPlayers(scope,val){
 
 /* one shape for a local drill or a Warriors training video */
 function vidUrl(v){return v.youtube_id?('https://www.youtube.com/watch?v='+v.youtube_id):null;}
+function ytId(u){const m=String(u||'').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
 function asMedia(x,kind){
-  return kind==='video'
-    ? {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary, url:vidUrl(x), tags:x.tags||[], cat:x.category}
-    : {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description, url:x.video_url, tags:x.tags||[], cat:x.kind||'drill'};
+  if(kind==='video'){
+    const yt=x.youtube_id||null;
+    return {mid:'v:'+x.id, vid:x.id, did:null, name:x.title, desc:x.summary, url:vidUrl(x),
+      tags:x.tags||[], cat:x.category, yt,
+      thumb:x.custom_thumb||(yt?'https://img.youtube.com/vi/'+yt+'/mqdefault.jpg':null)};
+  }
+  const yt=ytId(x.video_url);
+  return {mid:'d:'+x.id, vid:null, did:x.id, name:x.name, desc:x.description, url:x.video_url,
+    tags:x.tags||[], cat:x.kind||'drill', yt,
+    thumb:yt?'https://img.youtube.com/vi/'+yt+'/mqdefault.jpg':null};
+}
+/* small clickable preview square */
+function thumbCell(m){
+  if(m.thumb) return '<button class="thumb" data-preview="'+m.mid+'" title="Preview"><img src="'+esc(m.thumb)+'" alt="" loading="lazy"><span class="thumb-play">▶</span></button>';
+  if(m.url)   return '<button class="thumb noimg" data-preview="'+m.mid+'" title="Preview">▶</button>';
+  return '<span class="thumb noimg empty">–</span>';
+}
+function findMedia(mid){
+  const [k,id]=String(mid).split(':');
+  const raw=k==='v'?S.videos.find(x=>x.id===id):S.drills.find(x=>x.id===id);
+  return raw?asMedia(raw,k==='v'?'video':'drill'):null;
+}
+function previewModal(mid){
+  const m=findMedia(mid); if(!m)return;
+  let body='';
+  if(m.yt) body='<div class="pv"><iframe src="https://www.youtube.com/embed/'+m.yt+'?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen title="preview"></iframe></div>';
+  else if(m.url&&/\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(m.url)) body='<div class="pv"><video src="'+esc(m.url)+'" controls autoplay playsinline></video></div>';
+  else if(m.url) body='<p class="lead"><a href="'+esc(m.url)+'" target="_blank" rel="noopener" style="color:var(--pur-br);font-weight:800">▶ Open video</a></p>';
+  else body='<p class="lead">No video attached to this item yet.</p>';
+  const isVid=m.mid.startsWith('v:');
+  modal(esc(m.name),
+    body+
+    '<div style="margin-top:12px"><span class="chip">'+esc(CAT_LABEL[m.cat]||m.cat||'drill')+'</span>'+
+    (m.tags||[]).slice(0,6).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div>'+
+    '<div class="sec" style="margin:18px 2px 12px"><h2 style="font-size:1rem">RENAME &amp; EDIT</h2><div class="rule"></div></div>'+
+    '<div class="field"><label>Title</label><input class="inp" id="pv-title" value="'+esc(m.name)+'"></div>'+
+    '<div class="field"><label>Description</label><textarea class="inp" id="pv-desc" rows="3">'+esc(m.desc||'')+'</textarea></div>'+
+    '<div class="field"><label>Tags (comma separated)</label><input class="inp" id="pv-tags" value="'+esc((m.tags||[]).join(', '))+'"></div>'+
+    (isVid?'<p class="lead" style="margin:-4px 2px 12px">This is a Warriors library video — renaming it here also renames it in the Warriors portal.</p>':'')+
+    '<div class="row"><button class="btn btn-g" id="pv-save" style="flex:1">Save changes</button>'+
+    '<button class="btn btn-p" id="pv-assign" style="flex:1">Assign this →</button></div>', true);
+  const a=$('pv-assign'); if(a)a.onclick=()=>{closeModal();assignModal(mid);};
+  $('pv-save').onclick=async()=>{
+    const title=$('pv-title').value.trim(); if(!title)return;
+    const tags=$('pv-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const desc=$('pv-desc').value.trim()||null;
+    const [k,id]=mid.split(':');
+    if(k==='v'){
+      const row={title,summary:desc,tags};
+      const raw=S.videos.find(x=>x.id===id); if(raw)Object.assign(raw,row);
+      await patch('training_videos',id,row);
+    }else{
+      const row={name:title,description:desc,tags};
+      const raw=S.drills.find(x=>x.id===id); if(raw)Object.assign(raw,row);
+      await patch('tryout_drills',id,row);
+    }
+    closeModal(); render(); flag('Renamed');
+  };
 }
 function allMedia(){
   return S.drills.map(d=>asMedia(d,'drill')).concat(S.videos.map(v=>asMedia(v,'video')));
@@ -1057,15 +1123,15 @@ function listEditor(lid){
     '<div class="sec" style="margin-top:13px"><h2 style="font-size:1.3rem">'+esc(l.name)+'</h2><div class="rule"></div>'+
       '<button class="btn btn-p btn-s" data-assignlist="'+lid+'">Assign this list →</button>'+
       '<button class="btn btn-g btn-s btn-dz" data-listdel="'+lid+'">Delete</button></div>'+
-    (items.length?'<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Video</th><th>Kind</th><th></th></tr></thead><tbody>'+
-      items.map(d=>'<tr><td><div class="cell l"><b>'+esc(d.name)+'</b></div></td>'+
+    (items.length?'<div class="wrap"><div class="scroll"><table><thead><tr><th></th><th class="l">Video</th><th>Kind</th><th></th></tr></thead><tbody>'+
+      items.map(d=>'<tr><td><div class="cell" style="padding:6px 4px 6px 10px">'+thumbCell(d)+'</div></td><td><div class="cell l"><b>'+esc(d.name)+'</b></div></td>'+
         '<td><div class="cell"><span class="chip">'+esc(CAT_LABEL[d.cat]||d.cat||'drill')+'</span></div></td>'+
         '<td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-listrm="'+lid+'|'+d.mid+'">Remove</button></div></td></tr>').join('')+
       '</tbody></table></div></div>'
       :'<p class="lead">Empty list — add videos below.</p>')+
     '<div class="sec" style="margin-top:22px"><h2 style="font-size:1.05rem">ADD VIDEOS</h2><div class="rule"></div></div>'+
     '<div class="cards">'+allMedia().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).slice(0,120).map(d=>
-      '<div class="note"><div style="font-weight:800">'+esc(d.name)+'</div>'+
+      '<div class="note">'+thumbCell(d)+'<div style="font-weight:800;margin-top:8px">'+esc(d.name)+'</div>'+
       '<div style="margin-top:5px"><span class="chip">'+esc(CAT_LABEL[d.cat]||d.cat||'drill')+'</span></div>'+
       '<div style="margin-top:8px">'+(inList.has(d.mid)?'<span class="chip" style="color:#5ee6a0">✓ in list</span>'
         :'<button class="btn btn-p btn-s" data-listadd="'+lid+'|'+d.mid+'">＋ Add</button>')+'</div></div>').join('')+'</div>';
@@ -1332,6 +1398,7 @@ function wire(){
   document.querySelectorAll('[data-p]').forEach(el=>el.onclick=()=>playerModal(el.dataset.p));
   document.querySelectorAll('[data-atab]').forEach(b=>b.onclick=()=>{S.adminTab=b.dataset.atab;render();});
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
+  document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
   document.querySelectorAll('[data-acat]').forEach(b=>b.onclick=()=>{S.assignCat=b.dataset.acat;render();});
   document.querySelectorAll('[data-edoc]').forEach(b=>b.onclick=()=>docModal(b.dataset.edoc));
   document.querySelectorAll('[data-eattr]').forEach(b=>b.onclick=()=>attrModal(b.dataset.eattr));
