@@ -352,6 +352,12 @@
 .pstat b{display:block;font-family:var(--disp);font-size:1.02rem;color:#fff;line-height:1.05}
 .pstat span{font-family:var(--cond);font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx-d)}
 .pstat.gold b{color:var(--gold)}
+
+.hw{display:flex;gap:8px}
+.hwbox{position:relative;flex:1;min-width:0}
+.hwbox .hwin{width:100%;padding-right:24px;text-align:center;font-variant-numeric:tabular-nums}
+.hwbox i{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-style:normal;
+  font-family:var(--disp);font-size:.9rem;color:var(--gold);pointer-events:none}
 </style>
 </head>
 <body>
@@ -367,7 +373,7 @@ const sb=createClient(SB_URL,SB_KEY);
 const uuid=()=>'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16)});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
-const GRADES=[3,4,5,6,7,8,9,10];
+const GRADES=[1,2,3,4,5,6,7,8,9,10,11,12];
 
 let DEMO=false, MSG_OK=true, CODES_OK=true, GOALS_OK=true, LISTS_OK=true;
 let SEASON_OK=true, PRACTICE_OK=true, AGOAL_OK=true;
@@ -470,6 +476,51 @@ async function put(table,row,conflict){ if(DEMO)return row;
   if(error){console.error(table,error);return null;} return data; }
 async function patch(table,id,row){ if(DEMO)return; const {error}=await sb.from(table).update(row).eq('id',id); if(error)console.error(error); }
 async function del(table,id){ if(DEMO)return; const {error}=await sb.from(table).delete().eq('id',id); if(error)console.error(error); }
+
+/* ---- height / wingspan: always feet and inches ---- */
+/* accepts 5-4, 5'4", 5' 4", 64in, 64", or a bare number, and normalises it */
+function parseHW(raw){
+  if(raw==null)return null;
+  const t=String(raw).trim(); if(!t)return null;
+  /* inches-only first, otherwise 48in reads as 48 feet */
+  let m=t.match(/^(\d{1,3}(?:\.\d+)?)\s*(?:"|in\b|inch|inches)$/i);
+  if(m) return inchesToHW(+m[1]);
+  m=t.match(/^(\d{1,2})\s*(?:'|ft\b|feet|-|\s)\s*(\d{1,2}(?:\.\d+)?)?\s*(?:"|in\b|inch|inches)?$/i);
+  if(m){
+    const ft=+m[1], inch=m[2]==null?0:+m[2];
+    if(ft<=8 && inch<12) return {ft:ft,inch:inch};
+  }
+  m=t.match(/^(\d{1,3}(?:\.\d+)?)$/);
+  if(m){ const n=+m[1]; return n>=12 ? inchesToHW(n) : {ft:Math.floor(n),inch:Math.round((n%1)*12)}; }
+  return null;
+}
+function inchesToHW(n){ return {ft:Math.floor(n/12), inch:Math.round(n%12)}; }
+function fmtHW(raw){
+  const h=parseHW(raw); if(!h)return raw==null?null:String(raw);
+  return h.ft+String.fromCharCode(39)+h.inch+String.fromCharCode(34);
+}
+
+function hwField(id,label,cur){
+  const h=parseHW(cur)||{ft:'',inch:''};
+  return '<div class="field"><label>'+label+'</label>'+
+    '<div class="hw">'+
+      '<span class="hwbox"><input class="inp hwin" id="'+id+'-ft" inputmode="numeric" maxlength="1" '+
+        'placeholder="–" value="'+(h.ft===''?'':h.ft)+'"><i>'+String.fromCharCode(39)+'</i></span>'+
+      '<span class="hwbox"><input class="inp hwin" id="'+id+'-in" inputmode="numeric" maxlength="2" '+
+        'placeholder="–" value="'+(h.inch===''?'':h.inch)+'"><i>'+String.fromCharCode(34)+'</i></span>'+
+    '</div></div>';
+}
+function hwValue(id){
+  const ftEl=$(id+'-ft'), inEl=$(id+'-in');
+  if(!ftEl||!inEl)return null;
+  const ft=ftEl.value.trim(), inch=inEl.value.trim();
+  if(ft===''&&inch==='')return null;
+  const F=Math.max(0,Math.min(8,+ft||0));
+  let I=Math.max(0,Math.round(+inch||0));
+  const total=F*12+I;
+  const h=inchesToHW(total);
+  return h.ft+String.fromCharCode(39)+h.inch+String.fromCharCode(34);
+}
 
 /* ================= seasons ================= */
 const curSeason=()=>S.seasons.find(x=>x.id===S.seasonId)||null;
@@ -704,7 +755,7 @@ function cardHTML({p,ovr,coverage,ratings}){
       <button class="phbtn" data-photo="${p.id}" title="Set photo">${photoChip(p,46)}</button>
       <div class="jersey">${p.number??'–'}</div>
       <div style="min-width:0"><div class="pname">${esc(p.name)}</div>
-        <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(p.height):''}</div></div>
+        <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(fmtHW(p.height)):''}</div></div>
       <div class="ovr"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b><span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
     </div>
     <div class="bars">${top.map(a=>{const r=ratings[a.key];const v=r.rating;
@@ -1149,8 +1200,8 @@ function playerEditModal(id){
       '<div class="field"><label>Age</label><input class="inp" id="pl-age" inputmode="numeric" value="'+(pl&&pl.age!=null?pl.age:'')+'"></div>'+
     '</div>'+
     '<div class="g3">'+
-      '<div class="field"><label>Height</label><input class="inp" id="pl-h" value="'+(pl&&pl.height?esc(String(pl.height)):'')+'" placeholder="5-2"></div>'+
-      '<div class="field"><label>Wingspan</label><input class="inp" id="pl-w" value="'+(pl&&pl.wingspan?esc(String(pl.wingspan)):'')+'" placeholder="5-4"></div>'+
+      hwField('pl-h','Height',pl&&pl.height)+
+      hwField('pl-w','Wingspan',pl&&pl.wingspan)+
       '<div class="field"><label>Position</label><input class="inp" id="pl-pos" value="'+(pl&&pl.position?esc(String(pl.position)):'')+'" placeholder="SG / SF" list="poslist"></div>'+
     '</div>'+
     '<datalist id="poslist"><option value="PG"><option value="SG"><option value="SF"><option value="PF"><option value="C"></datalist>'+
@@ -1166,8 +1217,8 @@ function playerEditModal(id){
     const row={name,grade:$('pl-grade').value?+$('pl-grade').value:null,
       number:$('pl-num').value===''?null:+$('pl-num').value,
       age:$('pl-age').value===''?null:+$('pl-age').value,
-      height:$('pl-h').value.trim()||null,
-      wingspan:$('pl-w').value.trim()||null,
+      height:hwValue('pl-h'),
+      wingspan:hwValue('pl-w'),
       position:$('pl-pos').value.trim().toUpperCase()||null};
     let pid=pl?pl.id:null;
     if(pl){Object.assign(pl,row); await patch('tryout_players',pl.id,row);}
