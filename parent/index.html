@@ -966,6 +966,35 @@ function shootingFor(pid){
   return out;
 }
 
+/* ---- shooting shown as three lines when the test exists ---- */
+const SHOOT_SUBKEYS={ft:'shoot_ft',mid:'shoot_mid',long:'shoot_long'};
+function shootSubRatings(pid){
+  const sh=shootingFor(pid); if(!sh)return null;
+  const o={};
+  SHOOT_CATS.forEach(function(c){ const x=sh.cats[c[0]]; if(x) o[SHOOT_SUBKEYS[c[0]]]={rating:x.rating,label:x.label,cat:c[0],pct:x.pct,attempts:x.attempts,provisional:x.provisional,capped:x.capped}; });
+  return Object.keys(o).length?o:null;
+}
+/* the attribute list for display: the shooting row splits into its tests when they exist */
+function displayAttrs(pid,attrs){
+  const subs=shootSubRatings(pid), out=[];
+  (attrs||activeAttrs()).forEach(function(a){
+    if(a.key==='shooting'&&subs){ Object.keys(subs).forEach(function(k){ out.push({key:k,label:subs[k].label,weight:a.weight,sub:subs[k],parent:'shooting'}); }); }
+    else out.push({key:a.key,label:a.label,weight:a.weight});
+  });
+  return out;
+}
+/* rating for any display key — a real attribute or one of the shooting sub-keys */
+function ratingOfKey(pid,key,ratings){
+  if(key.indexOf('shoot_')===0){ const subs=shootSubRatings(pid); return subs&&subs[key]?subs[key].rating:null; }
+  const r=ratings?ratings[key]:null; return r&&r.rating!=null?r.rating:null;
+}
+/* what a checkpoint should remember, so growth and compare can read the split later */
+function snapshotAttrs(pid,ratings){
+  const aj={}; Object.keys(ratings).forEach(function(k){ if(ratings[k].rating!=null) aj[k]=ratings[k].rating; });
+  const subs=shootSubRatings(pid); if(subs) Object.keys(subs).forEach(function(k){ aj[k]=subs[k].rating; });
+  return aj;
+}
+
 /* ---------- season / attendance / creed / athlete goals ---------- */
 const seasonName=id=>{const x=S.seasons.find(y=>y.id===id);return x?x.name:'Earlier';};
 const curSeasonName=()=>{const x=S.seasons.find(y=>y.id===S.seasonId);return x?x.name:'This season';};
@@ -1077,8 +1106,8 @@ function heroCard(p,ovr,ratings){
 }
 /* the bar read-out — one row per attribute, easier for a parent than a letter grade */
 function attrBars(p,ratings){
-  return '<div class="attrs">'+activeAttrs().map(function(a){
-      const v=ratings[a.key]?ratings[a.key].rating:null;
+  return '<div class="attrs">'+displayAttrs(p.id).map(function(a){
+      const v=ratingOfKey(p.id,a.key,ratings);
       const d=deltaFor(p.id,a.key,v);
       const col=v==null?'var(--ink-d)':v>=90?'#FFC96B':v>=80?'#fff':v>=70?'#D9CBEF':'#B9A9D6';
       return '<div class="at"><span class="at-l">'+esc(a.label)+'</span>'+pips(v)+
