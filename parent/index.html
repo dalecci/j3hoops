@@ -419,6 +419,66 @@ textarea.tin{resize:vertical;line-height:1.5}
   .k2-photo{width:104px;height:126px}
   .k2-mark{width:140px;right:-20px;bottom:-24px}
 }
+
+/* ---- Home: identity only, no rating ---- */
+.k2-top.solo{grid-template-columns:auto 1fr}
+@media(max-width:640px){.k2-top.solo{grid-template-columns:auto 1fr}}
+
+/* ---- reopen the coach's welcome ---- */
+.wopen{display:block;width:100%;text-align:left;margin-top:14px;
+  background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;color:var(--gold);cursor:pointer;
+  font-family:var(--cond);font-size:1.02rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.wopen:hover{background:rgba(240,168,60,.10);border-color:rgba(240,168,60,.4)}
+
+/* ---- welcome popup ---- */
+.ov-welcome .sheet{max-width:560px}
+.ov-welcome .sh-h{border-bottom:0;padding-bottom:0;min-height:0}
+.ov-welcome .sh-h h3{display:none}
+.ov-welcome .sh-b{padding-top:4px}
+.ov-welcome .wtitle{font-family:var(--disp);font-size:1.5rem;line-height:1.15;color:#fff;
+  margin:0 0 12px;padding-left:13px;border-left:4px solid var(--gold)}
+.ov-welcome .wbody p{color:var(--ink-s);font-size:1rem;line-height:1.6;margin:0 0 11px}
+.ov-welcome .wbody p:last-child{margin-bottom:0}
+.wact{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+.wmute{background:none;border:0;color:var(--ink-d);font-size:.88rem;font-weight:600;
+  cursor:pointer;padding:6px;text-decoration:underline;text-underline-offset:3px}
+.wmute:hover{color:var(--ink-m)}
+
+/* ---- delta beside the bar value ---- */
+.at-d{display:inline-block;margin-left:6px;font-size:.68rem;font-weight:800;font-style:normal}
+.at-d.up{color:var(--good)} .at-d.down{color:var(--bad)}
+
+/* ---- bigger portrait, tappable ---- */
+.k2-photo{width:178px;height:214px;border-radius:16px}
+.k2-photo.tap{padding:0;cursor:zoom-in;position:relative;display:block}
+.k2-photo.tap:hover{border-color:rgba(240,168,60,.55)}
+.k2-photo.tap:hover .k2-zoom{opacity:1}
+.k2-zoom{position:absolute;right:8px;bottom:8px;width:28px;height:28px;border-radius:8px;
+  background:rgba(23,7,51,.82);color:var(--gold);display:grid;place-items:center;
+  font-size:.95rem;opacity:0;transition:opacity .15s;pointer-events:none}
+.k2-init{font-size:3.6rem}
+@media(max-width:640px){
+  .k2-photo{width:128px;height:154px}
+  .k2-init{font-size:2.8rem}
+}
+
+/* ---- full-size photo ---- */
+.lb{position:fixed;inset:0;z-index:400;background:rgba(10,4,24,.94);
+  display:grid;place-items:center;padding:26px;opacity:0;transition:opacity .18s;cursor:zoom-out;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.lb.on{opacity:1}
+.lb-fig{margin:0;max-width:min(560px,92vw);display:flex;flex-direction:column;gap:14px;align-items:center}
+.lb-fig img{width:100%;height:auto;max-height:78vh;object-fit:contain;display:block;
+  border-radius:18px;border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.9)}
+.lb-fig figcaption{font-family:var(--cond);font-size:1.06rem;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--gold);text-align:center}
+.lb-x{position:absolute;top:18px;right:18px;width:42px;height:42px;border-radius:50%;
+  background:rgba(255,255,255,.09);border:1px solid var(--line);color:#fff;font-size:1.05rem;
+  cursor:pointer;display:grid;place-items:center}
+.lb-x:hover{background:rgba(255,255,255,.16)}
+@media(prefers-reduced-motion:reduce){.lb{transition:none}}
 </style>
 </head>
 <body>
@@ -437,7 +497,7 @@ const KEY='jag_parent_code';
 const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],players:[],
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
   coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],welcome:[],reads:[],
-  view:'home',filmTab:'practice',openDoc:null,openCat:null,openVid:null,
+  view:'home',greeted:null,filmTab:'practice',openDoc:null,openCat:null,openVid:null,
   seasons:[],sessions:[],att:[],creed:[],agoals:[],seasonId:null,
   household:null,kids:[]};
 
@@ -856,24 +916,47 @@ function photoOf(p,sz,cls){
   return '<span class="pphoto noimg '+(cls||'')+'" style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*0.34)+'px">'+esc(init)+'</span>';
 }
 
-function heroCard(p,ovr,ratings){
+/* the identity band — photo, position, name, vitals. Shared by Home and Stats. */
+function idBand(p){
   const first=(p.name||'').split(' ')[0]||'';
   const last=(p.name||'').split(' ').slice(1).join(' ')||'';
+  return (p.photo_url
+      ? '<button class="k2-photo tap" data-bigphoto="1" title="Tap to enlarge">'+bigPhoto(p)+'<span class="k2-zoom">⤢</span></button>'
+      : '<div class="k2-photo">'+bigPhoto(p)+'</div>')+
+    '<div class="k2-id">'+
+      posChips(p)+
+      (last?'<div class="k2-first">'+esc(first.toUpperCase())+'</div>':'')+
+      '<div class="k2-last">'+esc((last||first).toUpperCase())+'</div>'+
+      '<div class="k2-team">'+esc(teamNameOf(p))+(p.grade==null?'':' · Grade '+p.grade)+'</div>'+
+      vitalsRow(p)+
+    '</div>';
+}
+/* Home: who they are, nothing else. No rating, no attribute grid. */
+function idCard(p){
+  return '<div class="k2"><div class="k2-top solo">'+idBand(p)+crestImg('k2-mark')+'</div></div>';
+}
+/* Stats: the full 2K card */
+function heroCard(p,ovr,ratings){
   return '<div class="k2">'+
-    '<div class="k2-top">'+
-      '<div class="k2-photo">'+bigPhoto(p)+'</div>'+
-      '<div class="k2-id">'+
-        posChips(p)+
-        (last?'<div class="k2-first">'+esc(first.toUpperCase())+'</div>':'')+
-        '<div class="k2-last">'+esc((last||first).toUpperCase())+'</div>'+
-        '<div class="k2-team">'+esc(teamNameOf(p))+(p.grade==null?'':' · Grade '+p.grade)+'</div>'+
-        vitalsRow(p)+
-      '</div>'+
+    '<div class="k2-top">'+idBand(p)+
       '<div class="k2-ovr">'+dial(ovr,deltaFor(p.id,'ovr',ovr))+'</div>'+
       crestImg('k2-mark')+
     '</div>'+
-    attrTable(p,ratings)+
+    attrBars(p,ratings)+
   '</div>';
+}
+/* the bar read-out — one row per attribute, easier for a parent than a letter grade */
+function attrBars(p,ratings){
+  return '<div class="attrs">'+activeAttrs().map(function(a){
+      const v=ratings[a.key]?ratings[a.key].rating:null;
+      const d=deltaFor(p.id,a.key,v);
+      const col=v==null?'var(--ink-d)':v>=90?'#FFC96B':v>=80?'#fff':v>=70?'#D9CBEF':'#B9A9D6';
+      return '<div class="at"><span class="at-l">'+esc(a.label)+'</span>'+pips(v)+
+        '<span class="at-v" style="color:'+col+'">'+(v==null?'–':v)+
+        (d?'<i class="at-d '+(d>0?'up':'down')+'">'+(d>0?'▲'+d:'▼'+Math.abs(d))+'</i>':'')+
+        '</span></div>';}).join('')+'</div>'+
+    '<div class="card-foot"><span>Compared with '+esc(cohortName(p))+'</span>'+
+      '<span>0–100 · growth matters more than the number</span></div>';
 }
 function bigPhoto(p){
   if(p&&p.photo_url) return '<img src="'+esc(p.photo_url)+'" alt="'+esc(p.name)+'">';
@@ -906,37 +989,6 @@ function vitalsRow(p){
   return '<div class="k2-vitals">'+items.map(function(it){
     return '<div class="k2-v"><span>'+it[0]+'</span><b>'+(it[1]==null?'–':esc(it[1]))+'</b></div>';
   }).join('')+'</div>';
-}
-/* 2K-style grade: the number plus a letter, so a parent can read it at a glance */
-function letterFor(v){
-  if(v==null)return '–';
-  if(v>=95)return 'A+'; if(v>=90)return 'A'; if(v>=85)return 'A-';
-  if(v>=80)return 'B+'; if(v>=75)return 'B'; if(v>=70)return 'B-';
-  if(v>=65)return 'C+'; if(v>=60)return 'C'; if(v>=55)return 'C-';
-  if(v>=50)return 'D+'; if(v>=45)return 'D'; return 'D-';
-}
-function tierFor(v){
-  if(v==null)return 'na';
-  if(v>=90)return 'elite'; if(v>=80)return 'high';
-  if(v>=70)return 'good'; if(v>=60)return 'mid'; return 'low';
-}
-const SHORT={shooting:'SHOOT',finishing:'FINISH',handle:'HANDLE',passing:'PASS',defense:'DEFENSE',
-  rebound:'REB',athletic:'ATHLETIC',iq:'IQ',coach:'COACH'};
-function attrTable(p,ratings){
-  const as=activeAttrs();
-  return '<div class="k2-gridwrap"><div class="k2-grid" style="grid-template-columns:repeat('+as.length+',minmax(58px,1fr))">'+
-    as.map(function(a){
-      const v=ratings[a.key]?ratings[a.key].rating:null;
-      const d=deltaFor(p.id,a.key,v);
-      return '<div class="k2-cell t-'+tierFor(v)+'">'+
-        '<span class="k2-k">'+esc(SHORT[a.key]||a.label.slice(0,7).toUpperCase())+'</span>'+
-        '<b class="k2-n">'+(v==null?'–':v)+'</b>'+
-        '<span class="k2-g">'+letterFor(v)+'</span>'+
-        (d?'<span class="k2-d '+(d>0?'up':'down')+'">'+(d>0?'▲'+d:'▼'+Math.abs(d))+'</span>':'')+
-      '</div>';}).join('')+
-  '</div></div>'+
-  '<div class="k2-foot"><span>Compared with '+esc(cohortName(p))+'</span>'+
-    '<span>0–100 · growth matters more than the number</span></div>';
 }
 
 /* ---------- small modal shell, matching addKidModal ---------- */
@@ -1053,6 +1105,55 @@ function secEffort(){
   return out;
 }
 
+
+
+/* ---------- full-size photo ---------- */
+function photoLightbox(){
+  const p=S.player; if(!p||!p.photo_url)return;
+  const host=document.createElement('div');
+  host.className='lb';
+  host.innerHTML='<button class="lb-x" aria-label="Close">✕</button>'+
+    '<figure class="lb-fig"><img src="'+esc(p.photo_url)+'" alt="'+esc(p.name)+'">'+
+    '<figcaption>'+esc(p.name)+(p.number==null?'':' · #'+p.number)+
+      (p.position?' · '+esc(p.position):'')+'</figcaption></figure>';
+  document.body.appendChild(host);
+  const close=()=>{host.remove();document.removeEventListener('keydown',esckey);};
+  const esckey=e=>{if(e.key==='Escape')close();};
+  host.onclick=e=>{if(e.target===host||e.target.classList.contains('lb-x'))close();};
+  document.addEventListener('keydown',esckey);
+  requestAnimationFrame(()=>host.classList.add('on'));
+}
+/* ---------- welcome popup ---------- */
+function welcomeKey(w){
+  const raw=String(w.id||'')+'|'+String(w.title||'')+'|'+String(w.body||'');
+  let h=0; for(let i=0;i<raw.length;i++){h=((h<<5)-h+raw.charCodeAt(i))|0;}
+  return 'jagWelcome:'+S.player.id+':'+h;
+}
+function welcomeMuted(w){
+  try{return localStorage.getItem(welcomeKey(w))==='off';}catch(e){return false;}
+}
+function welcomeBodyHTML(w){
+  return (w.title?'<div class="wtitle">'+esc(w.title)+'</div>':'')+
+    '<div class="wbody">'+String(w.body||'').split(String.fromCharCode(10))
+      .filter(x=>x.trim()).map(x=>'<p>'+esc(x.trim())+'</p>').join('')+'</div>';
+}
+function welcomePopup(force){
+  const w=welcomeFor(S.player); if(!w)return;
+  if(!force&&welcomeMuted(w))return;
+  sheet('', welcomeBodyHTML(w)+
+    '<div class="wact">'+
+      '<button class="btn btn-p btn-block" id="w-ok">Got it</button>'+
+      '<button class="wmute" id="w-mute">Don\u2019t show this again</button>'+
+    '</div>',
+    function(host,close){
+      host.classList.add('ov-welcome');
+      host.querySelector('#w-ok').onclick=close;
+      host.querySelector('#w-mute').onclick=function(){
+        try{localStorage.setItem(welcomeKey(w),'off');}catch(e){}
+        close(); flag('Hidden — reopen it any time from Home');
+      };
+    });
+}
 /* ---------- shell ---------- */
 function renderPortal(){
   const p=S.player; const {ovr,ratings}=ovrOf(p.id);
@@ -1101,6 +1202,9 @@ function renderPortal(){
 
   if(v==='coach') markAllRead(msgs);
 
+  document.querySelectorAll('[data-bigphoto]').forEach(b=>b.onclick=()=>photoLightbox());
+  document.querySelectorAll('[data-openwelcome]').forEach(b=>b.onclick=()=>welcomePopup(true));
+  if(S.view==='home'&&S.greeted!==S.player.id){ S.greeted=S.player.id; setTimeout(()=>welcomePopup(false),420); }
   document.querySelectorAll('[data-newgoal]').forEach(b=>b.onclick=()=>agoalModal());
   document.querySelectorAll('[data-sign]').forEach(b=>b.onclick=()=>signModal(b.dataset.sign));
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{
@@ -1184,10 +1288,8 @@ function secHome(p,ovr,objs,tks,objDone,tkDone,media,msgs,practiceAll,breakAll,n
   if(openObjs.length)acts.push(['work','🏅',openObjs.length+' objective'+(openObjs.length===1?'':'s')+' in progress',
     'Your coach checks these off',openObjs.length]);
 
-  return (w?'<div class="welcome">'+
-      (w.title?'<div class="wtitle">'+esc(w.title)+'</div>':'')+
-      '<div class="wbody">'+String(w.body||'').split('\n').filter(x=>x.trim()).map(x=>'<p>'+esc(x.trim())+'</p>').join('')+'</div>'+
-    '</div>':'')+
+  return idCard(p)+
+    (w?'<button class="wopen" data-openwelcome="1">📣 '+esc(w.title||'A message from your coach')+'</button>':'')+
     ((vals&&vals.items&&vals.items.length)?'<div class="creed">'+
       '<div class="creed-top">'+esc(vals.title||'This Is Who We Are')+'</div>'+
       vals.items.map((x,i)=>'<div class="creed-l"><span class="creed-n">0'+(i+1)+'</span>'+
