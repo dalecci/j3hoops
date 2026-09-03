@@ -1124,12 +1124,13 @@ function adminPlayers(){
   return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-player">＋ Add Player</button>'+
     '<button class="btn btn-g btn-s" data-act="bulk-player">⇪ Bulk add</button></div>'+
     (ps.length?'<div class="wrap"><div class="scroll"><table>'+
-    '<thead><tr><th class="l">Player</th><th>Team</th><th>#</th><th>Grade</th><th>Parent code</th><th></th></tr></thead><tbody>'+
+    '<thead><tr><th class="l">Player</th><th>Team</th><th>#</th><th>Pos</th><th>Grade</th><th>Parent code</th><th></th></tr></thead><tbody>'+
     ps.map(pl=>{const ac=S.access.find(a=>a.player_id===pl.id&&!a.revoked_at);
       const tm=S.members.filter(m=>m.player_id===pl.id).map(m=>S.groups.find(g=>g.id===m.group_id)).filter(Boolean);
       return '<tr><td><div class="cell l"><b>'+esc(pl.name)+'</b></div></td>'+
       '<td><div class="cell">'+(tm.length?tm.map(g=>'<span class="tag" style="border-color:'+g.color+'66;color:'+g.color+'">'+esc(g.name)+'</span>').join(''):'<span style="color:var(--tx-d)">no team</span>')+'</div></td>'+
       '<td><div class="cell">'+(pl.number==null?'–':pl.number)+'</div></td>'+
+      '<td><div class="cell">'+(pl.position?esc(pl.position):'<span style="color:var(--tx-d)">–</span>')+'</div></td>'+
       '<td><div class="cell">'+(pl.grade==null?'–':pl.grade)+'</div></td>'+
       '<td><div class="cell"><span class="tag" style="font-family:monospace">'+esc(codeFor(pl.id))+'</span></div></td>'+
       '<td><div class="cell"><button class="btn btn-g btn-s" data-eplayer="'+pl.id+'">Edit</button></div></td></tr>';}).join('')+
@@ -1145,8 +1146,15 @@ function playerEditModal(id){
       '<div class="field"><label>Grade</label><select class="inp" id="pl-grade"><option value="">—</option>'+
         GRADES.map(g=>'<option value="'+g+'" '+(pl&&+pl.grade===g?'selected':'')+'>'+g+'</option>').join('')+'</select></div>'+
       '<div class="field"><label>Jersey #</label><input class="inp" id="pl-num" inputmode="numeric" value="'+(pl&&pl.number!=null?pl.number:'')+'"></div>'+
-      '<div class="field"><label>Height</label><input class="inp" id="pl-h" value="'+(pl&&pl.height?esc(String(pl.height)):'')+'" placeholder="5-2"></div>'+
+      '<div class="field"><label>Age</label><input class="inp" id="pl-age" inputmode="numeric" value="'+(pl&&pl.age!=null?pl.age:'')+'"></div>'+
     '</div>'+
+    '<div class="g3">'+
+      '<div class="field"><label>Height</label><input class="inp" id="pl-h" value="'+(pl&&pl.height?esc(String(pl.height)):'')+'" placeholder="5-2"></div>'+
+      '<div class="field"><label>Wingspan</label><input class="inp" id="pl-w" value="'+(pl&&pl.wingspan?esc(String(pl.wingspan)):'')+'" placeholder="5-4"></div>'+
+      '<div class="field"><label>Position</label><input class="inp" id="pl-pos" value="'+(pl&&pl.position?esc(String(pl.position)):'')+'" placeholder="SG / SF" list="poslist"></div>'+
+    '</div>'+
+    '<datalist id="poslist"><option value="PG"><option value="SG"><option value="SF"><option value="PF"><option value="C"></datalist>'+
+    (pl?'<button class="btn btn-g btn-block" id="pl-photo" style="margin-bottom:10px">📷 '+(pl.photo_url?'Change':'Add')+' photo</button>':'')+
     '<div class="field"><label>Team</label><select class="inp" id="pl-team"><option value="">— none —</option>'+
       S.groups.map(g=>{const on=pl&&S.members.some(m=>m.player_id===pl.id&&m.group_id===g.id);
         return '<option value="'+g.id+'" '+(on?'selected':'')+'>'+esc(g.name)+'</option>';}).join('')+'</select>'+
@@ -1157,7 +1165,10 @@ function playerEditModal(id){
     const name=$('pl-name').value.trim(); if(!name)return;
     const row={name,grade:$('pl-grade').value?+$('pl-grade').value:null,
       number:$('pl-num').value===''?null:+$('pl-num').value,
-      height:$('pl-h').value.trim()||null};
+      age:$('pl-age').value===''?null:+$('pl-age').value,
+      height:$('pl-h').value.trim()||null,
+      wingspan:$('pl-w').value.trim()||null,
+      position:$('pl-pos').value.trim().toUpperCase()||null};
     let pid=pl?pl.id:null;
     if(pl){Object.assign(pl,row); await patch('tryout_players',pl.id,row);}
     else{const full=Object.assign({status:'registered'},row); const sv=await put('tryout_players',full);
@@ -1170,6 +1181,7 @@ function playerEditModal(id){
       const row2={group_id:want,player_id:pid};
       const sv2=await put('pd_group_members',row2); S.members.push(sv2||Object.assign({id:uuid()},row2)); }
     closeModal(); render(); flag('Saved');};
+  const ph=$('pl-photo'); if(ph)ph.onclick=()=>{closeModal();photoModal(pl.id);};
   const d=$('pl-del'); if(d)d.onclick=async()=>{S.players=S.players.filter(x=>x.id!==pl.id); await del('tryout_players',pl.id); closeModal(); render();};
 }
 function bulkPlayerModal(){
