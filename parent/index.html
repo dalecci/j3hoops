@@ -492,6 +492,11 @@ textarea.tin{resize:vertical;line-height:1.5}
 .at-m{flex:0 0 100%;font-size:.72rem;color:var(--ink-d);font-weight:600;padding:0 0 4px 2px}
 .at-m i{font-style:normal;color:var(--gold)}
 .shfoot{font-size:.78rem;color:var(--ink-d);line-height:1.5;margin:10px 2px 0}
+
+/* ---- growth on the pips ---- */
+.pip.g{background:linear-gradient(180deg,#6FF0A8,#3FD08A);box-shadow:0 0 6px rgba(84,224,138,.5)}
+.pip.l{background:transparent;border:1px dashed rgba(255,122,107,.55);box-sizing:border-box}
+.at-d.up{color:var(--good)} .at-d.down{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -687,7 +692,12 @@ function ovrOf(pid){
 }
 function lastSnap(pid){const s=S.snaps.filter(x=>x.player_id===pid)
   .sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));return s.length?s[0]:null;}
-function deltaFor(pid,key,cur){const s=lastSnap(pid);if(!s||cur==null)return null;
+function refSnap(pid){const s=S.snaps.filter(x=>x.player_id===pid)
+  .sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  if(!s.length)return null; const L=s[0];
+  if(L.trigger==='test'){const prev=s.find(x=>String(x.as_of)<String(L.as_of));return prev||null;}
+  return L;}
+function deltaFor(pid,key,cur){const s=refSnap(pid);if(!s||cur==null)return null;
   const prev=key==='ovr'?s.ovr:(s.attributes_json||{})[key];
   return prev==null?null:Math.round(cur-prev);}
 function ratingColor(v){if(v==null)return 'rgba(255,255,255,.2)';
@@ -844,10 +854,17 @@ function dial(v,delta){
       (delta?'<i class="dd">'+(delta>0?'▲'+delta:'▼'+Math.abs(delta))+'</i>':'')+'</div>'+
   '</div>';
 }
-function pips(v){
+function pips(v,d){
   const f=v==null?0:Math.round(v/10);
+  const base=(d&&d>0)?Math.max(0,Math.round((v-d)/10)):f;      /* pips that were already lit before the growth */
+  const lossTo=(d&&d<0)?Math.min(10,Math.round((v-d)/10)):f;   /* pips that used to be lit and are not now */
   let o='<span class="pips">';
-  for(let i=0;i<10;i++) o+='<i class="pip '+(i<f?'f':'')+' '+(v>=90?'hi':'')+'"></i>';
+  for(let i=0;i<10;i++){
+    let c='pip';
+    if(i<f){ c+=(d>0&&i>=base)?' g':' f'; if(v>=90)c+=' hi'; }
+    else if(i<lossTo) c+=' l';
+    o+='<i class="'+c+'"></i>';
+  }
   return o+'</span>';
 }
 function teamNameOf(p){
@@ -1110,7 +1127,7 @@ function attrBars(p,ratings){
       const v=ratingOfKey(p.id,a.key,ratings);
       const d=deltaFor(p.id,a.key,v);
       const col=v==null?'var(--ink-d)':v>=90?'#FFC96B':v>=80?'#fff':v>=70?'#D9CBEF':'#B9A9D6';
-      return '<div class="at"><span class="at-l">'+esc(a.label)+'</span>'+pips(v)+
+      return '<div class="at"><span class="at-l">'+esc(a.label)+'</span>'+pips(v,d)+
         '<span class="at-v" style="color:'+col+'">'+(v==null?'–':v)+
         (d?'<i class="at-d '+(d>0?'up':'down')+'">'+(d>0?'▲'+d:'▼'+Math.abs(d))+'</i>':'')+
         '</span></div>';}).join('')+'</div>'+
@@ -1318,8 +1335,9 @@ function secShooting(p){
   const sh=shootingFor(p.id); if(!sh) return '';
   const rows=SHOOT_CATS.map(function(c){ const x=sh.cats[c[0]]; if(!x)return '';
     const col=x.rating>=90?'#FFC96B':x.rating>=80?'#fff':x.rating>=70?'#D9CBEF':'#B9A9D6';
-    return '<div class="at"><span class="at-l">'+esc(x.label)+'</span>'+pips(x.rating)+
-      '<span class="at-v" style="color:'+col+'">'+x.rating+'</span>'+
+    const d=deltaFor(p.id,SHOOT_SUBKEYS[c[0]],x.rating);
+    return '<div class="at"><span class="at-l">'+esc(x.label)+'</span>'+pips(x.rating,d)+
+      '<span class="at-v" style="color:'+col+'">'+x.rating+(d?'<i class="at-d '+(d>0?'up':'down')+'">'+(d>0?'▲'+d:'▼'+Math.abs(d))+'</i>':'')+'</span>'+
       '<span class="at-m">'+x.pct+'% · '+x.attempts+' shots'+(x.days>1?' · 2 test days':' · 1 test day')+
         (x.provisional?' · <i>under protocol</i>':'')+(x.capped?' · <i>capped: weak spot</i>':'')+'</span></div>'; }).join('');
   return '<div class="sh"><h3>OPEN SHOOTING</h3><div class="ln"></div><span class="ct">'+(sh.ovr==null?'–':sh.ovr)+' OVR</span></div>'+
