@@ -358,6 +358,26 @@
 .hwbox .hwin{width:100%;padding-right:24px;text-align:center;font-variant-numeric:tabular-nums}
 .hwbox i{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-style:normal;
   font-family:var(--disp);font-size:.9rem;color:var(--gold);pointer-events:none}
+
+/* ---- open shooting entry ---- */
+.shgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+.shcard{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px 15px 12px}
+.shhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
+.shhead b{font-family:var(--cond);font-size:1.05rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff}
+.shw{font-size:.72rem;color:var(--gold);font-weight:800;white-space:nowrap}
+.sprow{display:flex;align-items:center;gap:8px;padding:4px 0}
+.sprow>span:first-child{flex:1;font-size:.86rem;font-weight:700;color:var(--tx-s)}
+.sprow .nin{width:60px;text-align:center}
+.spof{display:flex;align-items:center;gap:4px;color:var(--tx-d);font-size:.86rem;font-weight:700}
+.spof .nin{width:52px;opacity:.7}
+.sprow.big .nin{width:72px;font-size:1.1rem}
+.shnote{font-size:.76rem;color:var(--tx-d);margin:8px 0 0;line-height:1.4}
+.shout{display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-s)}
+.shout b{font-family:var(--disp);font-size:1.6rem;line-height:1;color:var(--tx-d)}
+.shout span{font-size:.76rem;color:var(--tx-m);font-weight:600;line-height:1.35;padding-top:3px}
+.shsum{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:10px}
+.shsum b{font-family:var(--disp);font-size:1.7rem;color:var(--gold);margin-left:12px;line-height:1}
 </style>
 </head>
 <body>
@@ -384,7 +404,7 @@ const S={players:[],drills:[],coachScores:[],coaches:[],
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
   objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
   videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[],libQ:'',libCat:'all',libSort:'name',
-  seasons:[],sessions:[],att:[],creed:[],agoals:[],
+  seasons:[],sessions:[],att:[],creed:[],agoals:[],shooting:[],shPlayer:null,shDate:null,testSub:'tests',
   seasonId:null, prMode:'attend', prSession:null, prTeam:null,
   cmpA:null,cmpB:null,cmpMode:'player', growPlayer:null};
 
@@ -409,9 +429,9 @@ async function loadAll(){
     S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
     S.objectives=opt[3].data||[]; S.tasks=opt[4].data||[]; S.lists=opt[5].data||[]; S.listItems=opt[6].data||[];
     S.videos=opt[7].data||[]; S.docs=opt[8].data||[]; S.welcome=opt[9].data||[];
-    const nx=await Promise.all([q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals')]);
+    const nx=await Promise.all([q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals'),q('pd_shooting')]);
     S.seasons=nx[0].data||[]; S.sessions=nx[1].data||[]; S.att=nx[2].data||[];
-    S.creed=nx[3].data||[]; S.agoals=nx[4].data||[];
+    S.creed=nx[3].data||[]; S.agoals=nx[4].data||[]; S.shooting=nx[5].data||[];
     SEASON_OK=!nx[0].error; PRACTICE_OK=!nx[1].error&&!nx[2].error&&!nx[3].error; AGOAL_OK=!nx[4].error;
     const act=S.seasons.find(x=>x.is_active); S.seasonId=act?act.id:(S.seasons[0]?S.seasons[0].id:null);
     MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
@@ -578,6 +598,93 @@ function creedAvg(pid){
   return out;
 }
 
+/* ================= OPEN SHOOTING — Jaguars benchmarks ================= */
+/* Percentage that earns each rating row (50,60,70,80,90) by category. Grades 3 and 7 are the
+   anchor grades from the benchmark doc; every other grade interpolates between them. */
+const SHOOT_ROWS=[50,60,70,80,90];
+const SHOOT_ANCHORS={
+  3:{ft:[30,40,50,60,70], mid:[25,35,45,55,65], long:[15,25,35,45,55]},
+  7:{ft:[45,55,65,75,85], mid:[35,45,55,65,75], long:[20,28,35,42,50]}
+};
+const SHOOT_WEIGHTS={3:{ft:0.35,mid:0.45,long:0.20}, 7:{ft:0.30,mid:0.35,long:0.35}};
+const SHOOT_PROTOCOL={3:{ft:20,mid:40,long:30}, 7:{ft:25,mid:50,long:50}};
+const SHOOT_CATS=[['ft','Free throw'],['mid','Mid-range'],['long','3-point']];
+const SHOOT_SPOTS=['L corner','L wing','Top','R wing','R corner'];
+function shootT(grade){ const g=grade==null?7:+grade; return Math.max(0,Math.min(1,(g-3)/4)); }
+function shootYoung(grade){ return shootT(grade)<0.5; }
+function shootLabel(cat,grade){
+  if(cat==='long') return shootYoung(grade)?'Long-range form':'3-point';
+  if(cat==='mid')  return shootYoung(grade)?'Close / mid set shot':'Mid-range';
+  return shootYoung(grade)?'Form free throw':'Free throw';
+}
+function shootAnchors(cat,grade){
+  const t=shootT(grade), a=SHOOT_ANCHORS[3][cat], b=SHOOT_ANCHORS[7][cat];
+  return a.map(function(v,i){return v+(b[i]-v)*t;});
+}
+function shootWeights(grade){
+  const t=shootT(grade), a=SHOOT_WEIGHTS[3], b=SHOOT_WEIGHTS[7];
+  return {ft:a.ft+(b.ft-a.ft)*t, mid:a.mid+(b.mid-a.mid)*t, long:a.long+(b.long-a.long)*t};
+}
+function shootProtocol(cat,grade){
+  const t=shootT(grade);
+  return Math.round(SHOOT_PROTOCOL[3][cat]+(SHOOT_PROTOCOL[7][cat]-SHOOT_PROTOCOL[3][cat])*t);
+}
+function shootScale(){ return (typeof SC==='function')?SC():{floor:35,cap:99}; }
+/* percentage -> rating: straight lines between the anchor rows, extended past both ends */
+function shootRate(pct,cat,grade){
+  if(pct==null||isNaN(pct))return null;
+  const P=shootAnchors(cat,grade), R=SHOOT_ROWS, sc=shootScale();
+  let r, n=P.length-1;
+  if(pct<=P[0]){ r=R[0]-(P[0]-pct)*((R[1]-R[0])/(P[1]-P[0])); }
+  else if(pct>=P[n]){ r=R[n]+(pct-P[n])*((R[n]-R[n-1])/(P[n]-P[n-1])); }
+  else { for(let i=0;i<n;i++){ if(pct>=P[i]&&pct<=P[i+1]){ r=R[i]+(pct-P[i])/(P[i+1]-P[i])*(R[i+1]-R[i]); break; } } }
+  return Math.max(sc.floor,Math.min(sc.cap,Math.round(r)));
+}
+/* the percentage worth a 60 — no spot may sit under it if the category is to rate above 80 */
+function shootFloor60(cat,grade){ return shootAnchors(cat,grade)[1]; }
+/* one test day, one category */
+function shootDay(row,grade){
+  const a=+row.attempts||0, m=+row.makes||0;
+  if(!a) return null;
+  const pct=100*m/a;
+  const raw=shootRate(pct,row.category,grade);
+  const need=shootProtocol(row.category,grade);
+  const conf=Math.min(1,a/need);
+  let rating=Math.round(50+(raw-50)*conf);
+  let capped=false, weakSpots=[];
+  if((row.category==='mid'||row.category==='long')&&Array.isArray(row.spots)&&row.spots.length){
+    const f=shootFloor60(row.category,grade);
+    row.spots.forEach(function(s,i){ const sa=+s.a||0; if(sa>0&&100*(+s.m||0)/sa<f) weakSpots.push(SHOOT_SPOTS[i]||('Spot '+(i+1))); });
+    if(weakSpots.length&&rating>80){rating=80;capped=true;}
+  }
+  return {pct:Math.round(pct*10)/10,makes:m,attempts:a,raw:raw,rating:rating,conf:conf,need:need,capped:capped,weakSpots:weakSpots,when:row.taken_on};
+}
+/* a player's official shooting: the latest two test days per category, averaged */
+function shootingFor(pid){
+  const p=(S.players||[]).find(function(x){return x.id===pid;})||(S.player&&S.player.id===pid?S.player:null);
+  if(!p) return null;
+  const grade=p.grade;
+  const rows=(S.shooting||[]).filter(function(r){return r.player_id===pid&&inSeason(r)&&r.source!=='game';});
+  if(!rows.length) return null;
+  const out={grade:grade,young:shootYoung(grade),weights:shootWeights(grade),cats:{},have:0};
+  let num=0,den=0;
+  SHOOT_CATS.forEach(function(c){ const cat=c[0];
+    const days=rows.filter(function(r){return r.category===cat;})
+      .sort(function(a,b){return String(b.taken_on).localeCompare(String(a.taken_on));});
+    const rated=days.map(function(r){return shootDay(r,grade);}).filter(Boolean).slice(0,2);
+    if(!rated.length){out.cats[cat]=null;return;}
+    const rating=Math.round(rated.reduce(function(s,d){return s+d.rating;},0)/rated.length);
+    const pct=Math.round(rated.reduce(function(s,d){return s+d.pct;},0)/rated.length*10)/10;
+    out.cats[cat]={rating:rating,pct:pct,days:rated.length,
+      attempts:rated.reduce(function(s,d){return s+d.attempts;},0),
+      need:rated[0].need, provisional:rated.some(function(d){return d.conf<1;}),
+      capped:rated.some(function(d){return d.capped;}), label:shootLabel(cat,grade), latest:rated[0]};
+    num+=rating*out.weights[cat]; den+=out.weights[cat]; out.have++;
+  });
+  out.ovr=den>0?Math.round(num/den):null;
+  return out;
+}
+
 /* ================= rating engine ================= */
 const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
 const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
@@ -663,6 +770,8 @@ function coachAvg(pid,attrKey){
 function attrRating(pid,attrKey){
   const p=S.players.find(x=>x.id===pid); if(!p)return {rating:null,inputs:0};
   const a=S.attrs.find(x=>x.key===attrKey); if(!a)return {rating:null,inputs:0};
+  if(attrKey==='shooting'){ const sh=shootingFor(pid);
+    if(sh&&sh.ovr!=null) return {rating:sh.ovr,inputs:sh.have,parts:SHOOT_CATS.filter(c=>sh.cats[c[0]]).map(c=>({kind:'shoot',key:c[0],label:sh.cats[c[0]].label,rating:sh.cats[c[0]].rating,weight:Math.round(sh.weights[c[0]]*100)/100,raw:sh.cats[c[0]].pct+'%'}))}; }
   let num=0,den=0,inputs=0,parts=[];
   S.weights.filter(w=>w.attribute_key===attrKey).forEach(w=>{
     const r=latestResult(pid,w.test_key); if(!r)return;
@@ -768,10 +877,16 @@ function cardHTML({p,ovr,coverage,ratings}){
 
 /* ---- Testing ---- */
 function vTesting(){
+  const sub=S.testSub||'tests';
+  const nav='<div class="row" style="margin-bottom:16px">'+[['tests','Baseline tests'],['shoot','🎯 Open shooting']].map(m=>
+    '<button class="btn '+(sub===m[0]?'btn-p':'btn-g')+' btn-s" data-tsub="'+m[0]+'">'+m[1]+'</button>').join('')+'</div>';
+  return '<div class="sec"><h2>TESTING</h2><div class="rule"></div>'+
+    (sub==='tests'?'<button class="btn btn-g btn-s" data-act="new-test">＋ New Test</button>':'')+'</div>'+nav+
+    (sub==='shoot'?vShooting():vTestsGrid());
+}
+function vTestsGrid(){
   const ts=activeTests(), ps=visPlayers().sort((a,b)=>(a.number??999)-(b.number??999));
-  return `<div class="sec"><h2>BASELINE TESTING</h2><div class="rule"></div>
-      <button class="btn btn-g btn-s" data-act="new-test">＋ New Test</button></div>
-    <p class="lead">Enter results and ratings recompute instantly. Blank = not tested. Re-test later to see growth.</p>
+  return `<p class="lead">Enter results and ratings recompute instantly. Blank = not tested. Re-test later to see growth.</p>
     ${gradeBar()}
     ${!ps.length?`<div class="empty"><div class="ico">📋</div><div>No players in this grade filter.</div></div>`:
     `<div class="wrap"><div class="scroll"><table>
@@ -2040,6 +2155,100 @@ function growthCard(pid){
     '<div class="gticks">'+rows.map(r=>'<span><b>'+r.ovr+'</b>'+esc(r.when==='today'?'now':String(r.when).slice(5))+'</span>').join('')+'</div></div>';
 }
 
+/* ================= OPEN SHOOTING — entry screen ================= */
+function shPlayers(){ return S.players.slice().sort((a,b)=>(a.number==null?999:a.number)-(b.number==null?999:b.number)||a.name.localeCompare(b.name)); }
+function shCur(){ const ps=shPlayers(); if(!ps.length)return null; return S.shPlayer&&ps.some(p=>p.id===S.shPlayer)?S.shPlayer:ps[0].id; }
+function vShooting(){
+  const ps=shPlayers(); if(!ps.length) return '<div class="empty">Add players first.</div>';
+  const pid=shCur(), p=ps.find(x=>x.id===pid), g=p.grade, young=shootYoung(g), W=shootWeights(g);
+  const date=S.shDate||todayISO();
+  const need={ft:shootProtocol('ft',g),mid:shootProtocol('mid',g),long:shootProtocol('long',g)};
+  const per={mid:Math.round(need.mid/5),long:Math.round(need.long/5)};
+  const chips='<div class="row" style="margin-bottom:12px">'+ps.map(x=>'<button class="gchip '+(x.id===pid?'on':'')+'" data-shp="'+x.id+'">'+(x.number==null?'–':x.number)+' '+esc(x.name.split(' ')[0])+'</button>').join('')+'</div>';
+  const spotRows=cat=>SHOOT_SPOTS.map((nm,i)=>'<div class="sprow"><span>'+nm+'</span><input class="inp nin sh-m" data-cat="'+cat+'" data-spot="'+i+'" inputmode="numeric" placeholder="–"><span class="spof">/ <input class="inp nin sh-a" data-cat="'+cat+'" data-spot="'+i+'" inputmode="numeric" value="'+per[cat]+'"></span></div>').join('');
+  const panel=(cat,body)=>'<div class="shcard"><div class="shhead"><b>'+esc(shootLabel(cat,g))+'</b><span class="shw">'+Math.round(W[cat]*100)+'% of shooting</span></div>'+body+'<div class="shout" id="sh-out-'+cat+'"><b>–</b><span>enter makes</span></div></div>';
+  const ftBody='<div class="sprow big"><span>Makes</span><input class="inp nin sh-m" data-cat="ft" data-spot="0" inputmode="numeric" placeholder="–"><span class="spof">/ <input class="inp nin sh-a" data-cat="ft" data-spot="0" inputmode="numeric" value="'+need.ft+'"></span></div>'+
+    '<p class="shnote">'+(young?'Approved distance · Size 5 ball.':'Regulation line · 29.5 ball.')+' Protocol '+need.ft+' shots.</p>';
+  const midBody=spotRows('mid')+'<p class="shnote">5 spots × '+per.mid+'. '+(young?'Set shot, close to mid.':'Catch-and-shoot, chest pass, no dribble.')+'</p>';
+  const longBody=spotRows('long')+'<p class="shnote">5 spots × '+per.long+'. '+(young?'Form range — farthest one-motion shot with good mechanics. Keep it fixed all season.':'Official 3-point line used in your tournaments.')+'</p>';
+  return chips+
+    '<div class="row" style="margin-bottom:14px;align-items:center"><span class="gl">Test day</span><input class="inp" type="date" id="sh-date" value="'+esc(date)+'" style="max-width:170px">'+
+      '<span class="chip">Grade '+(g==null?'–':g)+' protocol · FT '+need.ft+' · mid '+need.mid+' · long '+need.long+'</span></div>'+
+    '<div class="shgrid">'+panel('ft',ftBody)+panel('mid',midBody)+panel('long',longBody)+'</div>'+
+    '<div class="shsum"><div><span class="gl">Shooting OVR from this day</span><b id="sh-ovr">–</b></div><button class="btn btn-p" data-act="sh-save">Save test day</button></div>'+
+    '<p class="lead">Official rating = the average of the latest two test days. Under the protocol count a rating shrinks toward 50, so a hot 4-for-5 cannot read as elite. Mid and long are capped at 80 if any one spot is under the 60-rating line.</p>'+
+    shHistory(pid)+shRoster(ps);
+}
+function shHistory(pid){
+  const rows=(S.shooting||[]).filter(r=>r.player_id===pid&&inSeason(r));
+  if(!rows.length) return '<div class="empty" style="margin-top:16px">No test days logged for this player yet.</div>';
+  const p=S.players.find(x=>x.id===pid), g=p.grade, W=shootWeights(g);
+  const days=[...new Set(rows.map(r=>r.taken_on))].sort().reverse();
+  return '<div class="sec" style="margin-top:26px"><h2 style="font-size:1.05rem">TEST DAYS · '+esc(p.name.split(' ')[0])+'</h2><div class="rule"></div></div>'+
+   '<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Date</th>'+SHOOT_CATS.map(c=>'<th>'+esc(shootLabel(c[0],g))+'</th>').join('')+'<th>Day OVR</th><th></th></tr></thead><tbody>'+
+   days.map(d=>{ let num=0,den=0;
+     const cells=SHOOT_CATS.map(c=>{ const r=rows.find(x=>x.taken_on===d&&x.category===c[0]); const dd=r?shootDay(r,g):null;
+       if(dd){num+=dd.rating*W[c[0]];den+=W[c[0]];}
+       return '<td><div class="cell">'+(dd?'<b style="color:'+ratingColor(dd.rating)+'">'+dd.rating+'</b> <span style="color:var(--tx-d);font-size:.8em">'+dd.makes+'/'+dd.attempts+' · '+dd.pct+'%'+(dd.capped?' ⚠':'')+'</span>':'–')+'</div></td>'; }).join('');
+     return '<tr><td><div class="cell l"><b>'+esc(d)+'</b></div></td>'+cells+'<td><div class="cell"><b>'+(den?Math.round(num/den):'–')+'</b></div></td>'+
+       '<td><div class="cell"><button class="btn btn-g btn-s btn-dz" data-shdel="'+esc(d)+'">✕</button></div></td></tr>'; }).join('')+
+   '</tbody></table></div></div>';
+}
+function shRoster(ps){
+  return '<div class="sec" style="margin-top:26px"><h2 style="font-size:1.05rem">EVERYONE</h2><div class="rule"></div></div>'+
+   '<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Player</th><th>FT</th><th>Mid</th><th>Long / 3PT</th><th>Shooting OVR</th><th>Days</th></tr></thead><tbody>'+
+   ps.map(p=>{ const sh=shootingFor(p.id);
+     const cell=cat=>{ const c=sh&&sh.cats[cat]; return '<td><div class="cell">'+(c?'<b style="color:'+ratingColor(c.rating)+'">'+c.rating+'</b> <span style="color:var(--tx-d);font-size:.8em">'+c.pct+'%'+(c.provisional?' · prov':'')+'</span>':'<span style="color:var(--tx-d)">–</span>')+'</div></td>'; };
+     const days=sh?Math.max.apply(null,SHOOT_CATS.map(c=>sh.cats[c[0]]?sh.cats[c[0]].days:0)):0;
+     return '<tr><td><div class="cell l"><b>'+esc(p.name)+'</b> <span style="color:var(--tx-d);font-size:.8em">G'+(p.grade==null?'–':p.grade)+'</span></div></td>'+cell('ft')+cell('mid')+cell('long')+
+       '<td><div class="cell"><b style="color:'+ratingColor(sh?sh.ovr:null)+'">'+(sh&&sh.ovr!=null?sh.ovr:'–')+'</b></div></td><td><div class="cell">'+(days||'–')+'</div></td></tr>'; }).join('')+
+   '</tbody></table></div></div>';
+}
+function shRead(){
+  const cats={};
+  ['ft','mid','long'].forEach(cat=>{
+    const ms=[...document.querySelectorAll('.sh-m[data-cat="'+cat+'"]')], as=[...document.querySelectorAll('.sh-a[data-cat="'+cat+'"]')];
+    const spots=ms.map((el,i)=>({m:+el.value||0,a:+(as[i]?as[i].value:0)||0,t:el.value!==''}));
+    const used=spots.filter(x=>x.t);
+    cats[cat]={makes:used.reduce((s,x)=>s+x.m,0),attempts:used.reduce((s,x)=>s+x.a,0),
+      spots:cat==='ft'?null:spots.map(x=>x.t?{m:x.m,a:x.a}:{m:0,a:0})};
+  });
+  return cats;
+}
+function shPreview(){
+  const pid=shCur(); if(!pid)return; const p=S.players.find(x=>x.id===pid), g=p.grade, W=shootWeights(g);
+  const cats=shRead(); let num=0,den=0;
+  ['ft','mid','long'].forEach(cat=>{
+    const out=$('sh-out-'+cat); if(!out)return; const c=cats[cat];
+    if(!c.attempts){out.innerHTML='<b>–</b><span>enter makes</span>';return;}
+    const d=shootDay({category:cat,makes:c.makes,attempts:c.attempts,spots:c.spots},g);
+    out.innerHTML='<b style="color:'+ratingColor(d.rating)+'">'+d.rating+'</b><span>'+d.makes+'/'+d.attempts+' · '+d.pct+'%'+
+      (d.conf<1?'<br>'+(d.need-d.attempts)+' short of protocol — shrunk toward 50':'')+
+      (d.capped?'<br>capped at 80 · weak: '+esc(d.weakSpots.join(', ')):'')+'</span>';
+    num+=d.rating*W[cat]; den+=W[cat];
+  });
+  const o=$('sh-ovr'); if(o)o.textContent=den?Math.round(num/den):'–';
+}
+async function shSave(){
+  const pid=shCur(); if(!pid)return;
+  const cats=shRead(); const date=($('sh-date')&&$('sh-date').value)||todayISO();
+  const rows=['ft','mid','long'].filter(cat=>cats[cat].attempts>0).map(cat=>stamp({player_id:pid,taken_on:date,category:cat,
+    makes:cats[cat].makes,attempts:cats[cat].attempts,spots:cats[cat].spots,source:'combine'}));
+  if(!rows.length){flag('Enter some makes first');return;}
+  for(const r of rows){
+    const old=S.shooting.filter(x=>x.player_id===pid&&x.taken_on===date&&x.category===r.category);
+    for(const o of old){ await del('pd_shooting',o.id); S.shooting=S.shooting.filter(x=>x.id!==o.id); }
+    const saved=await put('pd_shooting',r); S.shooting.push(saved||Object.assign({id:uuid()},r));
+  }
+  render(); flag('Saved '+rows.length+' categor'+(rows.length===1?'y':'ies')+' for '+date);
+}
+async function shDeleteDay(pid,date){
+  if(!confirm('Delete the '+date+' test day?'))return;
+  for(const o of S.shooting.filter(x=>x.player_id===pid&&x.taken_on===date)) await del('pd_shooting',o.id);
+  S.shooting=S.shooting.filter(x=>!(x.player_id===pid&&x.taken_on===date));
+  render(); flag('Deleted');
+}
+
 /* ================= PRACTICE — attendance + creed ================= */
 function vPractice(){
   if(!PRACTICE_OK) return '<div class="sec"><h2>PRACTICE</h2><div class="rule"></div></div><p class="lead">The practice tables are not created yet.</p>';
@@ -2557,6 +2766,11 @@ function wire(){
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
   const pr=document.querySelector('[data-act="print-reports"]'); if(pr)pr.onclick=()=>window.print();
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
+  document.querySelectorAll('[data-tsub]').forEach(b=>b.onclick=()=>{S.testSub=b.dataset.tsub;render();});
+  document.querySelectorAll('[data-shp]').forEach(b=>b.onclick=()=>{S.shPlayer=b.dataset.shp;render();});
+  const shd=$('sh-date'); if(shd)shd.onchange=()=>{S.shDate=shd.value;};
+  document.querySelectorAll('.sh-m,.sh-a').forEach(el=>el.oninput=shPreview);
+  document.querySelectorAll('[data-shdel]').forEach(b=>b.onclick=()=>shDeleteDay(shCur(),b.dataset.shdel));
   const ssel=$('season-sel'); if(ssel)ssel.onchange=()=>{S.seasonId=ssel.value;render();};
   const prs=$('pr-sess'); if(prs)prs.onchange=()=>{S.prSession=prs.value;render();};
   document.querySelectorAll('[data-prmode]').forEach(b=>b.onclick=()=>{S.prMode=b.dataset.prmode;render();});
@@ -2663,6 +2877,7 @@ function wire(){
     'clear-week':()=>clearWeekModal(),
     'bulk-tag':()=>bulkTagModal(),
     'bulk-import':()=>bulkImportModal(),
+    'sh-save':()=>shSave(),
     'new-session':()=>sessionModal(null),
     'edit-session':()=>{const l=sessionsSorted();const sx=S.prSession?l.find(x=>x.id===S.prSession)||l[0]:l[0];if(sx)sessionModal(sx.id);},
     'all-present':()=>{const l=sessionsSorted();const sx=S.prSession?l.find(x=>x.id===S.prSession)||l[0]:l[0];if(sx)markAllPresent(sx.id);},
