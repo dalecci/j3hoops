@@ -485,6 +485,13 @@ textarea.tin{resize:vertical;line-height:1.5}
   cursor:pointer;display:grid;place-items:center}
 .lb-x:hover{background:rgba(255,255,255,.16)}
 @media(prefers-reduced-motion:reduce){.lb{transition:none}}
+
+/* ---- open shooting lines ---- */
+.attrs.shoot{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 16px 8px}
+.attrs.shoot .at{flex-wrap:wrap;row-gap:2px}
+.at-m{flex:0 0 100%;font-size:.72rem;color:var(--ink-d);font-weight:600;padding:0 0 4px 2px}
+.at-m i{font-style:normal;color:var(--gold)}
+.shfoot{font-size:.78rem;color:var(--ink-d);line-height:1.5;margin:10px 2px 0}
 </style>
 </head>
 <body>
@@ -504,7 +511,7 @@ const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],p
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
   coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],welcome:[],reads:[],
   view:'home',greeted:null,filmTab:'practice',openDoc:null,openCat:null,openVid:null,
-  seasons:[],sessions:[],att:[],creed:[],agoals:[],seasonId:null,
+  seasons:[],sessions:[],att:[],creed:[],agoals:[],seasonId:null,shooting:[],
   household:null,kids:[]};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
@@ -592,7 +599,7 @@ async function loadFor(code){
     sb.from('training_videos').select('*').neq('category','fullgame'),
     sb.from('training_documents').select('*'),
     q('pd_welcome'),q('pd_message_reads'),
-    q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals')]);
+    q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals'),q('pd_shooting')]);
   S.player=r[0].data;
   S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
   S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
@@ -601,7 +608,7 @@ async function loadFor(code){
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
   S.seasons=(r[27]&&r[27].data)||[];S.sessions=(r[28]&&r[28].data)||[];S.att=(r[29]&&r[29].data)||[];
-  S.creed=(r[30]&&r[30].data)||[];S.agoals=(r[31]&&r[31].data)||[];
+  S.creed=(r[30]&&r[30].data)||[];S.agoals=(r[31]&&r[31].data)||[];S.shooting=(r[32]&&r[32].data)||[];
   const _as=S.seasons.find(x=>x.is_active); S.seasonId=_as?_as.id:(S.seasons[0]?S.seasons[0].id:null);
   const fam=await resolveKids(pid);
   S.household=fam.hid; S.kids=fam.kids.length?fam.kids:[S.player];
@@ -662,6 +669,7 @@ function coachAvg(pid,k){const v=S.coachScores.filter(s=>s.player_id===pid&&s.ca
   return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
 function attrRating(pid,key){
   const p=S.player,a=S.attrs.find(x=>x.key===key); if(!p||!a)return{rating:null};
+  if(key==='shooting'){ const sh=shootingFor(pid); if(sh&&sh.ovr!=null) return {rating:sh.ovr}; }
   let num=0,den=0;
   S.weights.filter(w=>w.attribute_key===key).forEach(w=>{
     const r=latestResult(pid,w.test_key); if(!r)return;
@@ -869,6 +877,93 @@ function inchesToHW(n){ return {ft:Math.floor(n/12), inch:Math.round(n%12)}; }
 function fmtHW(raw){
   const h=parseHW(raw); if(!h)return raw==null?null:String(raw);
   return h.ft+String.fromCharCode(39)+h.inch+String.fromCharCode(34);
+}
+
+/* ================= OPEN SHOOTING — Jaguars benchmarks ================= */
+/* Percentage that earns each rating row (50,60,70,80,90) by category. Grades 3 and 7 are the
+   anchor grades from the benchmark doc; every other grade interpolates between them. */
+const SHOOT_ROWS=[50,60,70,80,90];
+const SHOOT_ANCHORS={
+  3:{ft:[30,40,50,60,70], mid:[25,35,45,55,65], long:[15,25,35,45,55]},
+  7:{ft:[45,55,65,75,85], mid:[35,45,55,65,75], long:[20,28,35,42,50]}
+};
+const SHOOT_WEIGHTS={3:{ft:0.35,mid:0.45,long:0.20}, 7:{ft:0.30,mid:0.35,long:0.35}};
+const SHOOT_PROTOCOL={3:{ft:20,mid:40,long:30}, 7:{ft:25,mid:50,long:50}};
+const SHOOT_CATS=[['ft','Free throw'],['mid','Mid-range'],['long','3-point']];
+const SHOOT_SPOTS=['L corner','L wing','Top','R wing','R corner'];
+function shootT(grade){ const g=grade==null?7:+grade; return Math.max(0,Math.min(1,(g-3)/4)); }
+function shootYoung(grade){ return shootT(grade)<0.5; }
+function shootLabel(cat,grade){
+  if(cat==='long') return shootYoung(grade)?'Long-range form':'3-point';
+  if(cat==='mid')  return shootYoung(grade)?'Close / mid set shot':'Mid-range';
+  return shootYoung(grade)?'Form free throw':'Free throw';
+}
+function shootAnchors(cat,grade){
+  const t=shootT(grade), a=SHOOT_ANCHORS[3][cat], b=SHOOT_ANCHORS[7][cat];
+  return a.map(function(v,i){return v+(b[i]-v)*t;});
+}
+function shootWeights(grade){
+  const t=shootT(grade), a=SHOOT_WEIGHTS[3], b=SHOOT_WEIGHTS[7];
+  return {ft:a.ft+(b.ft-a.ft)*t, mid:a.mid+(b.mid-a.mid)*t, long:a.long+(b.long-a.long)*t};
+}
+function shootProtocol(cat,grade){
+  const t=shootT(grade);
+  return Math.round(SHOOT_PROTOCOL[3][cat]+(SHOOT_PROTOCOL[7][cat]-SHOOT_PROTOCOL[3][cat])*t);
+}
+function shootScale(){ return (typeof SC==='function')?SC():{floor:35,cap:99}; }
+/* percentage -> rating: straight lines between the anchor rows, extended past both ends */
+function shootRate(pct,cat,grade){
+  if(pct==null||isNaN(pct))return null;
+  const P=shootAnchors(cat,grade), R=SHOOT_ROWS, sc=shootScale();
+  let r, n=P.length-1;
+  if(pct<=P[0]){ r=R[0]-(P[0]-pct)*((R[1]-R[0])/(P[1]-P[0])); }
+  else if(pct>=P[n]){ r=R[n]+(pct-P[n])*((R[n]-R[n-1])/(P[n]-P[n-1])); }
+  else { for(let i=0;i<n;i++){ if(pct>=P[i]&&pct<=P[i+1]){ r=R[i]+(pct-P[i])/(P[i+1]-P[i])*(R[i+1]-R[i]); break; } } }
+  return Math.max(sc.floor,Math.min(sc.cap,Math.round(r)));
+}
+/* the percentage worth a 60 — no spot may sit under it if the category is to rate above 80 */
+function shootFloor60(cat,grade){ return shootAnchors(cat,grade)[1]; }
+/* one test day, one category */
+function shootDay(row,grade){
+  const a=+row.attempts||0, m=+row.makes||0;
+  if(!a) return null;
+  const pct=100*m/a;
+  const raw=shootRate(pct,row.category,grade);
+  const need=shootProtocol(row.category,grade);
+  const conf=Math.min(1,a/need);
+  let rating=Math.round(50+(raw-50)*conf);
+  let capped=false, weakSpots=[];
+  if((row.category==='mid'||row.category==='long')&&Array.isArray(row.spots)&&row.spots.length){
+    const f=shootFloor60(row.category,grade);
+    row.spots.forEach(function(s,i){ const sa=+s.a||0; if(sa>0&&100*(+s.m||0)/sa<f) weakSpots.push(SHOOT_SPOTS[i]||('Spot '+(i+1))); });
+    if(weakSpots.length&&rating>80){rating=80;capped=true;}
+  }
+  return {pct:Math.round(pct*10)/10,makes:m,attempts:a,raw:raw,rating:rating,conf:conf,need:need,capped:capped,weakSpots:weakSpots,when:row.taken_on};
+}
+/* a player's official shooting: the latest two test days per category, averaged */
+function shootingFor(pid){
+  const p=(S.players||[]).find(function(x){return x.id===pid;})||(S.player&&S.player.id===pid?S.player:null);
+  if(!p) return null;
+  const grade=p.grade;
+  const rows=(S.shooting||[]).filter(function(r){return r.player_id===pid&&inSeason(r)&&r.source!=='game';});
+  if(!rows.length) return null;
+  const out={grade:grade,young:shootYoung(grade),weights:shootWeights(grade),cats:{},have:0};
+  let num=0,den=0;
+  SHOOT_CATS.forEach(function(c){ const cat=c[0];
+    const days=rows.filter(function(r){return r.category===cat;})
+      .sort(function(a,b){return String(b.taken_on).localeCompare(String(a.taken_on));});
+    const rated=days.map(function(r){return shootDay(r,grade);}).filter(Boolean).slice(0,2);
+    if(!rated.length){out.cats[cat]=null;return;}
+    const rating=Math.round(rated.reduce(function(s,d){return s+d.rating;},0)/rated.length);
+    const pct=Math.round(rated.reduce(function(s,d){return s+d.pct;},0)/rated.length*10)/10;
+    out.cats[cat]={rating:rating,pct:pct,days:rated.length,
+      attempts:rated.reduce(function(s,d){return s+d.attempts;},0),
+      need:rated[0].need, provisional:rated.some(function(d){return d.conf<1;}),
+      capped:rated.some(function(d){return d.capped;}), label:shootLabel(cat,grade), latest:rated[0]};
+    num+=rating*out.weights[cat]; den+=out.weights[cat]; out.have++;
+  });
+  out.ovr=den>0?Math.round(num/den):null;
+  return out;
 }
 
 /* ---------- season / attendance / creed / athlete goals ---------- */
@@ -1189,6 +1284,20 @@ function welcomePopup(force){
       };
     });
 }
+/* ---------- OPEN SHOOTING — the three tests, individually ---------- */
+function secShooting(p){
+  const sh=shootingFor(p.id); if(!sh) return '';
+  const rows=SHOOT_CATS.map(function(c){ const x=sh.cats[c[0]]; if(!x)return '';
+    const col=x.rating>=90?'#FFC96B':x.rating>=80?'#fff':x.rating>=70?'#D9CBEF':'#B9A9D6';
+    return '<div class="at"><span class="at-l">'+esc(x.label)+'</span>'+pips(x.rating)+
+      '<span class="at-v" style="color:'+col+'">'+x.rating+'</span>'+
+      '<span class="at-m">'+x.pct+'% · '+x.attempts+' shots'+(x.days>1?' · 2 test days':' · 1 test day')+
+        (x.provisional?' · <i>under protocol</i>':'')+(x.capped?' · <i>capped: weak spot</i>':'')+'</span></div>'; }).join('');
+  return '<div class="sh"><h3>OPEN SHOOTING</h3><div class="ln"></div><span class="ct">'+(sh.ovr==null?'–':sh.ovr)+' OVR</span></div>'+
+    '<div class="attrs shoot">'+rows+'</div>'+
+    '<p class="shfoot">Fixed open-shot test against Jaguars Grade '+(sh.grade==null?'':sh.grade)+' standards — not game percentages. Official rating is the average of the latest two test days. Weights: FT '+Math.round(sh.weights.ft*100)+'% · '+esc(shootLabel('mid',sh.grade))+' '+Math.round(sh.weights.mid*100)+'% · '+esc(shootLabel('long',sh.grade))+' '+Math.round(sh.weights.long*100)+'%.</p>';
+}
+
 /* ---------- shell ---------- */
 function renderPortal(){
   const p=S.player; const {ovr,ratings}=ovrOf(p.id);
@@ -1359,6 +1468,7 @@ function secStats(p,ovr,ratings){
   const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
   const f=x=>(Math.round(x*10)/10).toFixed(1);
   return heroCard(p,ovr,ratings)+
+    secShooting(p)+
     growthBlock()+
     secEffort()+
     (gains.length?'<div class="sh"><h3>IMPROVEMENT</h3><div class="ln"></div></div>'+
