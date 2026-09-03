@@ -100,11 +100,17 @@ input,textarea{font-family:inherit}
   text-transform:uppercase;color:var(--gold-lt)}
 .nm h2{font-family:var(--disp);font-size:1.75rem;line-height:1;letter-spacing:-.02em;margin-top:3px}
 .nm .meta{font-size:.76rem;color:var(--ink-m);margin-top:5px}
-.dial{position:relative;width:96px;height:96px;flex-shrink:0}
+.dial{position:relative;width:100px;height:100px;flex-shrink:0}
+.dial svg{display:block;width:100%;height:100%}
 .dial svg{transform:rotate(-90deg)}
-.dial-val{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1}
-.dial-val b{font-family:var(--disp);font-size:1.95rem;letter-spacing:-.02em;display:block}
-.dial-val span{font-family:var(--cond);font-size:.66rem;font-weight:700;letter-spacing:.2em;color:var(--ink-d)}
+.dial-val{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;line-height:1;gap:2px;
+  transform:translateY(-4px)}
+.dial-val b{font-family:var(--disp);font-size:1.86rem;letter-spacing:-.025em;display:block;color:#fff;line-height:1}
+.dial-val .dl{font-family:var(--cond);font-size:.64rem;font-weight:800;letter-spacing:.22em;
+  color:var(--gold);line-height:1}
+.dial-val .dd{font-family:var(--cond);font-size:.62rem;font-weight:800;font-style:normal;
+  letter-spacing:.06em;color:var(--good);line-height:1}
 .up{color:var(--good)} .down{color:var(--bad)} .flat{color:var(--ink-d)}
 .attrs{padding:14px 22px 22px;display:grid;gap:10px}
 .at{display:grid;grid-template-columns:96px 1fr 32px;align-items:center;gap:11px}
@@ -812,17 +818,23 @@ function renderGate(msg){
 }
 
 /* ---------- the OVR dial + attribute pips ---------- */
+/* OVR badge, 2K style: solid disc, gold arc from 12 o'clock, label over a centred number */
 function dial(v,delta){
-  const R=41,C=2*Math.PI*R,off=C-(C*Math.min(v==null?0:v,100)/100);
+  const R=40, C=2*Math.PI*R, pct=Math.max(0,Math.min(v==null?0:v,100));
+  const off=C-(C*pct/100);
   return '<div class="dial">'+
-    '<svg width="96" height="96" viewBox="0 0 96 96">'+
-      '<circle cx="48" cy="48" r="'+R+'" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="7"/>'+
-      '<circle cx="48" cy="48" r="'+R+'" fill="none" stroke="url(#gg)" stroke-width="7" stroke-linecap="round" '+
-        'stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'"/>'+
-      '<defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">'+
-        '<stop offset="0" stop-color="#FFC96B"/><stop offset="1" stop-color="#C77F1E"/></linearGradient></defs>'+
+    '<svg viewBox="0 0 100 100" width="100" height="100" aria-hidden="true">'+
+      '<circle cx="50" cy="50" r="46" fill="#150A2B"/>'+
+      '<circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="1"/>'+
+      '<circle cx="50" cy="50" r="'+R+'" fill="none" stroke="rgba(255,255,255,.11)" stroke-width="7"/>'+
+      '<circle cx="50" cy="50" r="'+R+'" fill="none" stroke="url(#ovrg)" stroke-width="7" stroke-linecap="round" '+
+        'stroke-dasharray="'+C+'" stroke-dashoffset="'+off+'" transform="rotate(-90 50 50)"/>'+
+      '<defs><linearGradient id="ovrg" x1="0" y1="0" x2="1" y2="1">'+
+        '<stop offset="0" stop-color="#FFC96B"/><stop offset="1" stop-color="#E09A2A"/></linearGradient></defs>'+
     '</svg>'+
-    '<div class="dial-val"><b>'+(v==null?'–':v)+'</b><span>OVR '+(dEl(delta)||'')+'</span></div></div>';
+    '<div class="dial-val"><span class="dl">OVR</span><b>'+(v==null?'–':v)+'</b>'+
+      (delta?'<i class="dd">'+(delta>0?'▲'+delta:'▼'+Math.abs(delta))+'</i>':'')+'</div>'+
+  '</div>';
 }
 function pips(v){
   const f=v==null?0:Math.round(v/10);
@@ -834,6 +846,29 @@ function teamNameOf(p){
   const t=S.members.filter(m=>m.player_id===p.id)
     .map(m=>(S.groups.find(g=>g.id===m.group_id)||{}).name).filter(Boolean);
   return t.length?t.join(' / '):'Jaguars';
+}
+
+/* ---- height / wingspan: always feet and inches ---- */
+/* accepts 5-4, 5'4", 5' 4", 64in, 64", or a bare number, and normalises it */
+function parseHW(raw){
+  if(raw==null)return null;
+  const t=String(raw).trim(); if(!t)return null;
+  /* inches-only first, otherwise 48in reads as 48 feet */
+  let m=t.match(/^(\d{1,3}(?:\.\d+)?)\s*(?:"|in\b|inch|inches)$/i);
+  if(m) return inchesToHW(+m[1]);
+  m=t.match(/^(\d{1,2})\s*(?:'|ft\b|feet|-|\s)\s*(\d{1,2}(?:\.\d+)?)?\s*(?:"|in\b|inch|inches)?$/i);
+  if(m){
+    const ft=+m[1], inch=m[2]==null?0:+m[2];
+    if(ft<=8 && inch<12) return {ft:ft,inch:inch};
+  }
+  m=t.match(/^(\d{1,3}(?:\.\d+)?)$/);
+  if(m){ const n=+m[1]; return n>=12 ? inchesToHW(n) : {ft:Math.floor(n),inch:Math.round((n%1)*12)}; }
+  return null;
+}
+function inchesToHW(n){ return {ft:Math.floor(n/12), inch:Math.round(n%12)}; }
+function fmtHW(raw){
+  const h=parseHW(raw); if(!h)return raw==null?null:String(raw);
+  return h.ft+String.fromCharCode(39)+h.inch+String.fromCharCode(34);
 }
 
 /* ---------- season / attendance / creed / athlete goals ---------- */
@@ -981,8 +1016,8 @@ function vitalOf(p,needles,col){
 }
 function vitalsRow(p){
   const items=[
-    ['Height', vitalOf(p,['height'],'height')],
-    ['Wingspan', vitalOf(p,['wingspan','reach'],'wingspan')],
+    ['Height', fmtHW(vitalOf(p,['height'],'height'))],
+    ['Wingspan', fmtHW(vitalOf(p,['wingspan','reach'],'wingspan'))],
     ['Age', p.age==null?null:String(p.age)],
     ['Number', p.number==null?null:'#'+p.number]
   ];
