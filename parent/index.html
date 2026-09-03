@@ -289,6 +289,67 @@ input,textarea{font-family:inherit}
   padding:10px 20px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;
   box-shadow:0 14px 34px -14px #000}
 .flag.show{opacity:1}
+
+/* ---- player photo ---- */
+.pphoto{border-radius:50%;object-fit:cover;display:block;flex-shrink:0;
+  border:2px solid rgba(255,255,255,.22);background:var(--pur-700)}
+.pphoto.noimg{display:grid;place-items:center;font-family:var(--disp);color:var(--gold);
+  background:linear-gradient(150deg,var(--pur-600),var(--pur-800))}
+.card-photo{margin-right:2px}
+
+/* ---- growth ---- */
+.grow{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px 16px 12px}
+.growtop{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.growtop b{font-family:var(--disp);font-size:1.7rem;color:var(--gold);line-height:1}
+.growtop span{font-family:var(--cond);font-size:.9rem;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-m)}
+.growsvg{width:100%;height:84px;display:block}
+.growx{display:flex;justify-content:space-between;gap:6px;margin-top:5px}
+.growx span{display:flex;flex-direction:column;align-items:center;font-size:.68rem;color:var(--ink-d);font-weight:700}
+.growx b{font-family:var(--disp);font-size:.92rem;color:#fff;line-height:1.15}
+
+/* ---- creed strip ---- */
+.creedp{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:13px 15px}
+.cpr{display:flex;align-items:center;gap:11px;padding:7px 0}
+.cpl{font-family:var(--cond);font-size:.88rem;font-weight:800;letter-spacing:.12em;color:var(--ink-m);flex:1}
+.cpd{display:flex;gap:5px}
+.cpd i{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);display:block}
+.cpd i.on{background:var(--gold);border-color:var(--gold)}
+.cpv{font-family:var(--disp);font-size:1rem;color:var(--gold);min-width:26px;text-align:right}
+
+/* ---- athlete goals ---- */
+.ctbtn{margin-left:auto;font-family:var(--cond);font-size:.86rem;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--pur-900);background:var(--gold);border:0;border-radius:999px;
+  padding:6px 13px;cursor:pointer;white-space:nowrap}
+.ctbtn:hover{background:var(--gold-lt)}
+.agh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.agstat{font-family:var(--cond);font-size:.78rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;border:1px solid currentColor}
+.agstat.s-proposed{color:var(--ink-m)}
+.agstat.s-parent_signed{color:var(--gold)}
+.agstat.s-approved{color:var(--gold-lt);background:rgba(240,168,60,.14)}
+.agstat.s-complete{color:var(--good);background:rgba(84,224,138,.12)}
+.agstat.s-declined{color:var(--bad)}
+.agby{font-size:.76rem;color:var(--ink-d);font-weight:600}
+.agtxt{font-size:1rem;font-weight:600;color:#fff;line-height:1.45}
+.agmeta{margin-top:8px;font-size:.86rem;color:var(--ink-m);font-weight:600}
+.agmeta b{color:var(--gold)}
+.agbar{height:8px;border-radius:99px;background:rgba(255,255,255,.09);margin:11px 0 5px;overflow:hidden}
+.agbar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dk),var(--gold-lt));border-radius:99px}
+.agpct{font-family:var(--cond);font-size:.82rem;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--gold)}
+.agnote{margin-top:10px;padding-top:9px;border-top:1px solid var(--line-s);font-size:.88rem;color:var(--ink-s)}
+
+/* ---- form fields inside sheets ---- */
+.fld{margin-bottom:14px}
+.fld label{display:block;font-family:var(--cond);font-size:.84rem;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-m);margin-bottom:6px}
+.fld2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.tin{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:11px;
+  padding:12px 13px;color:#fff;font-family:var(--sans);font-size:1rem;font-weight:600}
+.tin:focus{outline:none;border-color:var(--gold)}
+select.tin option{background:var(--pur-800);color:#fff}
+textarea.tin{resize:vertical;line-height:1.5}
 </style>
 </head>
 <body>
@@ -308,6 +369,7 @@ const S={player:null,attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],p
   drills:[],assigns:[],groups:[],members:[],comments:[],replies:[],stats:[],games:[],
   coachScores:[],settings:{},objectives:[],tasks:[],lists:[],listItems:[],itemState:[],videos:[],docs:[],welcome:[],reads:[],
   view:'home',filmTab:'practice',openDoc:null,openCat:null,openVid:null,
+  seasons:[],sessions:[],att:[],creed:[],agoals:[],seasonId:null,
   household:null,kids:[]};
 
 function flag(m){const f=$('flag');f.textContent=m||'✓ Sent';f.classList.add('show');
@@ -394,7 +456,8 @@ async function loadFor(code){
     q('pd_objectives'),q('pd_tasks'),q('pd_lists'),q('pd_list_items'),q('pd_item_state'),
     sb.from('training_videos').select('*').neq('category','fullgame'),
     sb.from('training_documents').select('*'),
-    q('pd_welcome'),q('pd_message_reads')]);
+    q('pd_welcome'),q('pd_message_reads'),
+    q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals')]);
   S.player=r[0].data;
   S.attrs=r[1].data||[];S.tests=r[2].data||[];S.weights=r[3].data||[];S.norms=r[4].data||[];
   S.results=r[5].data||[];S.snaps=r[6].data||[];S.players=r[7].data||[];S.drills=r[8].data||[];
@@ -402,6 +465,9 @@ async function loadFor(code){
   S.comments=r[12].data||[];S.replies=r[13].data||[];S.stats=r[14].data||[];S.games=r[15].data||[];
   S.coachScores=r[16].data||[];
   const set={};(r[17].data||[]).forEach(x=>set[x.key]=x.value);S.settings=set;
+  S.seasons=(r[27]&&r[27].data)||[];S.sessions=(r[28]&&r[28].data)||[];S.att=(r[29]&&r[29].data)||[];
+  S.creed=(r[30]&&r[30].data)||[];S.agoals=(r[31]&&r[31].data)||[];
+  const _as=S.seasons.find(x=>x.is_active); S.seasonId=_as?_as.id:(S.seasons[0]?S.seasons[0].id:null);
   const fam=await resolveKids(pid);
   S.household=fam.hid; S.kids=fam.kids.length?fam.kids:[S.player];
   if(fam.hid){try{localStorage.setItem(HKEY,fam.hid);}catch(e){}}
@@ -640,10 +706,92 @@ function teamNameOf(p){
     .map(m=>(S.groups.find(g=>g.id===m.group_id)||{}).name).filter(Boolean);
   return t.length?t.join(' / '):'Jaguars';
 }
+
+/* ---------- season / attendance / creed / athlete goals ---------- */
+const seasonName=id=>{const x=S.seasons.find(y=>y.id===id);return x?x.name:'Earlier';};
+const curSeasonName=()=>{const x=S.seasons.find(y=>y.id===S.seasonId);return x?x.name:'This season';};
+const inSeason=r=>!S.seasonId||r.season_id==null||r.season_id===S.seasonId;
+function mySessions(){
+  const t=teamsOf(S.player.id);
+  return S.sessions.filter(inSeason)
+    .filter(x=>!x.group_id||t.includes(x.group_id))
+    .sort((a,b)=>String(b.session_date).localeCompare(String(a.session_date)));
+}
+function myAttendance(){
+  const ids=new Set(mySessions().map(x=>x.id));
+  const rows=S.att.filter(a=>a.player_id===S.player.id&&ids.has(a.session_id));
+  const held=rows.length, here=rows.filter(a=>a.status==='present'||a.status==='late').length;
+  let streak=0;
+  for(const sx of mySessions()){
+    const a=rows.find(r=>r.session_id===sx.id); if(!a)break;
+    if(a.status==='present'||a.status==='late')streak++; else break;
+  }
+  const eff=rows.filter(a=>a.effort===3).length;
+  return {held,here,streak,greatEffort:eff,pct:held?Math.round(here/held*100):null};
+}
+const CREED_P=[['force_v','FORCE'],['intentional_v','INTENTIONAL'],['compete_v','COMPETE'],['deliberate_v','DELIBERATE']];
+function myCreed(){
+  const ids=new Set(mySessions().map(x=>x.id));
+  const rows=S.creed.filter(c=>c.player_id===S.player.id&&ids.has(c.session_id));
+  if(!rows.length)return null;
+  const out={n:rows.length};
+  CREED_P.forEach(c=>{const v=rows.map(r=>r[c[0]]).filter(x=>x!=null);
+    out[c[0]]=v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;});
+  return out;
+}
+function myGoals(){return S.agoals.filter(g=>g.player_id===S.player.id)
+  .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));}
+const AGL={proposed:'Waiting for a parent to sign',parent_signed:'Waiting for coach approval',
+  approved:'Approved — go get it',complete:'Done',declined:'Not this time'};
+function agoalPct(g){
+  if(!g.test_key||g.target_value==null)return null;
+  const rs=S.results.filter(r=>r.player_id===g.player_id&&r.test_key===g.test_key)
+    .sort((a,b)=>String(b.measured_on||'').localeCompare(String(a.measured_on||'')));
+  if(!rs.length)return null;
+  const start=g.start_value==null?0:+g.start_value, tgt=+g.target_value, cur=+rs[0].value;
+  if(tgt===start)return null;
+  return Math.max(0,Math.min(100,Math.round((cur-start)/(tgt-start)*100)));
+}
+/* growth across seasons, newest last */
+function growthPoints(){
+  const pts=S.snaps.filter(x=>x.player_id===S.player.id)
+    .sort((a,b)=>String(a.as_of).localeCompare(String(b.as_of)))
+    .map(x=>({when:String(x.as_of).slice(5),label:seasonName(x.season_id),ovr:x.ovr}));
+  const now=ovrOf(S.player.id).ovr;
+  if(now!=null)pts.push({when:'now',label:curSeasonName(),ovr:now});
+  return pts;
+}
+function growthBlock(){
+  const pts=growthPoints();
+  if(pts.length<2)return '';
+  const d=pts[pts.length-1].ovr-pts[0].ovr;
+  const min=Math.min.apply(null,pts.map(p=>p.ovr))-4, max=Math.max.apply(null,pts.map(p=>p.ovr))+4;
+  const W=480,H=96,span=Math.max(1,max-min);
+  const P=pts.map((p,i)=>[10+i*((W-20)/Math.max(1,pts.length-1)),H-8-((p.ovr-min)/span)*(H-20)]);
+  const line=P.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  return '<div class="sec"><h3>How far you have come</h3>'+
+    '<div class="grow">'+
+      '<div class="growtop"><b>'+(d>0?'+'+d:d)+'</b><span>overall since '+esc(pts[0].label)+'</span></div>'+
+      '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" class="growsvg">'+
+        '<polygon points="10,'+(H-8)+' '+line+' '+(W-10)+','+(H-8)+'" fill="rgba(240,168,60,.16)"/>'+
+        '<polyline points="'+line+'" fill="none" stroke="#F0A83C" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'+
+        P.map((p,i)=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(i===P.length-1?5:3.5)+'" fill="#F0A83C"/>').join('')+
+      '</svg>'+
+      '<div class="growx">'+pts.map(p=>'<span><b>'+p.ovr+'</b>'+esc(p.when)+'</span>').join('')+'</div>'+
+    '</div></div>';
+}
+/* photo */
+function photoOf(p,sz,cls){
+  if(p&&p.photo_url) return '<img class="pphoto '+(cls||'')+'" style="width:'+sz+'px;height:'+sz+'px" src="'+esc(p.photo_url)+'" alt="'+esc(p.name)+'">';
+  const init=(p&&p.name?p.name.split(' ').map(x=>x[0]).slice(0,2).join(''):'?').toUpperCase();
+  return '<span class="pphoto noimg '+(cls||'')+'" style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*0.34)+'px">'+esc(init)+'</span>';
+}
+
 function heroCard(p,ovr,ratings){
   return '<div class="card">'+
     crestImg('card-watermark')+
     '<div class="card-top">'+
+      photoOf(p,58,'card-photo')+
       '<div class="num">'+(p.number==null?'–':p.number)+'</div>'+
       '<div class="nm"><div class="team">'+esc(teamNameOf(p))+'</div>'+
         '<h2>'+esc(p.name)+'</h2>'+
@@ -657,6 +805,121 @@ function heroCard(p,ovr,ratings){
     '<div class="card-foot"><span>Compared with '+esc(cohortName(p))+'</span>'+
       '<span>0–100 · growth matters more than the number</span></div>'+
   '</div>';
+}
+
+
+/* ---------- small modal shell, matching addKidModal ---------- */
+function sheet(title,bodyHTML,onReady){
+  const host=document.createElement('div');
+  host.className='ov'; host.id='ov';
+  host.innerHTML='<div class="sheet"><div class="sh-h"><h3>'+title+'</h3>'+
+    '<button class="sh-x" id="sx">✕</button></div><div class="sh-b">'+bodyHTML+'</div></div>';
+  document.body.appendChild(host);
+  const close=()=>host.remove();
+  host.onclick=e=>{if(e.target===host)close();};
+  host.querySelector('#sx').onclick=close;
+  if(onReady)onReady(host,close);
+  return host;
+}
+async function sbInsert(table,row){
+  const r=await sb.from(table).insert(row).select().single();
+  if(r.error){console.error(table,r.error);flag('Could not save — '+r.error.message);return null;}
+  return r.data;
+}
+async function sbUpdate(table,id,row){
+  const r=await sb.from(table).update(row).eq('id',id);
+  if(r.error){console.error(table,r.error);flag('Could not save — '+r.error.message);return false;}
+  return true;
+}
+
+/* ---------- MY GOALS (athlete writes, parent co-signs) ---------- */
+function secMyGoals(){
+  const gs=myGoals();
+  let out='<div class="sh"><h3>MY GOALS</h3><div class="ln"></div>'+
+    '<button class="ctbtn" data-newgoal="1">＋ New goal</button></div>';
+  if(!gs.length) return out+'<div class="empty">No goals yet.<br>Write one, get a parent to sign it, and your coach approves it.</div>';
+  out+=gs.map(g=>{
+    const pct=agoalPct(g);
+    const t=g.test_key?S.tests.find(x=>x.key===g.test_key):null;
+    const tone=g.status==='approved'?'border-color:rgba(240,168,60,.45)':
+               g.status==='complete'?'border-color:rgba(84,224,138,.4)':'';
+    return '<div class="note" style="'+tone+'">'+
+      '<div class="agh"><span class="agstat s-'+g.status+'">'+esc(AGL[g.status]||g.status)+'</span>'+
+        (g.parent_signed_by?'<span class="agby">signed by '+esc(g.parent_signed_by)+'</span>':'')+'</div>'+
+      '<div class="agtxt">'+esc(g.body)+'</div>'+
+      (t?'<div class="agmeta">'+esc(t.label)+': '+(g.start_value==null?'–':g.start_value)+' → <b>'+g.target_value+'</b> '+esc(t.unit||'')+'</div>':'')+
+      (pct==null?'':'<div class="agbar"><i style="width:'+pct+'%"></i></div><div class="agpct">'+pct+'% of the way there</div>')+
+      (g.status==='proposed'?'<button class="btn btn-p btn-block" style="margin-top:13px" data-sign="'+g.id+'">A parent signs here</button>':'')+
+      (g.coach_note?'<div class="agnote">Coach: '+esc(g.coach_note)+'</div>':'')+
+    '</div>';}).join('');
+  return out;
+}
+function agoalModal(){
+  const ts=activeTests();
+  sheet('Write a goal',
+    '<p style="color:var(--ink-m);margin:0 0 15px;font-size:.92rem">Say what you want to get better at. Something you can measure works best.</p>'+
+    '<div class="fld"><label>My goal</label><textarea class="tin" id="ag-body" rows="3" placeholder="Make 18 of 25 spot shots by Christmas"></textarea></div>'+
+    '<div class="fld"><label>Tie it to a test (optional)</label><select class="tin" id="ag-test"><option value="">Just words, no number</option>'+
+      ts.map(t=>'<option value="'+t.key+'">'+esc(t.label)+'</option>').join('')+'</select></div>'+
+    '<div class="fld2"><div class="fld"><label>Where I am now</label><input class="tin" id="ag-start" inputmode="decimal" placeholder="12"></div>'+
+    '<div class="fld"><label>Where I want to be</label><input class="tin" id="ag-target" inputmode="decimal" placeholder="18"></div></div>'+
+    '<button class="btn btn-p btn-block" id="ag-save">Save my goal</button>',
+    function(host,close){
+      const tsel=host.querySelector('#ag-test');
+      tsel.onchange=function(){const k=tsel.value; if(!k)return;
+        const r=S.results.filter(x=>x.player_id===S.player.id&&x.test_key===k)
+          .sort((a,b)=>String(b.measured_on||'').localeCompare(String(a.measured_on||'')));
+        if(r.length)host.querySelector('#ag-start').value=r[0].value;};
+      host.querySelector('#ag-save').onclick=async function(){
+        const body=host.querySelector('#ag-body').value.trim();
+        if(!body){flag('Write the goal first');return;}
+        const gs=host.querySelector('#ag-start').value, gt=host.querySelector('#ag-target').value;
+        const row={player_id:S.player.id,body:body,status:'proposed',
+          test_key:tsel.value||null,
+          start_value:gs===''?null:+gs, target_value:gt===''?null:+gt,
+          season_id:S.seasonId||null};
+        const saved=await sbInsert('pd_athlete_goals',row);
+        if(!saved)return;
+        S.agoals.push(saved); close(); renderPortal(); flag('Saved — now get a parent to sign it');};
+    });
+}
+function signModal(id){
+  const g=S.agoals.find(x=>x.id===id); if(!g)return;
+  sheet('Parent signature',
+    '<p style="color:var(--ink-m);margin:0 0 14px;font-size:.92rem">Signing means you have read this goal with your athlete and you back it. It then goes to the coach for approval.</p>'+
+    '<div class="note" style="margin:0 0 15px"><div class="agtxt">'+esc(g.body)+'</div></div>'+
+    '<div class="fld"><label>Parent name</label><input class="tin" id="sg-name" placeholder="Your name"></div>'+
+    '<button class="btn btn-p btn-block" id="sg-go">Sign and send to coach</button>',
+    function(host,close){
+      host.querySelector('#sg-go').onclick=async function(){
+        const nm=host.querySelector('#sg-name').value.trim();
+        if(!nm){flag('Type your name');return;}
+        const up={status:'parent_signed',parent_signed_by:nm,parent_signed_at:new Date().toISOString()};
+        const ok=await sbUpdate('pd_athlete_goals',id,up); if(!ok)return;
+        Object.assign(g,up); close(); renderPortal(); flag('Signed — the coach has it now');};
+    });
+}
+
+/* ---------- EFFORT: attendance + creed ---------- */
+function secEffort(){
+  const a=myAttendance(), c=myCreed();
+  if(!a.held&&!c) return '';
+  let out='';
+  if(a.held) out+='<div class="sh"><h3>SHOWING UP</h3><div class="ln"></div></div>'+
+    '<div class="stats">'+
+    '<div class="st"><b>'+(a.pct==null?'–':a.pct+'%')+'</b><span>Attendance</span></div>'+
+    '<div class="st"><b>'+a.here+'/'+a.held+'</b><span>Practices</span></div>'+
+    (a.streak>1?'<div class="st"><b>'+a.streak+'</b><span>In a row</span></div>':'')+
+    (a.greatEffort?'<div class="st"><b>'+a.greatEffort+'</b><span>Great effort</span></div>':'')+
+  '</div>';
+  if(c) out+='<div class="sh"><h3>THE CREED</h3><div class="ln"></div>'+
+      '<span class="ct">'+c.n+' practice'+(c.n===1?'':'s')+'</span></div>'+
+    '<div class="creedp">'+CREED_P.map(cr=>{
+      const v=c[cr[0]];
+      return '<div class="cpr"><span class="cpl">'+cr[1]+'</span>'+
+        '<span class="cpd">'+[1,2,3,4].map(n=>'<i class="'+(v!=null&&v>=n-0.5?'on':'')+'"></i>').join('')+'</span>'+
+        '<span class="cpv">'+(v==null?'–':v)+'</span></div>';}).join('')+'</div>';
+  return out;
 }
 
 /* ---------- shell ---------- */
@@ -707,6 +970,8 @@ function renderPortal(){
 
   if(v==='coach') markAllRead(msgs);
 
+  document.querySelectorAll('[data-newgoal]').forEach(b=>b.onclick=()=>agoalModal());
+  document.querySelectorAll('[data-sign]').forEach(b=>b.onclick=()=>signModal(b.dataset.sign));
   document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{
     S.view=b.dataset.view;S.openDoc=null;S.openCat=null;S.openVid=null;renderPortal();window.scrollTo(0,0);});
   document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{
@@ -826,6 +1091,8 @@ function secStats(p,ovr,ratings){
   const g=ln.length, sum=k=>ln.reduce((a,b)=>a+(+b[k]||0),0);
   const f=x=>(Math.round(x*10)/10).toFixed(1);
   return heroCard(p,ovr,ratings)+
+    growthBlock()+
+    secEffort()+
     (gains.length?'<div class="sh"><h3>IMPROVEMENT</h3><div class="ln"></div></div>'+
       '<div class="note">'+gains.map(x=>'<span class="pill">'+esc(x.t.label)+
         ' <b style="color:'+(x.better?'var(--good)':'var(--bad)')+'">'+x.from+' → '+x.to+'</b></span>').join('')+'</div>':'')+
@@ -843,7 +1110,8 @@ function secStats(p,ovr,ratings){
 
 /* ---------- WORK ---------- */
 function secWork(objs,tks,objDone,tkDone){
-  return '<div class="sh"><h3>OBJECTIVES</h3><div class="ln"></div><span class="ct">'+objDone+'/'+objs.length+'</span></div>'+
+  return secMyGoals()+
+    '<div class="sh"><h3>OBJECTIVES</h3><div class="ln"></div><span class="ct">'+objDone+'/'+objs.length+'</span></div>'+
     (objs.length?objs.map(o=>'<div class="note" style="'+(o.done?'border-color:rgba(84,224,138,.35)':'')+'">'+
       '<div style="display:flex;gap:13px;align-items:flex-start">'+
         '<span class="chk '+(o.done?'on':'')+'">'+(o.done?'✓':'')+'</span>'+
