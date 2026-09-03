@@ -1481,7 +1481,8 @@ function vGoals(){
         '</div>'+
         '<button class="btn btn-g btn-s btn-dz" data-taskdel="'+t.id+'">✕</button>'+
       '</div></div>';}).join('')
-      :'<div class="empty" style="padding:26px"><div>No to-dos yet.</div></div>');
+      :'<div class="empty" style="padding:26px"><div>No to-dos yet.</div></div>')
+    +vAthleteGoals();
 }
 function progressCard(label,done,total,pct){
   return '<div class="note" style="flex:1;min-width:170px;margin-bottom:0">'+
