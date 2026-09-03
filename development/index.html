@@ -378,6 +378,16 @@
 .shsum{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 16px;margin-bottom:10px}
 .shsum b{font-family:var(--disp);font-size:1.7rem;color:var(--gold);margin-left:12px;line-height:1}
+
+/* ---- growth on the bars ---- */
+.brow{grid-template-columns:76px 1fr 60px}
+.btrack{position:relative}
+.bgain,.bloss{position:absolute;top:0;height:100%;border-radius:99px}
+.bgain{background:linear-gradient(90deg,#3fd08a,#54E08A);box-shadow:0 0 6px rgba(84,224,138,.55)}
+.bloss{background:rgba(255,122,107,.35);border:1px dashed rgba(255,122,107,.6);box-sizing:border-box}
+.bval{white-space:nowrap}
+.bval .delta{font-size:.6rem;margin-left:4px}
+.delta.up{color:#54E08A} .delta.down{color:#FF7A6B} .delta.flat{color:var(--tx-d)}
 </style>
 </head>
 <body>
@@ -828,8 +838,19 @@ function lastSnap(pid){
   const s=S.snaps.filter(x=>x.player_id===pid).sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));
   return s.length?s[0]:null;
 }
+/* The checkpoint growth is measured from. Test days auto-save a checkpoint, so the latest one
+   usually equals the current state; in that case step back to the checkpoint before it. A manual
+   checkpoint is always the reference (that is what the button is for: reset the baseline to now). */
+function refSnap(pid){
+  const s=S.snaps.filter(x=>x.player_id===pid)
+    .sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  if(!s.length)return null;
+  const L=s[0];
+  if(L.trigger==='test'){ const prev=s.find(x=>String(x.as_of)<String(L.as_of)); return prev||null; }
+  return L;
+}
 function deltaFor(pid,key,cur){
-  const s=lastSnap(pid); if(!s||cur==null)return null;
+  const s=refSnap(pid); if(!s||cur==null)return null;
   const prev=key==='ovr'?s.ovr:(s.attributes_json||{})[key];
   if(prev==null)return null; const d=Math.round(cur-prev); return d;
 }
@@ -876,6 +897,16 @@ function vCards(){
     ${rows.length?`<div class="cards">${rows.map(cardHTML).join('')}</div>`
       :`<div class="empty"><div class="ico">🏀</div><div>No players yet — add them in the Tryouts app roster.</div></div>`}`;
 }
+/* one attribute bar: base fill in the rating colour, growth since the reference checkpoint in green (loss in red) */
+function barRow(pid,key,label,v){
+  const d=deltaFor(pid,key,v), col=ratingColor(v), cur=v==null?0:v;
+  let track;
+  if(d!=null&&d>0){ const base=Math.max(0,cur-d); track='<i class="bfill" style="width:'+base+'%;background:'+col+'"></i><i class="bgain" style="left:'+base+'%;width:'+d+'%"></i>'; }
+  else if(d!=null&&d<0){ track='<i class="bfill" style="width:'+cur+'%;background:'+col+'"></i><i class="bloss" style="left:'+cur+'%;width:'+Math.abs(d)+'%"></i>'; }
+  else track='<i class="bfill" style="width:'+cur+'%;background:'+col+'"></i>';
+  return '<div class="brow"><span class="blab">'+esc(label)+'</span><span class="btrack">'+track+'</span>'+
+    '<span class="bval" style="color:'+col+'">'+(v==null?'–':v)+dEl(d)+'</span></div>';
+}
 function cardHTML({p,ovr,coverage,ratings}){
   const min=+S.settings.provisional_min_inputs||2;
   const inputs=Object.values(ratings).reduce((s,r)=>s+r.inputs,0);
@@ -896,10 +927,7 @@ function cardHTML({p,ovr,coverage,ratings}){
         <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(fmtHW(p.height)):''}</div></div>
       <div class="ovr"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b><span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
     </div>
-    <div class="bars">${top.map(a=>{const v=ratingOfKey(p.id,a.key,ratings);
-      return `<div class="brow"><span class="blab">${esc(a.label)}</span>
-        <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
-        <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
+    <div class="bars">${top.map(a=>barRow(p.id,a.key,a.label,ratingOfKey(p.id,a.key,ratings))).join('')}</div>
     ${strip}
   </div>`;
 }
@@ -2270,6 +2298,7 @@ async function shSave(){
     for(const o of old){ await del('pd_shooting',o.id); S.shooting=S.shooting.filter(x=>x.id!==o.id); }
     const saved=await put('pd_shooting',r); S.shooting.push(saved||Object.assign({id:uuid()},r));
   }
+  await autoCheckpoint(pid,date);
   render(); flag('Saved '+rows.length+' categor'+(rows.length===1?'y':'ies')+' for '+date);
 }
 async function shDeleteDay(pid,date){
@@ -2860,6 +2889,7 @@ function wire(){
     if(ex&&ex.tested_at===today){ ex.value=value; await patch('pd_results',ex.id,{value}); }
     else{ const row={player_id:pid,test_key:tk,value,tested_at:today};
       const s=await put('pd_results',row); S.results.push(s||{id:uuid(),...row}); }
+    await autoCheckpoint(pid,today);
     render(); flag('Saved');});
   const af=$('afilter'); if(af)af.oninput=()=>{S.assignFilter=af.value;render();
     const e=$('afilter'); if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length);}};
@@ -2921,6 +2951,16 @@ function wire(){
     'list-back':()=>{S.openList=null;render();},
     'codes-all':async()=>{for(const pl of S.players){ if(!S.access.find(a=>a.player_id===pl.id&&!a.revoked_at)) await makeCode(pl.id);} render(); flag('Codes generated');}};
   document.querySelectorAll('[data-act]').forEach(b=>{const f=acts[b.dataset.act]; if(f)b.onclick=f;});
+}
+/* one checkpoint per player per test day; re-saving the same day replaces it, so nothing piles up */
+async function autoCheckpoint(pid,date){
+  const r=ovrOf(pid); if(r.ovr==null)return;
+  const aj=snapshotAttrs(pid,r.ratings);
+  const dupes=S.snaps.filter(x=>x.player_id===pid&&String(x.as_of)===String(date)&&x.trigger==='test');
+  for(const d of dupes) await del('pd_snapshots',d.id);
+  S.snaps=S.snaps.filter(x=>!dupes.includes(x));
+  const row=stamp({player_id:pid,as_of:date,ovr:r.ovr,attributes_json:aj,trigger:'test'});
+  const saved=await put('pd_snapshots',row); S.snaps.push(saved||Object.assign({id:uuid()},row));
 }
 async function saveCheckpoint(){
   const today=new Date().toISOString().slice(0,10);
