@@ -350,6 +350,75 @@ input,textarea{font-family:inherit}
 .tin:focus{outline:none;border-color:var(--gold)}
 select.tin option{background:var(--pur-800);color:#fff}
 textarea.tin{resize:vertical;line-height:1.5}
+
+/* ================= 2K-style player card ================= */
+.k2{background:linear-gradient(168deg,var(--pur-700),var(--pur-800) 58%,var(--pur-900));
+  border:1px solid var(--line);border-radius:20px;overflow:hidden;position:relative;
+  box-shadow:0 22px 50px -26px rgba(0,0,0,.85)}
+.k2::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;
+  background:linear-gradient(90deg,var(--gold-dk),var(--gold),var(--gold-lt),var(--gold));z-index:2}
+.k2-top{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;
+  padding:26px 24px 22px;position:relative}
+.k2-mark{position:absolute;right:-26px;bottom:-34px;width:186px;opacity:.06;pointer-events:none}
+
+.k2-photo{width:132px;height:158px;border-radius:14px;overflow:hidden;flex-shrink:0;
+  background:linear-gradient(160deg,var(--pur-600),var(--pur-900));
+  border:1px solid rgba(255,255,255,.16);display:grid;place-items:center;
+  box-shadow:0 14px 30px -14px rgba(0,0,0,.8)}
+.k2-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.k2-init{font-family:var(--disp);font-size:2.9rem;color:var(--gold);opacity:.85}
+
+.k2-id{min-width:0}
+.k2-pos{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.k2-pos span{font-family:var(--cond);font-size:.92rem;font-weight:800;letter-spacing:.13em;
+  background:var(--gold);color:var(--pur-900);padding:2px 9px;border-radius:4px}
+.k2-pos i{color:var(--ink-d);font-style:normal;font-weight:800}
+.k2-nopos{background:transparent!important;color:var(--ink-d)!important;padding:0!important;
+  font-size:.76rem!important;letter-spacing:.1em!important}
+.k2-first{font-family:var(--cond);font-size:1.22rem;font-weight:700;letter-spacing:.15em;
+  color:var(--ink-s);line-height:1}
+.k2-last{font-family:var(--disp);font-size:clamp(1.9rem,5.4vw,3rem);line-height:.95;
+  letter-spacing:-.012em;color:#fff;margin:1px 0 5px;word-break:break-word}
+.k2-team{font-family:var(--cond);font-size:.94rem;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--gold)}
+
+.k2-vitals{display:flex;flex-wrap:wrap;gap:6px;margin-top:15px}
+.k2-v{background:rgba(0,0,0,.24);border:1px solid var(--line-s);border-radius:9px;
+  padding:6px 10px;min-width:60px;flex:1 1 auto}
+.k2-v span{display:block;font-family:var(--cond);font-size:.72rem;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-d);line-height:1.2}
+.k2-v b{display:block;font-family:var(--disp);font-size:.98rem;color:#fff;line-height:1.2;margin-top:2px;white-space:nowrap}
+
+.k2-ovr{flex-shrink:0}
+
+/* attribute grid, 2K roster style */
+.k2-gridwrap{overflow-x:auto;border-top:1px solid var(--line);background:rgba(0,0,0,.2)}
+.k2-grid{display:grid;min-width:540px}
+.k2-cell{padding:12px 5px 11px;text-align:center;border-right:1px solid var(--line-s);position:relative}
+.k2-cell:last-child{border-right:0}
+.k2-k{display:block;font-family:var(--cond);font-size:.66rem;font-weight:800;letter-spacing:.1em;
+  color:var(--ink-d);margin-bottom:5px;white-space:nowrap}
+.k2-n{display:block;font-family:var(--disp);font-size:1.3rem;line-height:1;color:var(--ink-m)}
+.k2-g{display:block;font-family:var(--cond);font-size:.86rem;font-weight:800;letter-spacing:.07em;
+  color:var(--ink-d);margin-top:3px}
+.k2-d{display:block;font-size:.66rem;font-weight:800;margin-top:3px}
+.k2-d.up{color:var(--good)} .k2-d.down{color:var(--bad)}
+.k2-cell.t-elite{background:rgba(240,168,60,.15)}
+.k2-cell.t-elite .k2-n,.k2-cell.t-elite .k2-g{color:var(--gold-lt)}
+.k2-cell.t-high .k2-n{color:var(--gold)} .k2-cell.t-high .k2-g{color:var(--gold-dk)}
+.k2-cell.t-good .k2-n{color:#fff} .k2-cell.t-good .k2-g{color:var(--ink-s)}
+.k2-cell.t-mid .k2-n{color:var(--ink-s)}
+.k2-cell.t-low .k2-n{color:var(--ink-m)}
+.k2-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:11px 18px 13px;border-top:1px solid var(--line);
+  font-size:.78rem;color:var(--ink-d);font-weight:600;background:rgba(0,0,0,.14)}
+
+@media(max-width:640px){
+  .k2-top{grid-template-columns:auto 1fr;gap:15px;padding:20px 16px 18px}
+  .k2-ovr{grid-column:1/-1;justify-self:center;margin-top:4px}
+  .k2-photo{width:104px;height:126px}
+  .k2-mark{width:140px;right:-20px;bottom:-24px}
+}
 </style>
 </head>
 <body>
@@ -788,25 +857,87 @@ function photoOf(p,sz,cls){
 }
 
 function heroCard(p,ovr,ratings){
-  return '<div class="card">'+
-    crestImg('card-watermark')+
-    '<div class="card-top">'+
-      photoOf(p,58,'card-photo')+
-      '<div class="num">'+(p.number==null?'–':p.number)+'</div>'+
-      '<div class="nm"><div class="team">'+esc(teamNameOf(p))+'</div>'+
-        '<h2>'+esc(p.name)+'</h2>'+
-        '<div class="meta">Grade '+(p.grade==null?'–':p.grade)+(p.height?' · '+esc(String(p.height)):'')+'</div></div>'+
-      dial(ovr,deltaFor(p.id,'ovr',ovr))+
+  const first=(p.name||'').split(' ')[0]||'';
+  const last=(p.name||'').split(' ').slice(1).join(' ')||'';
+  return '<div class="k2">'+
+    '<div class="k2-top">'+
+      '<div class="k2-photo">'+bigPhoto(p)+'</div>'+
+      '<div class="k2-id">'+
+        posChips(p)+
+        (last?'<div class="k2-first">'+esc(first.toUpperCase())+'</div>':'')+
+        '<div class="k2-last">'+esc((last||first).toUpperCase())+'</div>'+
+        '<div class="k2-team">'+esc(teamNameOf(p))+(p.grade==null?'':' · Grade '+p.grade)+'</div>'+
+        vitalsRow(p)+
+      '</div>'+
+      '<div class="k2-ovr">'+dial(ovr,deltaFor(p.id,'ovr',ovr))+'</div>'+
+      crestImg('k2-mark')+
     '</div>'+
-    '<div class="attrs">'+activeAttrs().map(a=>{const v=ratings[a.key]?ratings[a.key].rating:null;
-      const col=v==null?'var(--ink-d)':v>=90?'#FFC96B':v>=80?'#fff':v>=70?'#D9CBEF':'#B9A9D6';
-      return '<div class="at"><span class="at-l">'+esc(a.label)+'</span>'+pips(v)+
-        '<span class="at-v" style="color:'+col+'">'+(v==null?'–':v)+'</span></div>';}).join('')+'</div>'+
-    '<div class="card-foot"><span>Compared with '+esc(cohortName(p))+'</span>'+
-      '<span>0–100 · growth matters more than the number</span></div>'+
+    attrTable(p,ratings)+
   '</div>';
 }
-
+function bigPhoto(p){
+  if(p&&p.photo_url) return '<img src="'+esc(p.photo_url)+'" alt="'+esc(p.name)+'">';
+  const init=(p&&p.name?p.name.split(' ').map(x=>x[0]).slice(0,2).join(''):'?').toUpperCase();
+  return '<span class="k2-init">'+esc(init)+'</span>';
+}
+function posChips(p){
+  const raw=(p.position||'').trim();
+  if(!raw) return '<div class="k2-pos"><span class="k2-nopos">POSITION NOT SET</span></div>';
+  const parts=raw.split(/[\/|,]+/).map(x=>x.trim()).filter(Boolean);
+  return '<div class="k2-pos">'+parts.map(x=>'<span>'+esc(x.toUpperCase())+'</span>').join('<i>|</i>')+'</div>';
+}
+/* height / wingspan live either on the player row or as a measured test */
+function vitalOf(p,needles,col){
+  if(col&&p[col]!=null&&String(p[col]).trim()!=='') return String(p[col]);
+  const t=S.tests.find(x=>needles.some(n=>String(x.key||'').toLowerCase().includes(n)||String(x.label||'').toLowerCase().includes(n)));
+  if(!t)return null;
+  const r=latestResult(p.id,t.key);
+  if(!r)return null;
+  const u=(t.unit&&t.unit!=='count')?String(t.unit):'';
+  return r.value+(u?' '+u:'');
+}
+function vitalsRow(p){
+  const items=[
+    ['Height', vitalOf(p,['height'],'height')],
+    ['Wingspan', vitalOf(p,['wingspan','reach'],'wingspan')],
+    ['Age', p.age==null?null:String(p.age)],
+    ['Number', p.number==null?null:'#'+p.number]
+  ];
+  return '<div class="k2-vitals">'+items.map(function(it){
+    return '<div class="k2-v"><span>'+it[0]+'</span><b>'+(it[1]==null?'–':esc(it[1]))+'</b></div>';
+  }).join('')+'</div>';
+}
+/* 2K-style grade: the number plus a letter, so a parent can read it at a glance */
+function letterFor(v){
+  if(v==null)return '–';
+  if(v>=95)return 'A+'; if(v>=90)return 'A'; if(v>=85)return 'A-';
+  if(v>=80)return 'B+'; if(v>=75)return 'B'; if(v>=70)return 'B-';
+  if(v>=65)return 'C+'; if(v>=60)return 'C'; if(v>=55)return 'C-';
+  if(v>=50)return 'D+'; if(v>=45)return 'D'; return 'D-';
+}
+function tierFor(v){
+  if(v==null)return 'na';
+  if(v>=90)return 'elite'; if(v>=80)return 'high';
+  if(v>=70)return 'good'; if(v>=60)return 'mid'; return 'low';
+}
+const SHORT={shooting:'SHOOT',finishing:'FINISH',handle:'HANDLE',passing:'PASS',defense:'DEFENSE',
+  rebound:'REB',athletic:'ATHLETIC',iq:'IQ',coach:'COACH'};
+function attrTable(p,ratings){
+  const as=activeAttrs();
+  return '<div class="k2-gridwrap"><div class="k2-grid" style="grid-template-columns:repeat('+as.length+',minmax(58px,1fr))">'+
+    as.map(function(a){
+      const v=ratings[a.key]?ratings[a.key].rating:null;
+      const d=deltaFor(p.id,a.key,v);
+      return '<div class="k2-cell t-'+tierFor(v)+'">'+
+        '<span class="k2-k">'+esc(SHORT[a.key]||a.label.slice(0,7).toUpperCase())+'</span>'+
+        '<b class="k2-n">'+(v==null?'–':v)+'</b>'+
+        '<span class="k2-g">'+letterFor(v)+'</span>'+
+        (d?'<span class="k2-d '+(d>0?'up':'down')+'">'+(d>0?'▲'+d:'▼'+Math.abs(d))+'</span>':'')+
+      '</div>';}).join('')+
+  '</div></div>'+
+  '<div class="k2-foot"><span>Compared with '+esc(cohortName(p))+'</span>'+
+    '<span>0–100 · growth matters more than the number</span></div>';
+}
 
 /* ---------- small modal shell, matching addKidModal ---------- */
 function sheet(title,bodyHTML,onReady){
