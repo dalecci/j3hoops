@@ -685,6 +685,35 @@ function shootingFor(pid){
   return out;
 }
 
+/* ---- shooting shown as three lines when the test exists ---- */
+const SHOOT_SUBKEYS={ft:'shoot_ft',mid:'shoot_mid',long:'shoot_long'};
+function shootSubRatings(pid){
+  const sh=shootingFor(pid); if(!sh)return null;
+  const o={};
+  SHOOT_CATS.forEach(function(c){ const x=sh.cats[c[0]]; if(x) o[SHOOT_SUBKEYS[c[0]]]={rating:x.rating,label:x.label,cat:c[0],pct:x.pct,attempts:x.attempts,provisional:x.provisional,capped:x.capped}; });
+  return Object.keys(o).length?o:null;
+}
+/* the attribute list for display: the shooting row splits into its tests when they exist */
+function displayAttrs(pid,attrs){
+  const subs=shootSubRatings(pid), out=[];
+  (attrs||activeAttrs()).forEach(function(a){
+    if(a.key==='shooting'&&subs){ Object.keys(subs).forEach(function(k){ out.push({key:k,label:subs[k].label,weight:a.weight,sub:subs[k],parent:'shooting'}); }); }
+    else out.push({key:a.key,label:a.label,weight:a.weight});
+  });
+  return out;
+}
+/* rating for any display key — a real attribute or one of the shooting sub-keys */
+function ratingOfKey(pid,key,ratings){
+  if(key.indexOf('shoot_')===0){ const subs=shootSubRatings(pid); return subs&&subs[key]?subs[key].rating:null; }
+  const r=ratings?ratings[key]:null; return r&&r.rating!=null?r.rating:null;
+}
+/* what a checkpoint should remember, so growth and compare can read the split later */
+function snapshotAttrs(pid,ratings){
+  const aj={}; Object.keys(ratings).forEach(function(k){ if(ratings[k].rating!=null) aj[k]=ratings[k].rating; });
+  const subs=shootSubRatings(pid); if(subs) Object.keys(subs).forEach(function(k){ aj[k]=subs[k].rating; });
+  return aj;
+}
+
 /* ================= rating engine ================= */
 const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
 const activeAttrs=()=>S.attrs.filter(a=>a.is_active!==false).sort((a,b)=>(a.sort_idx??0)-(b.sort_idx??0));
@@ -851,7 +880,7 @@ function cardHTML({p,ovr,coverage,ratings}){
   const min=+S.settings.provisional_min_inputs||2;
   const inputs=Object.values(ratings).reduce((s,r)=>s+r.inputs,0);
   const prov=inputs<min*2||coverage<.5;
-  const top=activeAttrs().slice(0,6);
+  const top=displayAttrs(p.id,activeAttrs().slice(0,6));
   const at=attStats(p.id), cr=creedAvg(p.id);
   const strip=(at.held||cr)?`<div class="pstrip">`+
     (at.pct!=null?`<div class="pstat"><b>${at.pct}%</b><span>Attend</span></div>`:'')+
@@ -867,7 +896,7 @@ function cardHTML({p,ovr,coverage,ratings}){
         <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(fmtHW(p.height)):''}</div></div>
       <div class="ovr"><b style="color:${ratingColor(ovr)}">${ovr??'–'}</b><span>OVR${dEl(deltaFor(p.id,'ovr',ovr))}</span></div>
     </div>
-    <div class="bars">${top.map(a=>{const r=ratings[a.key];const v=r.rating;
+    <div class="bars">${top.map(a=>{const v=ratingOfKey(p.id,a.key,ratings);
       return `<div class="brow"><span class="blab">${esc(a.label)}</span>
         <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
         <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
@@ -1113,7 +1142,7 @@ function reportCard(p){
 }
 /* biggest gap vs the player's own average -> the thing to coach next */
 function weakest(pid,ratings){
-  const vals=activeAttrs().map(a=>({a,r:ratings[a.key]?.rating})).filter(x=>x.r!=null);
+  const vals=displayAttrs(pid).map(a=>({a,r:ratingOfKey(pid,a.key,ratings)})).filter(x=>x.r!=null);
   if(vals.length<3)return null;
   const avg=Math.round(vals.reduce((s,x)=>s+x.r,0)/vals.length);
   const low=vals.slice().sort((x,y)=>x.r-y.r)[0];
@@ -1937,7 +1966,7 @@ function rollSeasonModal(){
     let n=0;
     for(const p of S.players){
       const r=ovrOf(p.id); if(r.ovr==null)continue;
-      const aj={}; Object.keys(r.ratings).forEach(k=>{if(r.ratings[k].rating!=null)aj[k]=r.ratings[k].rating;});
+      const aj=snapshotAttrs(p.id,r.ratings);
       const row={player_id:p.id,as_of:asOf,ovr:r.ovr,attributes_json:aj,trigger:'season-close',season_id:cur?cur.id:null};
       const saved=await put('pd_snapshots',row); S.snaps.push(saved||Object.assign({id:uuid()},row)); n++;
     }
@@ -2050,20 +2079,21 @@ function radar(series,labels){
     return '<text x="'+x.toFixed(1)+'" y="'+(y+4).toFixed(1)+'" text-anchor="'+anc+'" font-size="10" font-weight="800" fill="rgba(255,255,255,.62)" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em">'+esc(l.toUpperCase())+'</text>';}).join('');
   return '<svg class="radar" viewBox="-58 -10 380 272" role="img" aria-label="Attribute comparison">'+rings+spokes+shapes+text+'</svg>';
 }
-function attrVals(pid){
+function cmpAxes(pid){ return displayAttrs(pid); }
+function attrVals(pid,axes){
   const {ratings}=ovrOf(pid);
-  return activeAttrs().map(a=>{const r=ratings[a.key]; return r&&r.rating!=null?r.rating:null;});
+  return (axes||cmpAxes(pid)).map(a=>ratingOfKey(pid,a.key,ratings));
 }
-function teamAvgVals(gid){
+function teamAvgVals(gid,axes){
   const ps=gid?S.players.filter(p=>teamsOf(p.id).includes(gid)):S.players;
-  return activeAttrs().map(a=>{
-    const v=ps.map(p=>{const r=ovrOf(p.id).ratings[a.key];return r?r.rating:null;}).filter(x=>x!=null);
+  return axes.map(a=>{
+    const v=ps.map(p=>ratingOfKey(p.id,a.key,ovrOf(p.id).ratings)).filter(x=>x!=null);
     return v.length?Math.round(v.reduce((x,y)=>x+y,0)/v.length):null;});
 }
-function snapVals(pid,snapId){
+function snapVals(pid,snapId,axes){
   const sn=S.snaps.find(x=>x.id===snapId); if(!sn)return null;
   const aj=sn.attributes_json||{};
-  return activeAttrs().map(a=>aj[a.key]==null?null:aj[a.key]);
+  return axes.map(a=>aj[a.key]==null?null:aj[a.key]);
 }
 function vCompare(){
   const ps=S.players.slice().sort((a,b)=>(a.number==null?999:a.number)-(b.number==null?999:b.number));
@@ -2071,25 +2101,25 @@ function vCompare(){
   const A=S.cmpA||ps[0].id;
   const pa=S.players.find(p=>p.id===A)||ps[0];
   const mode=S.cmpMode||'player';
-  const labels=activeAttrs().map(a=>a.label);
+  const axes=cmpAxes(A); const labels=axes.map(a=>a.label);
   const GOLD='#F0A83C', VIO='#8B5CD6';
 
   const snapsA=S.snaps.filter(x=>x.player_id===A).sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));
-  let series=[{name:pa.name+' · now',color:GOLD,vals:attrVals(A)}];
+  let series=[{name:pa.name+' · now',color:GOLD,vals:attrVals(A,axes)}];
   let subtitle='';
   if(mode==='player'){
     const B=S.cmpB&&S.cmpB!==A?S.cmpB:(ps.find(p=>p.id!==A)||{}).id;
     if(B){const pb=S.players.find(p=>p.id===B);
-      series.push({name:pb.name,color:VIO,vals:attrVals(B)});
+      series.push({name:pb.name,color:VIO,vals:attrVals(B,axes)});
       subtitle=esc(pa.name)+' vs '+esc(pb.name);}
   }else if(mode==='team'){
     const t=teamsOf(A); const gid=t[0]||null;
-    series.push({name:gid?groupName(gid)+' average':'Program average',color:VIO,vals:teamAvgVals(gid)});
+    series.push({name:gid?groupName(gid)+' average':'Program average',color:VIO,vals:teamAvgVals(gid,axes)});
     subtitle=esc(pa.name)+' vs '+(gid?esc(groupName(gid)):'the program')+' average';
   }else{
     const sid=S.cmpB&&snapsA.some(x=>x.id===S.cmpB)?S.cmpB:(snapsA[0]?snapsA[0].id:null);
     if(sid){const sn=S.snaps.find(x=>x.id===sid);
-      series.push({name:'On '+sn.as_of,color:VIO,vals:snapVals(A,sid)});
+      series.push({name:'On '+sn.as_of,color:VIO,vals:snapVals(A,sid,axes)});
       subtitle=esc(pa.name)+' now vs '+esc(sn.as_of);}
     else subtitle='No checkpoints saved for '+esc(pa.name)+' yet.';
   }
@@ -2104,7 +2134,7 @@ function vCompare(){
   if(mode==='player') second=sel('cmp-b',S.cmpB,ps.filter(p=>p.id!==A).map(p=>[p.id,(p.number==null?'–':p.number)+' '+p.name]));
   else if(mode==='self') second=snapsA.length?sel('cmp-b',S.cmpB,snapsA.map(x=>[x.id,x.as_of+' · OVR '+x.ovr])):'<span class="lead" style="margin:0">Save a checkpoint on Player Cards to compare over time.</span>';
 
-  const rows=activeAttrs().map((a,i)=>{
+  const rows=axes.map((a,i)=>{
     const v1=series[0].vals[i], v2=series[1]?series[1].vals[i]:null;
     const d=(v1!=null&&v2!=null)?v1-v2:null;
     return '<tr><td class="l"><div class="cell l"><b>'+esc(a.label)+'</b></div></td>'+
@@ -2533,12 +2563,12 @@ function playerModal(pid){
    </div>
    <div class="wrap"><div class="scroll"><table>
      <thead><tr><th class="l">Attribute</th><th>Rating</th><th>Δ</th><th class="l">Built from</th><th class="l">Compared to</th></tr></thead>
-     <tbody>${activeAttrs().map(a=>{const r=ratings[a.key];
-       return `<tr><td><div class="cell l"><b>${esc(a.label)}</b></div></td>
+     <tbody>${displayAttrs(pid).map(a=>{const r=a.sub?{rating:a.sub.rating,parts:[{kind:'shoot',raw:a.sub.pct+'% · '+a.sub.attempts+' shots'+(a.sub.provisional?' · under protocol':'')+(a.sub.capped?' · capped':''),rating:a.sub.rating}]}:ratings[a.key];
+       return `<tr><td><div class="cell l"><b>${esc(a.label)}</b>${a.sub?'<span class="chip" style="margin-left:6px">open test</span>':''}</div></td>
         <td><div class="cell" style="font-family:var(--disp);font-size:1.15rem;color:${ratingColor(r.rating)}">${r.rating??'–'}</div></td>
         <td><div class="cell">${dEl(deltaFor(pid,a.key,r.rating))||'<span style="color:var(--tx-d)">–</span>'}</div></td>
         <td><div class="cell l" style="font-weight:500;font-size:.8rem;color:var(--tx-m)">${
-          (r.parts||[]).map(x=>x.kind==='coach'?`coach ${x.raw}/10 → ${x.rating}`:`${esc(testLabel(x.key))} ${x.raw} → ${x.rating}`).join(' · ')||'no data'}</div></td>
+          (r.parts||[]).map(x=>x.kind==='coach'?`coach ${x.raw}/10 → ${x.rating}`:x.kind==='shoot'?`${esc(String(x.raw))} → ${x.rating}`:`${esc(testLabel(x.key))} ${x.raw} → ${x.rating}`).join(' · ')||'no data'}</div></td>
         <td><div class="cell l" style="font-weight:500;font-size:.78rem;color:var(--tx-d)">${
           [...new Set((r.parts||[]).filter(x=>x.kind==='test').map(x=>basisFor(x.key,p)))].join(', ')||'–'}</div></td></tr>`}).join('')}
      </tbody></table></div></div>
@@ -2896,7 +2926,7 @@ async function saveCheckpoint(){
   const today=new Date().toISOString().slice(0,10);
   for(const p of S.players){
     const {ovr,ratings}=ovrOf(p.id); if(ovr==null)continue;
-    const aj={}; Object.keys(ratings).forEach(k=>{if(ratings[k].rating!=null)aj[k]=ratings[k].rating;});
+    const aj=snapshotAttrs(p.id,ratings);
     const row=stamp({player_id:p.id,as_of:today,ovr,attributes_json:aj,trigger:'manual'});
     const s=await put('pd_snapshots',row); S.snaps.push(s||{id:uuid(),...row});
   }
