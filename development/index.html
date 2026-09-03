@@ -3,54 +3,59 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#0A0612"/>
+<meta name="theme-color" content="#25104A"/>
 <title>Jaguars · Player Development</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0A0612; --card:#140B20; --card2:#251539; --head:#1a1030;
-    --pur:#8B43E0; --pur-br:#A66BF2; --pur-dp:#5B21B6; --pur-soft:rgba(139,67,224,.12);
-    --gold:#E3AE33; --gold-br:#F4C84B;
-    --tx:#fff; --tx-s:rgba(255,255,255,.78); --tx-m:rgba(255,255,255,.55); --tx-d:rgba(255,255,255,.32);
-    --line:rgba(255,255,255,.10); --line-s:rgba(255,255,255,.055);
-    --disp:'Anton',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,sans-serif;
+    --pur-900:#170733; --pur-800:#25104A; --pur-700:#3A1A6B; --pur-600:#4E2489; --pur-400:#8B5CD6;
+    --bg:#170733; --card:#25104A; --card2:#3A1A6B; --head:#25104A;
+    --pur:#8B5CD6; --pur-br:#A78BFA; --pur-dp:#4E2489; --pur-soft:rgba(139,92,214,.16);
+    --gold:#F0A83C; --gold-br:#FFC96B; --gold-dk:#C77F1E;
+    --tx:#fff; --tx-s:rgba(255,255,255,.80); --tx-m:rgba(255,255,255,.58); --tx-d:rgba(255,255,255,.34);
+    --line:rgba(255,255,255,.13); --line-s:rgba(255,255,255,.07);
+    --panel:rgba(255,255,255,.045); --good:#54E08A; --bad:#FF7A6B;
+    --disp:'Archivo Black',system-ui,sans-serif;
+    --cond:'Barlow Condensed',system-ui,sans-serif;
+    --sans:'Inter',system-ui,-apple-system,sans-serif;
     --maxw:1240px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html{background:var(--bg)}
   body{font-family:var(--sans);color:var(--tx);line-height:1.5;min-height:100vh;overflow-x:hidden;
-    background:radial-gradient(1200px 700px at 80% -10%,rgba(139,67,224,.18),transparent 60%),
-               radial-gradient(900px 600px at -10% 10%,rgba(227,174,51,.08),transparent 55%),var(--bg);
+    background:radial-gradient(1000px 620px at 78% -8%,rgba(240,168,60,.13),transparent 62%),
+               radial-gradient(900px 700px at -12% 8%,rgba(139,92,214,.24),transparent 60%),var(--bg);
     -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
   input,select,textarea{font-family:inherit}
 
-  .bar{position:sticky;top:0;z-index:80;background:rgba(10,6,18,.82);backdrop-filter:blur(16px) saturate(150%);
+  .bar{position:sticky;top:0;z-index:80;background:rgba(23,7,51,.86);backdrop-filter:blur(16px) saturate(150%);
     -webkit-backdrop-filter:blur(16px) saturate(150%);border-bottom:1px solid var(--line)}
   .bar-in{max-width:var(--maxw);margin:0 auto;padding:11px 18px;display:flex;align-items:center;gap:14px}
   .mark{display:flex;align-items:center;gap:11px;min-width:0}
-  .mark-badge{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--pur),var(--pur-dp));box-shadow:0 8px 18px -7px var(--pur)}
-  .mark-txt b{font-family:var(--disp);font-size:1.02rem;letter-spacing:.06em;display:block;line-height:1}
-  .mark-txt span{font-size:.7rem;color:var(--gold-br);letter-spacing:.02em}
+  .mark-badge{width:42px;height:42px;flex-shrink:0;display:grid;place-items:center}
+  .mark-badge img{width:100%;height:100%;object-fit:contain;display:block}
+  .mark-txt b{font-family:var(--disp);font-size:1.06rem;letter-spacing:.02em;display:block;line-height:1}
+  .mark-txt span{font-family:var(--cond);font-size:.82rem;font-weight:700;color:var(--gold);letter-spacing:.13em;text-transform:uppercase}
   .spacer{flex:1}
   .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);
     background:rgba(255,255,255,.03);font-size:.76rem;font-weight:700;white-space:nowrap}
   .pill .dot{width:8px;height:8px;border-radius:50%;background:#39d98a;box-shadow:0 0 8px #39d98a}
 
-  .tabs{position:sticky;top:61px;z-index:70;background:rgba(10,6,18,.74);backdrop-filter:blur(10px);
+  .tabs{position:sticky;top:61px;z-index:70;background:rgba(37,16,74,.80);backdrop-filter:blur(10px);
     -webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line-s)}
   .tabs-in{max-width:var(--maxw);margin:0 auto;padding:0 12px;display:flex;gap:4px;overflow-x:auto}
-  .tab{padding:13px 15px;font-size:.8rem;font-weight:800;letter-spacing:.04em;color:var(--tx-m);
+  .tab{font-family:var(--cond);padding:13px 15px;font-size:.94rem;font-weight:700;letter-spacing:.09em;color:var(--tx-m);
     white-space:nowrap;border-bottom:2.5px solid transparent;text-transform:uppercase;transition:.15s}
-  .tab:hover{color:var(--tx-s)} .tab.on{color:var(--tx);border-bottom-color:var(--pur)}
+  .tab:hover{color:var(--tx-s)} .tab.on{color:var(--tx);border-bottom-color:var(--gold)}
   main{max-width:var(--maxw);margin:0 auto;padding:22px 16px 80px}
 
   .sec{display:flex;align-items:center;gap:12px;margin:2px 2px 16px;flex-wrap:wrap}
-  .sec h2{font-family:var(--disp);font-size:1.5rem;letter-spacing:.03em}
-  .sec .rule{flex:1;height:1px;background:var(--line);min-width:20px}
+  .sec h2{font-family:var(--disp);font-size:1.42rem;letter-spacing:-.01em;color:#fff;
+    padding-left:13px;border-left:4px solid var(--gold);line-height:1.1}
+  .sec .rule{flex:1;height:1px;background:var(--line);min-width:20px;opacity:.7}
   .lead{color:var(--tx-m);margin:-8px 2px 16px;font-size:.9rem}
 
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:10px;
@@ -249,6 +254,104 @@
 .btn-d{background:rgba(226,74,74,.12);border-color:rgba(226,74,74,.4);color:#ff8080}
 .btn-d:hover{background:rgba(226,74,74,.22)}
 @media(max-width:520px){.libgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
+
+/* ---- season selector ---- */
+.seasonsel{font-family:var(--cond);font-size:.92rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,255,255,.05);color:var(--gold);border:1px solid var(--line);border-radius:999px;
+  padding:7px 12px;cursor:pointer;max-width:200px}
+.seasonsel option{background:var(--pur-800);color:#fff}
+
+/* ---- player photo chip ---- */
+.pchip{border-radius:50%;object-fit:cover;display:block;flex-shrink:0;
+  border:2px solid rgba(255,255,255,.18);background:var(--pur-700)}
+.pchip.noimg{display:grid;place-items:center;font-family:var(--disp);color:var(--gold);
+  background:linear-gradient(150deg,var(--pur-600),var(--pur-800));letter-spacing:.02em}
+.phprev{display:grid;place-items:center;margin:0 0 18px}
+.phbtn{position:relative;border:0;background:none;padding:0;cursor:pointer;display:block}
+.phbtn::after{content:"✎";position:absolute;right:-2px;bottom:-2px;width:19px;height:19px;border-radius:50%;
+  background:var(--gold);color:#2a1607;font-size:11px;font-weight:900;display:grid;place-items:center;
+  border:2px solid var(--card);opacity:0;transition:opacity .15s}
+.phbtn:hover::after{opacity:1}
+
+/* ---- attendance grid ---- */
+.attbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 15px;margin-bottom:15px;
+  background:var(--panel);border:1px solid var(--line);border-radius:13px;font-size:.9rem;color:var(--tx-s)}
+.attbar b{color:#fff;font-weight:900;font-size:1.05rem}
+.attgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:11px}
+.attcell{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:15px 8px 13px;
+  background:var(--panel);border:1.5px solid var(--line);border-radius:15px;cursor:pointer;
+  transition:border-color .13s,background .13s,transform .09s;color:var(--tx)}
+.attcell:active{transform:scale(.96)}
+.attcell.here{border-color:#54E08A;background:rgba(84,224,138,.11)}
+.attcell.great{border-color:var(--gold);background:rgba(240,168,60,.14);box-shadow:0 0 0 1px var(--gold) inset}
+.attcell.absent{border-color:rgba(255,122,107,.5);background:rgba(255,122,107,.08);opacity:.62}
+.attnum{font-family:var(--disp);font-size:1.02rem;line-height:1;color:#fff}
+.attname{font-family:var(--cond);font-size:.86rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--tx-m);text-align:center;line-height:1.1}
+.attmark{position:absolute;top:7px;right:9px;font-size:.92rem;font-weight:900;line-height:1}
+.attcell.here .attmark{color:#54E08A}
+.attcell.great .attmark{color:var(--gold)}
+.attcell.absent .attmark{color:#FF7A6B}
+
+/* ---- creed scoring ---- */
+.crgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
+.crcard{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px 15px 13px}
+.crhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.crhead b{display:block;font-size:.94rem;font-weight:800;color:#fff;line-height:1.2}
+.crhead span{font-size:.76rem;color:var(--tx-d);font-weight:700}
+.crrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0}
+.crlab{font-family:var(--cond);font-size:.82rem;font-weight:800;letter-spacing:.11em;color:var(--tx-m)}
+.crdots{display:flex;gap:5px}
+.crdot{width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line);background:transparent;
+  cursor:pointer;transition:background .12s,border-color .12s,transform .09s}
+.crdot:hover{border-color:var(--gold)}
+.crdot:active{transform:scale(.9)}
+.crdot.on{background:var(--gold);border-color:var(--gold)}
+
+/* ---- compare / radar ---- */
+.cmpwrap{display:grid;grid-template-columns:minmax(264px,300px) 1fr;gap:22px;align-items:start}
+.cmpchart{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 10px 12px}
+.radar{width:100%;height:auto;display:block;overflow:visible}
+.cmplegend{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:0 8px}
+.cmplegend span{display:flex;align-items:center;gap:8px;font-size:.83rem;font-weight:700;color:var(--tx-s)}
+.cmplegend i{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.cmpsub{font-family:var(--cond);font-size:1rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gold);margin:0 2px 11px}
+@media(max-width:760px){.cmpwrap{grid-template-columns:1fr}}
+
+/* ---- growth sparkline ---- */
+.growth{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px 15px 11px;margin:14px 0}
+.growthead{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.growthead b{font-family:var(--cond);font-size:.95rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--tx-m)}
+.gsub{margin-left:auto;font-size:.76rem;color:var(--tx-d);font-weight:700}
+.gsvg{width:100%;height:80px;display:block}
+.gticks{display:flex;justify-content:space-between;gap:6px;margin-top:5px}
+.gticks span{display:flex;flex-direction:column;align-items:center;font-size:.68rem;color:var(--tx-d);font-weight:700}
+.gticks b{font-family:var(--disp);font-size:.9rem;color:var(--gold);line-height:1.1}
+
+/* ---- athlete goals ---- */
+.eyeb{font-family:var(--cond);font-size:.84rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--tx-d);margin:20px 2px 10px}
+.agrow{display:grid;grid-template-columns:190px 1fr auto;gap:16px;align-items:start;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin-bottom:10px}
+.agwho{display:flex;align-items:center;gap:10px;min-width:0}
+.agwho b{display:block;font-size:.93rem;font-weight:800;color:#fff;line-height:1.2}
+.agwho span{font-size:.73rem;color:var(--gold);font-weight:700}
+.agbody p{margin:0 0 8px;font-size:.95rem;color:var(--tx-s);line-height:1.45}
+.agtest{font-size:.83rem;color:var(--tx-m);font-weight:700}
+.agtest b{color:#fff}
+.agbar{height:6px;border-radius:99px;background:rgba(255,255,255,.09);margin:7px 0 3px;overflow:hidden;max-width:260px}
+.agbar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-dk),var(--gold));border-radius:99px}
+.agpct{font-size:.72rem;color:var(--gold);font-weight:800}
+.agact{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:700px){.agrow{grid-template-columns:1fr}}
+
+/* ---- attendance + creed strips on the player card ---- */
+.pstrip{display:flex;gap:8px;flex-wrap:wrap;padding:0 15px 13px}
+.pstat{flex:1;min-width:72px;background:rgba(255,255,255,.04);border:1px solid var(--line-s);border-radius:10px;padding:8px 9px}
+.pstat b{display:block;font-family:var(--disp);font-size:1.02rem;color:#fff;line-height:1.05}
+.pstat span{font-family:var(--cond);font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--tx-d)}
+.pstat.gold b{color:var(--gold)}
 </style>
 </head>
 <body>
@@ -267,13 +370,17 @@ const $=id=>document.getElementById(id);
 const GRADES=[3,4,5,6,7,8,9,10];
 
 let DEMO=false, MSG_OK=true, CODES_OK=true, GOALS_OK=true, LISTS_OK=true;
+let SEASON_OK=true, PRACTICE_OK=true, AGOAL_OK=true;
 const S={players:[],drills:[],coachScores:[],coaches:[],
   attrs:[],tests:[],weights:[],norms:[],results:[],snaps:[],
   groups:[],members:[],assigns:[],itemState:[],games:[],stats:[],settings:{},
   view:'cards',grades:[],adminTab:'players',testSession:null,openPlayer:null,openGame:null,assignFilter:'',
   comments:[],replies:[],access:[],msgScope:'all',msgScopeVal:'',
   objectives:[],tasks:[],lists:[],listItems:[],goalPlayer:null,assignSub:'videos',openList:null,
-  videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[],libQ:'',libCat:'all',libSort:'name'};
+  videos:[],docs:[],docEdit:null,assignTags:[],picked:[],welcome:[],libQ:'',libCat:'all',libSort:'name',
+  seasons:[],sessions:[],att:[],creed:[],agoals:[],
+  seasonId:null, prMode:'attend', prSession:null, prTeam:null,
+  cmpA:null,cmpB:null,cmpMode:'player', growPlayer:null};
 
 /* ================= data ================= */
 async function loadAll(){
@@ -296,6 +403,11 @@ async function loadAll(){
     S.comments=opt[0].data||[]; S.replies=opt[1].data||[]; S.access=opt[2].data||[];
     S.objectives=opt[3].data||[]; S.tasks=opt[4].data||[]; S.lists=opt[5].data||[]; S.listItems=opt[6].data||[];
     S.videos=opt[7].data||[]; S.docs=opt[8].data||[]; S.welcome=opt[9].data||[];
+    const nx=await Promise.all([q('pd_seasons'),q('pd_sessions'),q('pd_attendance'),q('pd_creed'),q('pd_athlete_goals')]);
+    S.seasons=nx[0].data||[]; S.sessions=nx[1].data||[]; S.att=nx[2].data||[];
+    S.creed=nx[3].data||[]; S.agoals=nx[4].data||[];
+    SEASON_OK=!nx[0].error; PRACTICE_OK=!nx[1].error&&!nx[2].error&&!nx[3].error; AGOAL_OK=!nx[4].error;
+    const act=S.seasons.find(x=>x.is_active); S.seasonId=act?act.id:(S.seasons[0]?S.seasons[0].id:null);
     MSG_OK=!opt[0].error && !opt[1].error; CODES_OK=!opt[2].error;
     GOALS_OK=!opt[3].error && !opt[4].error; LISTS_OK=!opt[5].error && !opt[6].error;
     if(!MSG_OK||!CODES_OK) console.warn('Messages/Parent-code tables not created yet — run the pd_access/pd_comments/pd_replies schema.');
@@ -358,6 +470,62 @@ async function put(table,row,conflict){ if(DEMO)return row;
   if(error){console.error(table,error);return null;} return data; }
 async function patch(table,id,row){ if(DEMO)return; const {error}=await sb.from(table).update(row).eq('id',id); if(error)console.error(error); }
 async function del(table,id){ if(DEMO)return; const {error}=await sb.from(table).delete().eq('id',id); if(error)console.error(error); }
+
+/* ================= seasons ================= */
+const curSeason=()=>S.seasons.find(x=>x.id===S.seasonId)||null;
+const seasonName=id=>{const x=S.seasons.find(y=>y.id===id);return x?x.name:'Unassigned';};
+const seasonsByDate=()=>S.seasons.slice().sort((a,b)=>String(b.starts_on||'').localeCompare(String(a.starts_on||'')));
+/* rows written from now on carry the active season; legacy rows (season_id null) stay visible in the active season */
+const inSeason=r=>!S.seasonId||r.season_id==null||r.season_id===S.seasonId;
+const stamp=o=>S.seasonId?Object.assign({season_id:S.seasonId},o):o;
+
+/* ================= practice sessions ================= */
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function sessionsSorted(){
+  return S.sessions.filter(inSeason).slice()
+    .sort((a,b)=>String(b.session_date).localeCompare(String(a.session_date))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+}
+const attOf=(sid,pid)=>S.att.find(a=>a.session_id===sid&&a.player_id===pid)||null;
+const creedOf=(sid,pid)=>S.creed.find(c=>c.session_id===sid&&c.player_id===pid)||null;
+function rosterFor(gid){
+  const list=gid?S.players.filter(p=>teamsOf(p.id).includes(gid)):S.players.slice();
+  return list.sort((a,b)=>(a.number??999)-(b.number??999)||a.name.localeCompare(b.name));
+}
+/* attendance rate + effort average across the active season */
+function attStats(pid){
+  const ids=new Set(sessionsSorted().map(x=>x.id));
+  const rows=S.att.filter(a=>a.player_id===pid&&ids.has(a.session_id));
+  const held=rows.length;
+  const present=rows.filter(a=>a.status==='present'||a.status==='late').length;
+  const eff=rows.filter(a=>a.effort!=null).map(a=>a.effort);
+  return {held,present,pct:held?Math.round(present/held*100):null,
+    effort:eff.length?Math.round(eff.reduce((x,y)=>x+y,0)/eff.length*10)/10:null, streak:streakOf(pid)};
+}
+function streakOf(pid){
+  let n=0;
+  for(const s of sessionsSorted()){
+    const a=attOf(s.id,pid); if(!a)break;
+    if(a.status==='present'||a.status==='late')n++; else break;
+  }
+  return n;
+}
+/* creed averages, 1-4 each */
+const CREED=[['force_v','FORCE','Play with force. Nothing at half speed.'],
+  ['intentional_v','INTENTIONAL','Everything we do has a reason.'],
+  ['compete_v','COMPETE','Compete on every rep.'],
+  ['deliberate_v','DELIBERATE','Slow is smooth, smooth is fast.']];
+function creedAvg(pid){
+  const ids=new Set(sessionsSorted().map(x=>x.id));
+  const rows=S.creed.filter(c=>c.player_id===pid&&ids.has(c.session_id));
+  if(!rows.length)return null;
+  const out={n:rows.length};
+  CREED.forEach(([k])=>{
+    const v=rows.map(r=>r[k]).filter(x=>x!=null);
+    out[k]=v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null;});
+  const all=CREED.map(([k])=>out[k]).filter(x=>x!=null);
+  out.overall=all.length?Math.round(all.reduce((a,b)=>a+b,0)/all.length*10)/10:null;
+  return out;
+}
 
 /* ================= rating engine ================= */
 const SC=()=>Object.assign({mid:70,spread:10,floor:35,cap:99,k:10},S.settings.scale||{});
@@ -487,13 +655,14 @@ const dEl=d=>d==null?'':`<span class="delta ${d>0?'up':d<0?'down':'flat'}">${d>0
 function render(){
   $('app').innerHTML=`
    <div class="bar"><div class="bar-in">
-     <div class="mark"><div class="mark-badge">${paw(21)}</div>
+     <div class="mark"><div class="mark-badge"><img src="logo.png" alt="SW FL Jaguars"></div>
        <div class="mark-txt"><b>JAGUARS</b><span>Player Development</span></div></div>
      <div class="spacer"></div>
+     ${S.seasons.length?('<select class="seasonsel" id="season-sel" title="Active season">'+seasonsByDate().map(x=>'<option value="'+x.id+'"'+(x.id===S.seasonId?' selected':'')+'>'+esc(x.name)+(x.is_active?'':' · archived')+'</option>').join('')+'</select>'):''}
      <div class="pill"><span class="dot"></span>${S.players.length} players</div>
    </div></div>
    <div class="tabs"><div class="tabs-in">
-     ${[['cards','Player Cards'],['testing','Testing'],['goals','Goals'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['messages','Messages'],['admin','Admin']]
+     ${[['cards','Player Cards'],['practice','Practice'],['testing','Testing'],['compare','Compare'],['goals','Goals'],['assign','Assign'],['stats','Game Stats'],['reports','Reports'],['messages','Messages'],['admin','Admin']]
        .map(([k,l])=>`<button class="tab ${S.view===k?'on':''}" data-v="${k}">${l}</button>`).join('')}
    </div></div>
    <main>${(VIEWS[S.view]||(()=>''))()}</main>
@@ -523,9 +692,16 @@ function cardHTML({p,ovr,coverage,ratings}){
   const inputs=Object.values(ratings).reduce((s,r)=>s+r.inputs,0);
   const prov=inputs<min*2||coverage<.5;
   const top=activeAttrs().slice(0,6);
+  const at=attStats(p.id), cr=creedAvg(p.id);
+  const strip=(at.held||cr)?`<div class="pstrip">`+
+    (at.pct!=null?`<div class="pstat"><b>${at.pct}%</b><span>Attend</span></div>`:'')+
+    (at.streak>1?`<div class="pstat gold"><b>${at.streak}</b><span>Streak</span></div>`:'')+
+    (cr&&cr.overall!=null?`<div class="pstat gold"><b>${cr.overall}</b><span>Creed</span></div>`:'')+
+    `</div>`:'';
   return `<div class="pcard ${ovr>=90?'t-elite':''}" data-p="${p.id}">
     ${prov?'<span class="prov">PROVISIONAL</span>':''}
     <div class="pcard-top">
+      <button class="phbtn" data-photo="${p.id}" title="Set photo">${photoChip(p,46)}</button>
       <div class="jersey">${p.number??'–'}</div>
       <div style="min-width:0"><div class="pname">${esc(p.name)}</div>
         <div class="pmeta">Grade ${p.grade??'–'}${p.height?' · '+esc(p.height):''}</div></div>
@@ -535,6 +711,7 @@ function cardHTML({p,ovr,coverage,ratings}){
       return `<div class="brow"><span class="blab">${esc(a.label)}</span>
         <span class="btrack"><i class="bfill" style="width:${v==null?0:v}%;background:${ratingColor(v)}"></i></span>
         <span class="bval" style="color:${ratingColor(v)}">${v??'–'}</span></div>`}).join('')}</div>
+    ${strip}
   </div>`;
 }
 
@@ -782,12 +959,12 @@ function weakest(pid,ratings){
 /* ---- Admin ---- */
 function vAdmin(){
   const t=S.adminTab;
-  const tabs=[['players','Players'],['teams','Teams'],['welcome','Welcome'],['playbook','Playbook'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['access','Parent Codes'],['scale','Scale']];
+  const tabs=[['players','Players'],['teams','Teams'],['seasons','Seasons'],['welcome','Welcome'],['playbook','Playbook'],['attributes','Attributes'],['tests','Tests'],['weights','Test → Attribute'],['access','Parent Codes'],['scale','Scale']];
   return `<div class="sec"><h2>ADMIN</h2><div class="rule"></div></div>
     <p class="lead">Full control. Everything here is editable at any time — nothing resets your data.</p>
     <div class="row" style="margin-bottom:16px">${tabs.map(([k,l])=>
       `<button class="btn ${t===k?'btn-p':'btn-g'} btn-s" data-atab="${k}">${l}</button>`).join('')}</div>
-    ${t==='players'?adminPlayers():t==='welcome'?adminWelcome():t==='playbook'?adminPlaybook():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='teams'?adminGroups():t==='access'?adminAccess():adminScale()}`;
+    ${t==='seasons'?adminSeasons():t==='players'?adminPlayers():t==='welcome'?adminWelcome():t==='playbook'?adminPlaybook():t==='attributes'?adminAttrs():t==='tests'?adminTests():t==='weights'?adminWeights():t==='teams'?adminGroups():t==='access'?adminAccess():adminScale()}`;
 }
 function adminAttrs(){
   return `<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-attr">＋ Add Attribute</button></div>
@@ -1516,6 +1693,405 @@ function assignsForMedia(m){
 }
 
 
+
+
+
+/* ================= SEASONS admin ================= */
+function adminSeasons(){
+  if(!SEASON_OK) return '<p class="lead">The pd_seasons table is not created yet.</p>';
+  const list=seasonsByDate();
+  return '<div class="row" style="margin-bottom:12px"><button class="btn btn-p btn-s" data-act="new-season">＋ Add season</button>'+
+      '<button class="btn btn-g btn-s" data-act="roll-season">⇢ Close season &amp; start next</button></div>'+
+    '<p class="lead">The <b>active</b> season is what new practices, tests and games are filed under. Closing a season snapshots every player so next year you can see exactly how far they came.</p>'+
+    '<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Season</th><th>Starts</th><th>Ends</th><th>Players rated</th><th>Practices</th><th>Status</th><th></th></tr></thead><tbody>'+
+    list.map(x=>{
+      const snapN=new Set(S.snaps.filter(y=>y.season_id===x.id).map(y=>y.player_id)).size;
+      const sessN=S.sessions.filter(y=>y.season_id===x.id).length;
+      return '<tr><td class="l"><div class="cell l"><b>'+esc(x.name)+'</b></div></td>'+
+        '<td><div class="cell">'+esc(x.starts_on||'–')+'</div></td>'+
+        '<td><div class="cell">'+esc(x.ends_on||'–')+'</div></td>'+
+        '<td><div class="cell">'+(snapN||'–')+'</div></td>'+
+        '<td><div class="cell">'+(sessN||'–')+'</div></td>'+
+        '<td><div class="cell">'+(x.is_active?'<span style="color:#54E08A;font-weight:800">ACTIVE</span>':
+          x.archived_at?'<span style="color:var(--tx-d)">archived</span>':'<span style="color:var(--tx-d)">–</span>')+'</div></td>'+
+        '<td><div class="cell">'+(x.is_active?'':'<button class="btn btn-g btn-s" data-actseason="'+x.id+'">Make active</button> ')+
+          '<button class="btn btn-g btn-s" data-eseason="'+x.id+'">Edit</button></div></td></tr>';}).join('')+
+    '</tbody></table></div></div>';
+}
+function seasonModal(id){
+  const x=id?S.seasons.find(y=>y.id===id):null;
+  modal(x?'Edit season':'New season',
+    '<div class="field"><label>Name</label><input class="inp" id="se-name" value="'+(x?esc(x.name):'')+'" placeholder="2027 Spring"></div>'+
+    '<div class="g2"><div class="field"><label>Starts</label><input class="inp" type="date" id="se-start" value="'+(x&&x.starts_on?esc(x.starts_on):'')+'"></div>'+
+    '<div class="field"><label>Ends</label><input class="inp" type="date" id="se-end" value="'+(x&&x.ends_on?esc(x.ends_on):'')+'"></div></div>'+
+    '<div class="row"><button class="btn btn-p" id="se-save" style="flex:1">Save</button>'+
+    (x&&!x.is_active?'<button class="btn btn-d" id="se-del">🗑 Delete</button>':'')+'</div>');
+  $('se-save').onclick=async()=>{
+    const name=$('se-name').value.trim(); if(!name){flag('Name it first');return;}
+    const row={name,starts_on:$('se-start').value||null,ends_on:$('se-end').value||null};
+    if(x){Object.assign(x,row); await patch('pd_seasons',x.id,row);}
+    else{ const saved=await put('pd_seasons',row); S.seasons.push(saved||Object.assign({id:uuid(),is_active:false},row)); }
+    closeModal(); render(); flag('Saved');};
+  const d=$('se-del'); if(d)d.onclick=async()=>{
+    if(!confirm('Delete this season? Data filed under it stays but loses its season label.'))return;
+    await del('pd_seasons',id); S.seasons=S.seasons.filter(y=>y.id!==id);
+    closeModal(); render(); flag('Deleted');};
+}
+async function activateSeason(id){
+  for(const x of S.seasons){ const want=(x.id===id);
+    if(!!x.is_active!==want){ x.is_active=want; await patch('pd_seasons',x.id,{is_active:want}); } }
+  S.seasonId=id; render(); flag('Now on '+seasonName(id));
+}
+function rollSeasonModal(){
+  const cur=curSeason();
+  modal('Close season and start the next',
+    '<p class="lead" style="margin:0 2px 15px">This saves a rating checkpoint for <b>every player</b> and files it under <b>'+
+      esc(cur?cur.name:'the current season')+'</b>, then makes the new season active. Nothing is deleted — last year stays readable, and every player card gains a growth line.</p>'+
+    '<div class="field"><label>New season name</label><input class="inp" id="rs-name" placeholder="2027 Spring"></div>'+
+    '<div class="g2"><div class="field"><label>New season starts</label><input class="inp" type="date" id="rs-start" value="'+todayISO()+'"></div>'+
+    '<div class="field"><label>'+esc(cur?cur.name:'Current')+' ended</label><input class="inp" type="date" id="rs-end" value="'+todayISO()+'"></div></div>'+
+    '<button class="btn btn-p btn-block" id="rs-go">Snapshot everyone and roll over</button>');
+  $('rs-go').onclick=async()=>{
+    const name=$('rs-name').value.trim(); if(!name){flag('Name the new season');return;}
+    closeModal(); flag('Snapshotting…');
+    const asOf=$('rs-end').value||todayISO();
+    let n=0;
+    for(const p of S.players){
+      const r=ovrOf(p.id); if(r.ovr==null)continue;
+      const aj={}; Object.keys(r.ratings).forEach(k=>{if(r.ratings[k].rating!=null)aj[k]=r.ratings[k].rating;});
+      const row={player_id:p.id,as_of:asOf,ovr:r.ovr,attributes_json:aj,trigger:'season-close',season_id:cur?cur.id:null};
+      const saved=await put('pd_snapshots',row); S.snaps.push(saved||Object.assign({id:uuid()},row)); n++;
+    }
+    if(cur){ cur.ends_on=asOf; cur.archived_at=new Date().toISOString(); cur.is_active=false;
+      await patch('pd_seasons',cur.id,{ends_on:asOf,archived_at:cur.archived_at,is_active:false}); }
+    const row={name,starts_on:$('rs-start').value||todayISO(),is_active:true};
+    const saved=await put('pd_seasons',row);
+    const rec=saved||Object.assign({id:uuid()},row); S.seasons.push(rec); S.seasonId=rec.id;
+    render(); flag(n+' players snapshotted · now on '+name);
+  };
+}
+
+/* ================= ATHLETE-SET GOALS (parent co-signed) ================= */
+const AG_LABEL={proposed:'Waiting on parent',parent_signed:'Needs your approval',approved:'Active',complete:'Complete',declined:'Declined'};
+function agoalsFor(pid){return S.agoals.filter(g=>g.player_id===pid);}
+function agoalProgress(g){
+  if(!g.test_key||g.target_value==null)return null;
+  const r=latestResult(g.player_id,g.test_key); if(!r)return null;
+  const start=g.start_value==null?0:+g.start_value, tgt=+g.target_value, cur=+r.value;
+  if(tgt===start)return null;
+  return Math.max(0,Math.min(100,Math.round((cur-start)/(tgt-start)*100)));
+}
+function vAthleteGoals(){
+  if(!AGOAL_OK) return '';
+  const pend=S.agoals.filter(g=>g.status==='parent_signed');
+  const active=S.agoals.filter(g=>g.status==='approved');
+  const waiting=S.agoals.filter(g=>g.status==='proposed');
+  if(!S.agoals.length) return '<div class="note" style="margin-top:22px"><b>Athlete goals</b><br>'+
+    'Nothing yet. Players write their own goal in the portal, a parent co-signs it, then it lands here for you to approve.</div>';
+  const row=g=>{
+    const p=S.players.find(x=>x.id===g.player_id);
+    const pr=agoalProgress(g);
+    const t=g.test_key?S.tests.find(x=>x.key===g.test_key):null;
+    return '<div class="agrow"><div class="agwho">'+photoChip(p,34)+'<div><b>'+esc(p?p.name:'Player')+'</b>'+
+      '<span>'+esc(AG_LABEL[g.status]||g.status)+(g.parent_signed_by?' · signed by '+esc(g.parent_signed_by):'')+'</span></div></div>'+
+      '<div class="agbody"><p>'+esc(g.body)+'</p>'+
+      (t?'<div class="agtest">'+esc(t.label)+': '+(g.start_value==null?'–':g.start_value)+' → <b>'+g.target_value+'</b> '+esc(t.unit||'')+
+        (pr==null?'':'<div class="agbar"><i style="width:'+pr+'%"></i></div><span class="agpct">'+pr+'%</span>')+'</div>':'')+
+      '</div><div class="agact">'+
+      (g.status==='parent_signed'?'<button class="btn btn-p btn-s" data-agok="'+g.id+'">Approve</button>'+
+        '<button class="btn btn-g btn-s" data-agno="'+g.id+'">Decline</button>':'')+
+      (g.status==='approved'?'<button class="btn btn-g btn-s" data-agdone="'+g.id+'">Mark complete</button>':'')+
+      '</div></div>';};
+  let out='<div class="sec" style="margin-top:34px"><h2 style="font-size:1.1rem">ATHLETE GOALS</h2><div class="rule"></div></div>';
+  if(pend.length) out+='<p class="lead" style="margin:0 0 12px"><b>'+pend.length+'</b> waiting for you to approve.</p>'+pend.map(row).join('');
+  if(active.length) out+='<div class="eyeb">Active</div>'+active.map(row).join('');
+  if(waiting.length) out+='<div class="eyeb">Still waiting on a parent signature</div>'+waiting.map(row).join('');
+  return out;
+}
+async function setAgoal(id,patchObj,msg){
+  const g=S.agoals.find(x=>x.id===id); if(!g)return;
+  Object.assign(g,patchObj); render();
+  await patch('pd_athlete_goals',id,patchObj); flag(msg);
+}
+
+/* ================= PLAYER PHOTO ================= */
+async function uploadPhoto(pid,file){
+  if(!file)return null;
+  if(file.size>4*1024*1024){flag('Photo must be under 4 MB');return null;}
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  const path=pid+'-'+Date.now()+'.'+ext;
+  const {error}=await sb.storage.from('player-photos').upload(path,file,{upsert:true,contentType:file.type||'image/jpeg'});
+  if(error){console.error('photo upload',error);flag('Upload failed — '+error.message);return null;}
+  const {data}=sb.storage.from('player-photos').getPublicUrl(path);
+  return data?data.publicUrl:null;
+}
+function photoModal(pid){
+  const p=S.players.find(x=>x.id===pid); if(!p)return;
+  modal('Photo · '+esc(p.name),
+    '<div class="phprev" id="ph-prev">'+photoChip(p,132)+'</div>'+
+    '<div class="field"><label>Choose a photo</label><input class="inp" type="file" id="ph-file" accept="image/*"></div>'+
+    '<p class="lead" style="margin:-4px 2px 14px">A head-and-shoulders shot works best — it is cropped to a circle on the card. Under 4 MB.</p>'+
+    '<div class="row"><button class="btn btn-p" id="ph-save" style="flex:1">Save photo</button>'+
+    (p.photo_url?'<button class="btn btn-d" id="ph-rm">Remove</button>':'')+'</div>');
+  const fi=$('ph-file');
+  fi.onchange=()=>{const fl=fi.files&&fi.files[0]; if(!fl)return;
+    const u=URL.createObjectURL(fl);
+    $('ph-prev').innerHTML='<img class="pchip" style="width:132px;height:132px" src="'+u+'" alt="">';};
+  $('ph-save').onclick=async()=>{
+    const fl=fi.files&&fi.files[0]; if(!fl){flag('Pick a photo first');return;}
+    flag('Uploading…');
+    const url=await uploadPhoto(pid,fl); if(!url)return;
+    p.photo_url=url; await patch('tryout_players',pid,{photo_url:url});
+    closeModal(); render(); flag('Photo saved');};
+  const rm=$('ph-rm'); if(rm)rm.onclick=async()=>{
+    p.photo_url=null; await patch('tryout_players',pid,{photo_url:null});
+    closeModal(); render(); flag('Photo removed');};
+}
+
+/* ================= COMPARE — radar overlay ================= */
+function radar(series,labels){
+  /* series: [{name,color,vals:[0-100...]}] */
+  const R=104, CX=132, CY=126, n=labels.length;
+  if(!n) return '';
+  const pt=(i,r)=>{const a=(Math.PI*2*i/n)-Math.PI/2;
+    return [CX+Math.cos(a)*r, CY+Math.sin(a)*r];};
+  const rings=[25,50,75,100].map(p=>{
+    const d=labels.map((_,i)=>pt(i,R*p/100).map(v=>v.toFixed(1)).join(',')).join(' ');
+    return '<polygon points="'+d+'" fill="none" stroke="rgba(255,255,255,'+(p===100?'.22':'.10')+')" stroke-width="1"/>';}).join('');
+  const spokes=labels.map((_,i)=>{const [x,y]=pt(i,R);
+    return '<line x1="'+CX+'" y1="'+CY+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.10)" stroke-width="1"/>';}).join('');
+  const shapes=series.map(sr=>{
+    const d=sr.vals.map((v,i)=>pt(i,R*Math.max(0,Math.min(100,v==null?0:v))/100).map(x=>x.toFixed(1)).join(',')).join(' ');
+    return '<polygon points="'+d+'" fill="'+sr.color+'22" stroke="'+sr.color+'" stroke-width="2.5" stroke-linejoin="round"/>'+
+      sr.vals.map((v,i)=>{if(v==null)return '';const [x,y]=pt(i,R*Math.max(0,Math.min(100,v))/100);
+        return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.4" fill="'+sr.color+'"/>';}).join('');
+  }).join('');
+  const text=labels.map((l,i)=>{const [x,y]=pt(i,R+17);
+    const anc=Math.abs(x-CX)<9?'middle':(x>CX?'start':'end');
+    return '<text x="'+x.toFixed(1)+'" y="'+(y+4).toFixed(1)+'" text-anchor="'+anc+'" font-size="10" font-weight="800" fill="rgba(255,255,255,.62)" font-family="Barlow Condensed, sans-serif" letter-spacing=".08em">'+esc(l.toUpperCase())+'</text>';}).join('');
+  return '<svg class="radar" viewBox="-58 -10 380 272" role="img" aria-label="Attribute comparison">'+rings+spokes+shapes+text+'</svg>';
+}
+function attrVals(pid){
+  const {ratings}=ovrOf(pid);
+  return activeAttrs().map(a=>{const r=ratings[a.key]; return r&&r.rating!=null?r.rating:null;});
+}
+function teamAvgVals(gid){
+  const ps=gid?S.players.filter(p=>teamsOf(p.id).includes(gid)):S.players;
+  return activeAttrs().map(a=>{
+    const v=ps.map(p=>{const r=ovrOf(p.id).ratings[a.key];return r?r.rating:null;}).filter(x=>x!=null);
+    return v.length?Math.round(v.reduce((x,y)=>x+y,0)/v.length):null;});
+}
+function snapVals(pid,snapId){
+  const sn=S.snaps.find(x=>x.id===snapId); if(!sn)return null;
+  const aj=sn.attributes_json||{};
+  return activeAttrs().map(a=>aj[a.key]==null?null:aj[a.key]);
+}
+function vCompare(){
+  const ps=S.players.slice().sort((a,b)=>(a.number==null?999:a.number)-(b.number==null?999:b.number));
+  if(ps.length<1) return '<div class="sec"><h2>COMPARE</h2><div class="rule"></div></div><div class="empty">Add players first.</div>';
+  const A=S.cmpA||ps[0].id;
+  const pa=S.players.find(p=>p.id===A)||ps[0];
+  const mode=S.cmpMode||'player';
+  const labels=activeAttrs().map(a=>a.label);
+  const GOLD='#F0A83C', VIO='#8B5CD6';
+
+  const snapsA=S.snaps.filter(x=>x.player_id===A).sort((a,b)=>String(b.as_of).localeCompare(String(a.as_of)));
+  let series=[{name:pa.name+' · now',color:GOLD,vals:attrVals(A)}];
+  let subtitle='';
+  if(mode==='player'){
+    const B=S.cmpB&&S.cmpB!==A?S.cmpB:(ps.find(p=>p.id!==A)||{}).id;
+    if(B){const pb=S.players.find(p=>p.id===B);
+      series.push({name:pb.name,color:VIO,vals:attrVals(B)});
+      subtitle=esc(pa.name)+' vs '+esc(pb.name);}
+  }else if(mode==='team'){
+    const t=teamsOf(A); const gid=t[0]||null;
+    series.push({name:gid?groupName(gid)+' average':'Program average',color:VIO,vals:teamAvgVals(gid)});
+    subtitle=esc(pa.name)+' vs '+(gid?esc(groupName(gid)):'the program')+' average';
+  }else{
+    const sid=S.cmpB&&snapsA.some(x=>x.id===S.cmpB)?S.cmpB:(snapsA[0]?snapsA[0].id:null);
+    if(sid){const sn=S.snaps.find(x=>x.id===sid);
+      series.push({name:'On '+sn.as_of,color:VIO,vals:snapVals(A,sid)});
+      subtitle=esc(pa.name)+' now vs '+esc(sn.as_of);}
+    else subtitle='No checkpoints saved for '+esc(pa.name)+' yet.';
+  }
+
+  const modeBtns='<div class="row" style="margin-bottom:14px">'+
+    [['player','vs another player'],['team','vs team average'],['self','vs their past self']].map(m=>
+      '<button class="btn '+(mode===m[0]?'btn-p':'btn-g')+' btn-s" data-cmpmode="'+m[0]+'">'+m[1]+'</button>').join('')+'</div>';
+  const sel=(id,val,opts)=>'<select class="inp" id="'+id+'" style="max-width:230px">'+opts.map(o=>
+      '<option value="'+o[0]+'"'+(o[0]===val?' selected':'')+'>'+esc(o[1])+'</option>').join('')+'</select>';
+  const pOpts=ps.map(p=>[p.id,(p.number==null?'–':p.number)+' '+p.name]);
+  let second='';
+  if(mode==='player') second=sel('cmp-b',S.cmpB,ps.filter(p=>p.id!==A).map(p=>[p.id,(p.number==null?'–':p.number)+' '+p.name]));
+  else if(mode==='self') second=snapsA.length?sel('cmp-b',S.cmpB,snapsA.map(x=>[x.id,x.as_of+' · OVR '+x.ovr])):'<span class="lead" style="margin:0">Save a checkpoint on Player Cards to compare over time.</span>';
+
+  const rows=activeAttrs().map((a,i)=>{
+    const v1=series[0].vals[i], v2=series[1]?series[1].vals[i]:null;
+    const d=(v1!=null&&v2!=null)?v1-v2:null;
+    return '<tr><td class="l"><div class="cell l"><b>'+esc(a.label)+'</b></div></td>'+
+      '<td><div class="cell" style="color:'+GOLD+';font-weight:800">'+(v1==null?'–':v1)+'</div></td>'+
+      '<td><div class="cell" style="color:'+VIO+';font-weight:800">'+(v2==null?'–':v2)+'</div></td>'+
+      '<td><div class="cell">'+(d==null?'–':'<span class="delta '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲'+d:d<0?'▼'+Math.abs(d):'–')+'</span>')+'</div></td></tr>';}).join('');
+
+  const ovrA=ovrOf(A).ovr;
+  return '<div class="sec"><h2>COMPARE</h2><div class="rule"></div></div>'+
+    '<p class="lead">Overlay any two shapes. The gold shape is always the player you picked.</p>'+
+    '<div class="row" style="margin-bottom:14px">'+sel('cmp-a',A,pOpts)+second+'</div>'+
+    modeBtns+
+    '<div class="cmpwrap"><div class="cmpchart">'+radar(series,labels)+
+      '<div class="cmplegend">'+series.map(sr=>'<span><i style="background:'+sr.color+'"></i>'+esc(sr.name)+'</span>').join('')+'</div></div>'+
+    '<div class="cmptable"><p class="cmpsub">'+subtitle+'</p>'+
+      '<div class="wrap"><div class="scroll"><table><thead><tr><th class="l">Attribute</th>'+
+      '<th>'+esc(series[0].name.split(' · ')[0])+'</th><th>'+(series[1]?esc(series[1].name):'–')+'</th><th>Δ</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table></div></div></div></div>';
+}
+
+/* ================= GROWTH — season over season ================= */
+function growthRows(pid){
+  const snaps=S.snaps.filter(x=>x.player_id===pid)
+    .sort((a,b)=>String(a.as_of).localeCompare(String(b.as_of)));
+  const out=snaps.map(x=>({when:x.as_of,ovr:x.ovr,season:seasonName(x.season_id),id:x.id}));
+  const now=ovrOf(pid).ovr;
+  if(now!=null) out.push({when:'today',ovr:now,season:curSeason()?curSeason().name:'This season',live:true});
+  return out;
+}
+function growthCard(pid){
+  const rows=growthRows(pid);
+  if(rows.length<2) return '';
+  const first=rows[0], last=rows[rows.length-1];
+  const d=last.ovr-first.ovr;
+  const min=Math.min.apply(null,rows.map(r=>r.ovr))-4, max=Math.max.apply(null,rows.map(r=>r.ovr))+4;
+  const W=460,H=92, span=Math.max(1,max-min);
+  const pts=rows.map((r,i)=>[8+i*((W-16)/Math.max(1,rows.length-1)), H-6-((r.ovr-min)/span)*(H-16)]);
+  const line=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const area='8,'+(H-6)+' '+line+' '+(W-8)+','+(H-6);
+  return '<div class="growth"><div class="growthead"><b>Growth</b>'+
+      '<span class="delta '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲'+d:d<0?'▼'+Math.abs(d):'no change')+'</span>'+
+      '<span class="gsub">'+esc(first.when)+' → '+esc(last.when)+'</span></div>'+
+    '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" class="gsvg">'+
+      '<polygon points="'+area+'" fill="rgba(240,168,60,.14)"/>'+
+      '<polyline points="'+line+'" fill="none" stroke="#F0A83C" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+      pts.map((p,i)=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(i===pts.length-1?4:3)+'" fill="#F0A83C"/>').join('')+
+    '</svg>'+
+    '<div class="gticks">'+rows.map(r=>'<span><b>'+r.ovr+'</b>'+esc(r.when==='today'?'now':String(r.when).slice(5))+'</span>').join('')+'</div></div>';
+}
+
+/* ================= PRACTICE — attendance + creed ================= */
+function vPractice(){
+  if(!PRACTICE_OK) return '<div class="sec"><h2>PRACTICE</h2><div class="rule"></div></div><p class="lead">The practice tables are not created yet.</p>';
+  const list=sessionsSorted();
+  let sess=S.prSession?list.find(x=>x.id===S.prSession):null;
+  if(!sess)sess=list[0]||null;
+  const mode=S.prMode||'attend';
+  const head='<div class="sec"><h2>PRACTICE</h2><div class="rule"></div>'+
+      '<button class="btn btn-p btn-s" data-act="new-session">＋ New practice</button></div>';
+  if(!sess) return head+'<div class="empty">No practices logged yet.<br><br><button class="btn btn-p btn-s" data-act="new-session">＋ Start the first one</button></div>';
+
+  const roster=rosterFor(sess.group_id);
+  const picker='<div class="row" style="margin-bottom:14px"><select class="inp" id="pr-sess" style="max-width:330px">'+
+    list.map(x=>'<option value="'+x.id+'"'+(x.id===sess.id?' selected':'')+'>'+
+      esc(x.session_date)+' · '+esc(x.title||(x.group_id?groupName(x.group_id):'Whole program'))+'</option>').join('')+
+    '</select><button class="btn btn-g btn-s" data-act="edit-session">Edit</button></div>';
+  const modes='<div class="row" style="margin-bottom:16px">'+
+    [['attend','✓ Attendance'],['creed','★ Creed']].map(m=>
+      '<button class="btn '+(mode===m[0]?'btn-p':'btn-g')+' btn-s" data-prmode="'+m[0]+'">'+m[1]+'</button>').join('')+'</div>';
+
+  if(!roster.length) return head+picker+modes+'<div class="empty">No players on this team yet. Assign players in <b>Admin → Teams</b>.</div>';
+
+  if(mode==='creed'){
+    return head+picker+modes+
+      '<p class="lead">Score the four things we say we are. <b>1</b> = not today, <b>4</b> = that is the standard. Tap a filled dot again to clear it.</p>'+
+      '<div class="crgrid">'+roster.map(p=>{
+        const c=creedOf(sess.id,p.id)||{};
+        return '<div class="crcard"><div class="crhead">'+photoChip(p,30)+
+          '<div><b>'+esc(p.name)+'</b><span>#'+(p.number==null?'–':p.number)+'</span></div></div>'+
+          CREED.map(cr=>
+            '<div class="crrow"><span class="crlab">'+cr[1]+'</span><div class="crdots">'+
+            [1,2,3,4].map(v=>'<button class="crdot'+((c[cr[0]]||0)>=v?' on':'')+'" data-creed="'+p.id+'" data-ck="'+cr[0]+'" data-cv="'+v+'"></button>').join('')+
+            '</div></div>').join('')+
+          '</div>';}).join('')+'</div>';
+  }
+
+  const marked=roster.filter(p=>attOf(sess.id,p.id)).length;
+  const here=roster.filter(p=>{const a=attOf(sess.id,p.id);return a&&(a.status==='present'||a.status==='late');}).length;
+  return head+picker+modes+
+    '<p class="lead">Tap once for <b>here</b>. Tap again for <b>great effort</b>. Tap a third time for <b>absent</b>. It saves as you go.</p>'+
+    '<div class="attbar"><b>'+here+'</b> here · <b>'+(roster.length-marked)+'</b> not marked · '+roster.length+' on the team'+
+      '<button class="btn btn-g btn-s" data-act="all-present" style="margin-left:auto">Mark all here</button></div>'+
+    '<div class="attgrid">'+roster.map(p=>{
+      const a=attOf(sess.id,p.id); const st=a?a.status:null; const ef=a?a.effort:null;
+      const cls=st==null?'':(st==='absent'?'absent':(ef===3?'great':'here'));
+      return '<button class="attcell '+cls+'" data-att="'+p.id+'">'+
+        photoChip(p,44)+
+        '<span class="attnum">'+(p.number==null?'–':p.number)+'</span>'+
+        '<span class="attname">'+esc(p.name.split(' ')[0])+'</span>'+
+        '<span class="attmark">'+(st==null?'':st==='absent'?'✕':ef===3?'★':'✓')+'</span></button>';}).join('')+'</div>';
+}
+const groupName=id=>{const g=S.groups.find(x=>x.id===id);return g?g.name:'Team';};
+function photoChip(p,sz){
+  const url=p&&p.photo_url;
+  if(url) return '<img class="pchip" style="width:'+sz+'px;height:'+sz+'px" src="'+esc(url)+'" alt="" loading="lazy">';
+  const init=(p&&p.name?p.name.split(' ').map(x=>x[0]).slice(0,2).join(''):'?').toUpperCase();
+  return '<span class="pchip noimg" style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.round(sz*0.36)+'px">'+esc(init)+'</span>';
+}
+async function cycleAtt(sid,pid){
+  const a=attOf(sid,pid);
+  let next;
+  if(!a) next={status:'present',effort:null};
+  else if(a.status==='present'&&a.effort!==3) next={status:'present',effort:3};
+  else if(a.status==='present'&&a.effort===3) next={status:'absent',effort:null};
+  else next={status:'present',effort:null};
+  if(a){ Object.assign(a,next); render(); await patch('pd_attendance',a.id,next); }
+  else { const row=Object.assign({session_id:sid,player_id:pid},next);
+    const tmp=Object.assign({id:uuid()},row); S.att.push(tmp); render();
+    const saved=await put('pd_attendance',row);
+    if(saved){const i=S.att.indexOf(tmp); if(i>=0)S.att[i]=saved;} }
+}
+async function setCreed(sid,pid,key,val){
+  const c=creedOf(sid,pid);
+  const v=(c&&c[key]===val)?null:val;
+  const one={}; one[key]=v;
+  if(c){ c[key]=v; render(); await patch('pd_creed',c.id,one); }
+  else { const row=Object.assign({session_id:sid,player_id:pid},one);
+    const tmp=Object.assign({id:uuid()},row); S.creed.push(tmp); render();
+    const saved=await put('pd_creed',row);
+    if(saved){const i=S.creed.indexOf(tmp); if(i>=0)S.creed[i]=saved;} }
+}
+async function markAllPresent(sid){
+  const sess=S.sessions.find(x=>x.id===sid); if(!sess)return;
+  for(const p of rosterFor(sess.group_id)){
+    if(attOf(sid,p.id))continue;
+    const row={session_id:sid,player_id:p.id,status:'present',effort:null};
+    const saved=await put('pd_attendance',row);
+    S.att.push(saved||Object.assign({id:uuid()},row));
+  }
+  render(); flag('Everyone marked here');
+}
+function sessionModal(sid){
+  const x=sid?S.sessions.find(y=>y.id===sid):null;
+  modal(x?'Edit practice':'New practice',
+    '<div class="g2"><div class="field"><label>Date</label><input class="inp" type="date" id="s-date" value="'+(x?esc(x.session_date):todayISO())+'"></div>'+
+    '<div class="field"><label>Team</label><select class="inp" id="s-team"><option value="">Whole program</option>'+
+      S.groups.map(g=>'<option value="'+g.id+'"'+(x&&x.group_id===g.id?' selected':'')+'>'+esc(g.name)+'</option>').join('')+'</select></div></div>'+
+    '<div class="field"><label>Label (optional)</label><input class="inp" id="s-title" value="'+(x?esc(x.title||''):'')+'" placeholder="Tuesday practice"></div>'+
+    '<div class="row"><button class="btn btn-p" id="s-save" style="flex:1">'+(x?'Save':'Create')+'</button>'+
+    (x?'<button class="btn btn-d" id="s-del">🗑 Delete</button>':'')+'</div>');
+  $('s-save').onclick=async()=>{
+    const row={session_date:$('s-date').value||todayISO(),
+      group_id:$('s-team').value||null, title:$('s-title').value.trim()||null, kind:'practice'};
+    if(x){ Object.assign(x,row); await patch('pd_sessions',x.id,row); S.prSession=x.id; }
+    else { const saved=await put('pd_sessions',stamp(row));
+      const rec=saved||Object.assign({id:uuid()},stamp(row)); S.sessions.push(rec); S.prSession=rec.id; }
+    closeModal(); render(); flag('Saved');};
+  const d=$('s-del'); if(d)d.onclick=async()=>{
+    if(!confirm('Delete this practice and its attendance?'))return;
+    for(const a of S.att.filter(a=>a.session_id===sid)) await del('pd_attendance',a.id);
+    for(const c of S.creed.filter(c=>c.session_id===sid)) await del('pd_creed',c.id);
+    S.att=S.att.filter(a=>a.session_id!==sid); S.creed=S.creed.filter(c=>c.session_id!==sid);
+    await del('pd_sessions',sid); S.sessions=S.sessions.filter(y=>y.id!==sid); S.prSession=null;
+    closeModal(); render(); flag('Deleted');};
+}
+
 /* ================= MEDIA LIBRARY ================= */
 function vLibrary(){
   const st=libStats(), q=(S.libQ||'').toLowerCase(), cat=S.libCat||'all';
@@ -1659,7 +2235,7 @@ function listModal(){
     S.lists.push(nl); S.openList=nl.id; closeModal(); render(); flag('List created');};
 }
 
-const VIEWS={cards:vCards,testing:vTesting,goals:vGoals,assign:vAssign,stats:vStats,reports:vReports,messages:vMessages,admin:vAdmin};
+const VIEWS={cards:vCards,practice:vPractice,testing:vTesting,compare:vCompare,goals:vGoals,assign:vAssign,stats:vStats,reports:vReports,messages:vMessages,admin:vAdmin};
 
 /* ================= modals ================= */
 function modal(title,body,wide){
@@ -1917,6 +2493,21 @@ function wire(){
   document.querySelectorAll('[data-assignmid]').forEach(b=>b.onclick=()=>assignModal(b.dataset.assignmid));
   const pr=document.querySelector('[data-act="print-reports"]'); if(pr)pr.onclick=()=>window.print();
   document.querySelectorAll('[data-preview]').forEach(b=>b.onclick=e=>{e.stopPropagation();previewModal(b.dataset.preview);});
+  const ssel=$('season-sel'); if(ssel)ssel.onchange=()=>{S.seasonId=ssel.value;render();};
+  const prs=$('pr-sess'); if(prs)prs.onchange=()=>{S.prSession=prs.value;render();};
+  document.querySelectorAll('[data-prmode]').forEach(b=>b.onclick=()=>{S.prMode=b.dataset.prmode;render();});
+  const curSess=()=>{const l=sessionsSorted();return S.prSession?l.find(x=>x.id===S.prSession)||l[0]:l[0];};
+  document.querySelectorAll('[data-att]').forEach(b=>b.onclick=()=>{const sx=curSess(); if(sx)cycleAtt(sx.id,b.dataset.att);});
+  document.querySelectorAll('[data-creed]').forEach(b=>b.onclick=()=>{const sx=curSess(); if(sx)setCreed(sx.id,b.dataset.creed,b.dataset.ck,+b.dataset.cv);});
+  document.querySelectorAll('[data-cmpmode]').forEach(b=>b.onclick=()=>{S.cmpMode=b.dataset.cmpmode;S.cmpB=null;render();});
+  const ca=$('cmp-a'); if(ca)ca.onchange=()=>{S.cmpA=ca.value;S.cmpB=null;render();};
+  const cb=$('cmp-b'); if(cb)cb.onchange=()=>{S.cmpB=cb.value;render();};
+  document.querySelectorAll('[data-eseason]').forEach(b=>b.onclick=()=>seasonModal(b.dataset.eseason));
+  document.querySelectorAll('[data-actseason]').forEach(b=>b.onclick=()=>activateSeason(b.dataset.actseason));
+  document.querySelectorAll('[data-photo]').forEach(b=>b.onclick=e=>{e.stopPropagation();photoModal(b.dataset.photo);});
+  document.querySelectorAll('[data-agok]').forEach(b=>b.onclick=()=>setAgoal(b.dataset.agok,{status:'approved',coach_approved_at:new Date().toISOString()},'Approved'));
+  document.querySelectorAll('[data-agno]').forEach(b=>b.onclick=()=>setAgoal(b.dataset.agno,{status:'declined'},'Declined'));
+  document.querySelectorAll('[data-agdone]').forEach(b=>b.onclick=()=>setAgoal(b.dataset.agdone,{status:'complete',completed_at:new Date().toISOString()},'Complete'));
   document.querySelectorAll('[data-lcat]').forEach(b=>b.onclick=()=>{S.libCat=b.dataset.lcat;render();});
   const lq=$('libq'); if(lq){lq.oninput=()=>{S.libQ=lq.value;clearTimeout(window._lqt);window._lqt=setTimeout(()=>{const p=lq.selectionStart;render();const n=$('libq');if(n){n.focus();n.setSelectionRange(p,p);}},260);};}
   const ls=$('libsort'); if(ls)ls.onchange=()=>{S.libSort=ls.value;render();};
@@ -2008,6 +2599,11 @@ function wire(){
     'clear-week':()=>clearWeekModal(),
     'bulk-tag':()=>bulkTagModal(),
     'bulk-import':()=>bulkImportModal(),
+    'new-session':()=>sessionModal(null),
+    'edit-session':()=>{const l=sessionsSorted();const sx=S.prSession?l.find(x=>x.id===S.prSession)||l[0]:l[0];if(sx)sessionModal(sx.id);},
+    'all-present':()=>{const l=sessionsSorted();const sx=S.prSession?l.find(x=>x.id===S.prSession)||l[0]:l[0];if(sx)markAllPresent(sx.id);},
+    'new-season':()=>seasonModal(null),
+    'roll-season':()=>rollSeasonModal(),
     'lib-export':()=>libExport(),
     'lib-reset':()=>{S.libQ='';S.libCat='all';S.assignTags=[];render();},
     'bulk-clear':()=>{S.picked=[];render();},
@@ -2022,7 +2618,7 @@ async function saveCheckpoint(){
   for(const p of S.players){
     const {ovr,ratings}=ovrOf(p.id); if(ovr==null)continue;
     const aj={}; Object.keys(ratings).forEach(k=>{if(ratings[k].rating!=null)aj[k]=ratings[k].rating;});
-    const row={player_id:p.id,as_of:today,ovr,attributes_json:aj,trigger:'manual'};
+    const row=stamp({player_id:p.id,as_of:today,ovr,attributes_json:aj,trigger:'manual'});
     const s=await put('pd_snapshots',row); S.snaps.push(s||{id:uuid(),...row});
   }
   render(); flag('Checkpoint saved');
