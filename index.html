@@ -566,9 +566,63 @@
   @media (prefers-reduced-motion: reduce) {
     .grid-bg { animation: none; }
   }
+
+  /* ===== SITE ACCESS CODE ===== */
+  html.locked { overflow: hidden; }
+  html.locked body > :not(.gate) { visibility: hidden; }
+  html:not(.locked) .gate { display: none; }
+  .gate {
+    position: fixed; inset: 0; z-index: 1000;
+    display: grid; place-items: center; padding: 24px;
+    background: var(--bg-deep);
+  }
+  .gate .grid-bg { position: absolute; }
+  .gate-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 380px;
+    background: var(--bg-card); border: 1px solid var(--line);
+    border-top: 3px solid var(--flame);
+    border-radius: 18px; padding: 36px 32px 30px;
+    display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.7);
+  }
+  .gate-card .gate-kicker {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold);
+  }
+  .gate-card h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 2rem; line-height: 1.05; letter-spacing: -0.01em; color: var(--text);
+  }
+  .gate-card p { font-size: 0.9rem; color: var(--text-mute); }
+  .gate-card input {
+    width: 100%; margin-top: 6px;
+    text-align: center; font-family: var(--sans); font-weight: 800; font-size: 1.6rem; letter-spacing: 0.45em;
+    padding: 12px 10px 12px 18px;
+    background: var(--bg-deep); color: var(--text);
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .gate-card input:focus { outline: 2px solid var(--flame); outline-offset: 2px; border-color: var(--flame); }
+  .gate-card .btn { width: 100%; justify-content: center; }
+  .gate-err { min-height: 18px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--flame-bright); }
 </style>
+<script>
+  /* Runs before paint so the page never flashes unlocked. */
+  (function(){ try{ if(localStorage.getItem('j3hoops-gate')!=='4545') document.documentElement.classList.add('locked'); }catch(e){ document.documentElement.classList.add('locked'); } })();
+</script>
 </head>
 <body>
+
+<!-- ===== SITE ACCESS CODE ===== -->
+<div class="gate" id="gate">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <form class="gate-card" id="gateform" autocomplete="off">
+    <div class="gate-kicker">J3 Hoops · Cape Coral</div>
+    <h2>Team access code</h2>
+    <p>Coaches, players, and families: enter the code you were given.</p>
+    <input type="password" id="gatepw" inputmode="numeric" maxlength="12" aria-label="Team access code" autocomplete="off">
+    <button type="submit" class="btn btn-primary">Enter <span class="arrow">→</span></button>
+    <span class="gate-err" id="gateerr"></span>
+  </form>
+</div>
 
 <!-- ===== STICKY NAV ===== -->
 <header class="nav">
@@ -732,6 +786,24 @@
 </footer>
 
 <script>
+  (function(){
+    var CODE = '4545', KEY = 'j3hoops-gate', root = document.documentElement;
+    var form = document.getElementById('gateform'), pw = document.getElementById('gatepw'), err = document.getElementById('gateerr');
+    form.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      if (pw.value.trim() === CODE) {
+        try { localStorage.setItem(KEY, CODE); } catch(e) {}
+        err.textContent = '';
+        root.classList.remove('locked');
+        window.dispatchEvent(new Event('scroll'));
+      } else {
+        err.textContent = "That code isn't right";
+        pw.value = ''; pw.focus();
+      }
+    });
+    if (root.classList.contains('locked')) setTimeout(function(){ pw.focus(); }, 50);
+  })();
+
   document.getElementById('year').textContent = new Date().getFullYear();
 
   // Scroll reveal for content sections

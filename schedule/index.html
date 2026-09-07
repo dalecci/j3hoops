@@ -146,6 +146,10 @@
   .chip .grip:active{cursor:grabbing}
   .chip .txt{min-width:0;display:flex;flex-direction:column;gap:2px}
   .chip .t{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);line-height:1.2;word-break:break-word}
+  .chip .w{font-family:var(--cond);font-weight:500;font-size:11.5px;letter-spacing:.03em;line-height:1.25;color:var(--ink-2);white-space:pre-line;word-break:break-word}
+  .chip .w:empty{min-height:13px}
+  .chip:not(:hover):not(:focus-within) .w:empty::before{content:""}
+  .parents .chip .w:empty{display:none}
   .chip .c{font-family:var(--cond);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;line-height:1.25;color:var(--ink-2);word-break:break-word}
   .chip .c:empty{min-height:13px}
   .chip:not(:hover):not(:focus-within) .c:empty::before{content:""}
@@ -200,6 +204,7 @@
   .pickbar button{background:#23133F;color:#fff;border-radius:999px;padding:5px 12px;font-family:var(--cond);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:11.5px}
 
   @media (max-width:820px){
+    .chip .w{font-size:10px}
     .mast .inner{padding:16px 16px 14px;gap:14px}
     .crest{width:64px;height:64px}
     .bar,main,.parents-note{padding-left:12px;padding-right:12px}
@@ -366,6 +371,7 @@
 
   /* ---------- seed: Dale's availability, Sept–Dec 2026, from the PDF ---------- */
   const NF='N. Fort 5–9 PM', YT='YMCA 6–8 PM', YS='YMCA 9–10 AM';
+  const WHO={[NF]:'5–7 Grade 3 & 5\n7–9 Grade 6-7-8',[YT]:'All grades',[YS]:'All grades'};
   const AWAY='Dale away flying', CHURCH='Church — absent', NG='Next Gen — arrive 7 PM';
   const SEEDROWS=[
     ['2026-09-15',NF,'green'],['2026-09-17',YT,'red',AWAY],['2026-09-18',NF,'red',AWAY],
@@ -391,7 +397,7 @@
       v:1, eyebrow:'SWFL Jaguars Basketball', title:'Dale Availability', season:'September – December 2026',
       legend:{green:'Attending practice',red:'Cannot attend practice',yellow:'Next Gen — arrive 7 PM'},
       range:{from:'2026-09',to:'2026-12'},
-      events:SEEDROWS.map(([date,title,status,coach])=>({id:uid(),date,title,coach:coach||'',status,note:''})),
+      events:SEEDROWS.map(([date,title,status,coach])=>({id:uid(),date,title,who:WHO[title]||'',coach:coach||'',status,note:''})),
     };
   }
   function migrate(s){
@@ -400,7 +406,7 @@
     s.legend=Object.assign({},d.legend,s.legend||{});
     s.range=Object.assign({},d.range,s.range||{});
     if(!Array.isArray(s.events)) s.events=[];
-    s.events=s.events.filter(e=>e&&e.date).map(e=>({id:e.id||uid(),date:e.date,title:e.title||'',coach:e.coach||'',status:e.status||'none',note:e.note||''}));
+    s.events=s.events.filter(e=>e&&e.date).map(e=>({id:e.id||uid(),date:e.date,title:e.title||'',who:e.who||'',coach:e.coach||'',status:e.status||'none',note:e.note||''}));
     return s;
   }
 
@@ -510,6 +516,7 @@
     const hasNote=!!(e.note&&e.note.trim());
     el.innerHTML=`<div class="grip" title="Drag to another day, or tap then tap a day">⋮⋮</div>
       <div class="txt"><div class="t" contenteditable="${editable}" data-ef="title" data-ph="Venue & time" spellcheck="false">${esc(e.title)}</div>
+      <div class="w" contenteditable="${editable}" data-ef="who" data-ph="Grades / times" spellcheck="false">${esc(e.who)}</div>
       <div class="c" contenteditable="${editable}" data-ef="coach" data-ph="Coach note" spellcheck="false">${esc(e.coach)}</div></div>
       <div class="side"><button class="dot" title="Set colour" aria-label="Set availability colour"></button>
       <button class="ib note${hasNote?' on':''}" title="${hasNote?'Read notes':'Add notes'}" aria-label="Practice notes">${hasNote?'✎':'✎'}</button>
@@ -524,7 +531,7 @@
   document.addEventListener('focusin',ev=>{ const el=ev.target; if(el.matches&&el.matches('[contenteditable="true"]')) preSnap={html:JSON.stringify(state),el}; });
   document.addEventListener('focusout',ev=>{
     const el=ev.target; if(!el.matches||!el.matches('[contenteditable="true"]'))return;
-    const val=el.textContent.replace(/\s+/g,' ').trim();
+    const val=el.dataset.ef==='who'?el.innerText.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim():el.textContent.replace(/\s+/g,' ').trim();
     let changed=false;
     if(el.dataset.f){
       const path=el.dataset.f.split('.');
@@ -539,14 +546,14 @@
   document.addEventListener('keydown',ev=>{
     const el=ev.target;
     if(el.matches&&el.matches('[contenteditable="true"]')){
-      if(ev.key==='Enter'){ev.preventDefault();el.blur();}
+      if(ev.key==='Enter'&&el.dataset.ef!=='who'){ev.preventDefault();el.blur();}
       if(ev.key==='Escape'){ev.preventDefault();el.textContent=preSnap?JSON.parse(preSnap.html):el.textContent;el.blur();}
       return;
     }
     if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'&&mode==='coach'){ev.preventDefault();doUndo();}
     if(ev.key==='Escape'){closePop();closeModal();cancelPick();}
   });
-  document.addEventListener('paste',ev=>{ const el=ev.target; if(el.matches&&el.matches('[contenteditable="true"]')){ ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData.getData('text/plain')||'').replace(/\s+/g,' ')); } });
+  document.addEventListener('paste',ev=>{ const el=ev.target; if(el.matches&&el.matches('[contenteditable="true"]')){ ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData.getData('text/plain')||'').replace(el.dataset.ef==='who'?/[ \t]+/g:/\s+/g,' ')); } });
 
   /* ---------- clicks: add, delete, status, notes ---------- */
   $('#months').addEventListener('click',ev=>{
