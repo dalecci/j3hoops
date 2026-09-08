@@ -389,7 +389,7 @@
     <div class="h6">Playback</div>
     <div class="toggle"><div><b>Frame rate</b><small id="fpsNote">Auto-detected from the clip</small></div><b id="fpsVal">—</b></div>
     <div class="h6">About</div>
-    <div class="note">J3 Film Room v0.1 · Built for iPad Pro + Apple Pencil + a big TV. Coach view: <code>/video</code> · TV view: <code>/video?tv</code></div>
+    <div class="note">J3 Film Room v0.1 · Built for iPad Pro + Apple Pencil + a big TV. Coach view: <code>/filmroom</code> · TV view: <code>/filmroom?tv</code></div>
   </div>
 </aside>
 
@@ -1426,7 +1426,7 @@ async function loadLibrary() {
   const list = $('clipList');
   if (!sb) { list.innerHTML = '<div class="note">Cloud library unavailable.</div>'; return; }
   const { data, error } = await sb.from('film_clips').select('*').order('created_at', { ascending: false }).limit(200);
-  if (error) { list.innerHTML = `<div class="note">Library not set up yet. Run <code>video/schema.sql</code> in Supabase once.<br><span style="color:var(--faint)">${error.message}</span></div>`; return; }
+  if (error) { list.innerHTML = `<div class="note">Library not set up yet. Run <code>filmroom/schema.sql</code> in Supabase once.<br><span style="color:var(--faint)">${error.message}</span></div>`; return; }
   clips = data || []; renderClipList();
 }
 function renderClipList() {

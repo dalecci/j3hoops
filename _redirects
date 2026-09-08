@@ -1,2 +1,4 @@
 /training/*    /warriors/:splat    301
 /training      /warriors           301
+/video/*       /filmroom/:splat    301
+/video         /filmroom           301

@@ -1,5 +1,5 @@
 -- J3 Film Room — cloud library + marks
--- Run once in the Supabase SQL editor (project vlcpgwxeybpzwidjackz). Safe to run more than once.
+-- Run once in the Supabase SQL editor (file: filmroom/schema.sql) (project vlcpgwxeybpzwidjackz). Safe to run more than once.
 -- Follows the same convention as the rest of j3hoops: anon-all policies behind the site PIN gate.
 
 create table if not exists public.film_clips(
