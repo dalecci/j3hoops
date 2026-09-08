@@ -91,6 +91,14 @@
   .boardbar{display:flex;align-items:center;gap:6px;padding-top:4px;flex-wrap:nowrap;overflow-x:auto}
   .boardbar .tb{min-width:46px;padding:0 10px}
   .boardbar select{height:54px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);padding:0 12px;font-weight:700;flex:1;min-width:120px;max-width:230px;-webkit-appearance:none;appearance:none}
+  #app.board{--dock:170px}
+  .stepstrip{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:2px 0 6px;white-space:nowrap}
+  .chip{padding:9px 13px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-weight:800;font-size:13px;flex:none}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .stepstrip .grow{flex:1}
+  .stepstrip input{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-weight:800;font-size:14px;width:150px;outline:none;-webkit-user-select:text;user-select:text;flex:none}
+  .stepstrip .mini{width:38px;height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:800;flex:none}
+  .stepstrip .dur{font-variant-numeric:tabular-nums;font-weight:800;color:var(--muted);width:44px;text-align:center;flex:none}
   .cue{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,10,11,.78);border:1px solid var(--border-2);color:#fff;border-radius:999px;padding:8px 22px;font-size:26px;font-weight:900;letter-spacing:.02em;z-index:5;pointer-events:none;display:none}
   .cue.show{display:block}
   /* court calibration wizard */
@@ -236,7 +244,10 @@
       <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Marks</button>
     <div class="sep"></div>
     <button class="tool on" data-tool="pen"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M13 7l3 3"/></svg>Pen</button>
-    <button class="tool" data-tool="arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><path d="M10 5h9v9"/></svg>Arrow</button>
+    <button class="tool" data-tool="arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><path d="M10 5h9v9"/></svg>Cut</button>
+    <button class="tool" data-tool="dribble"><svg viewBox="0 0 24 24"><path d="M3 18l3-4 3 4 3-4 3 4 3-4"/><path d="M15 10h5v5"/></svg>Dribble</button>
+    <button class="tool" data-tool="pass"><svg viewBox="0 0 24 24"><path d="M4 19L18 5" stroke-dasharray="3 3"/><path d="M10 5h8v8"/></svg>Pass</button>
+    <button class="tool" data-tool="screen"><svg viewBox="0 0 24 24"><path d="M12 20V7"/><path d="M5 7h14"/></svg>Screen</button>
     <button class="tool" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>Circle</button>
     <button class="tool" data-tool="zone"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" stroke-dasharray="3 3"/></svg>Zone</button>
     <button class="tool" data-tool="spot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spotlight</button>
@@ -244,6 +255,7 @@
     <div class="sep"></div>
     <button class="tool film-only" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
     <button class="tool film-only" data-tool="figure"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6M7 11l5 3 5-3M9 21l3-7 3 7"/></svg>Player</button>
+    <button class="tool" data-tool="cone"><svg viewBox="0 0 24 24"><path d="M12 3l5 15H7z"/><path d="M4 18h16"/></svg>Cone</button>
     <button class="tool" data-tool="token"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 3v4M9 19l3 2 3-2"/></svg>Tag</button>
     <button class="tool film-only" id="courtBtn" title="Top view court"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 21v-6h8v6M12 3v4"/><circle cx="12" cy="10" r="3"/></svg>Court</button>
     <button class="tool" data-tool="move"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg>Move</button>
@@ -331,6 +343,13 @@
 
   <!-- ============ Dock ============ -->
   <div class="dock" id="dock">
+    <div class="stepstrip board-only" id="stepstrip">
+      <div id="stepChips" style="display:flex;gap:6px"></div>
+      <div class="grow"></div>
+      <input id="stepCue" placeholder="Cue word (e.g. Flash)" maxlength="18" />
+      <button class="mini" id="stepDurDown" title="Shorter">−</button><div class="dur" id="stepDur">1.5s</div><button class="mini" id="stepDurUp" title="Longer">+</button>
+      <button class="mini" id="stepDel" title="Delete this step" style="color:var(--danger)">✕</button>
+    </div>
     <div class="boardbar board-only" id="boardbar">
       <div class="speed" id="courtSize"><button data-size="half" class="on">Half</button><button data-size="full">Full</button></div>
       <select id="playSel"><option value="">Load a play from the designer…</option></select>
@@ -341,6 +360,7 @@
       <div class="speed" id="bSpeed"><button data-rate="0.5">½</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button></div>
       <button class="tb" id="bAddO" title="Add an offensive player">+O</button>
       <button class="tb" id="bAddX" title="Add a defender">+X</button>
+      <button class="tb" id="bMatchD" title="Put a defender on every offensive player">Match D</button>
       <button class="tb" id="bAddStep" title="Add a step after this one with the players where they are now">+Step</button>
       <button class="tb" id="bSave" title="Save this play to the designer">Save</button>
       <button class="tb" id="bReset" title="Reset the board">Reset</button>
@@ -536,7 +556,7 @@ function render() {
   ctx.clearRect(0, 0, W, H);
   const visible = S.objects.filter(o => !(o.layer === 'b' && IS_TV && !S.reveal));
   const all = S.live ? visible.concat([S.live]) : visible;
-  if (S.mode === 'board') { drawCourtFloor(); drawBoardFrame(IS_TV ? S.board.frame : boardFrame()); }
+  if (S.mode === 'board') { drawCourtFloor(); drawBoardFrame(IS_TV ? S.board.frame : boardFrame()); renderSteps(); }
   // spotlight dim layer
   const spots = all.filter(o => o.type === 'spot');
   if (spots.length) {
@@ -699,6 +719,66 @@ function drawBoardFrame(F) {
   function ball(x, y, br) { ctx.fillStyle = '#E8842B'; ctx.beginPath(); ctx.arc(x, y, br, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#3a1d08'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - br, y); ctx.lineTo(x + br, y); ctx.moveTo(x, y - br); ctx.lineTo(x, y + br); ctx.stroke(); }
   const cue = $('cue'); cue.textContent = F.cue; cue.classList.toggle('show', !!F.cue);
 }
+/* ---- step strip: chips, cue word, timing, delete ---- */
+let stepSig = '';
+function renderSteps() {
+  if (IS_TV || S.mode !== 'board') return;
+  const p = bPlay(), s = bStep();
+  const sig = p.steps.length + ':' + S.board.step + ':' + (s.text || '') + ':' + s.duration;
+  if (sig === stepSig) return; stepSig = sig;
+  const chips = $('stepChips'); chips.innerHTML = '';
+  p.steps.forEach((st, i) => { const b = document.createElement('button'); b.className = 'chip' + (i === S.board.step ? ' on' : ''); b.textContent = i === 0 ? 'Start' : (st.text ? `${i} · ${st.text}` : String(i)); b.onclick = () => boardGo(i); chips.appendChild(b); });
+  if (document.activeElement !== $('stepCue')) $('stepCue').value = s.text || '';
+  $('stepDur').textContent = S.board.step === 0 ? '—' : (s.duration || 1.5).toFixed(2).replace(/\.?0+$/, '') + 's';
+  $('stepDurDown').disabled = $('stepDurUp').disabled = S.board.step === 0;
+}
+$('stepCue').addEventListener('input', () => { bStep().text = $('stepCue').value; stepSig = ''; renderSteps(); requestRender(); throttleSend(sendBoard); });
+$('stepDurDown').onclick = () => { const s = bStep(); if (S.board.step === 0) return; s.duration = Math.max(0.25, +((s.duration || 1.5) - 0.25).toFixed(2)); stepSig = ''; renderSteps(); };
+$('stepDurUp').onclick = () => { const s = bStep(); if (S.board.step === 0) return; s.duration = Math.min(6, +((s.duration || 1.5) + 0.25).toFixed(2)); stepSig = ''; renderSteps(); };
+$('stepDel').onclick = () => {
+  const p = bPlay(); if (p.steps.length < 2) { toast('Reset clears the board; the start step stays.'); return; }
+  if (!confirm(`Delete step ${S.board.step === 0 ? 'Start' : S.board.step}?`)) return;
+  p.steps.splice(S.board.step, 1); if (p.steps.length && p.steps[0].duration !== 0) p.steps[0].duration = 0;
+  S.board.step = clamp(S.board.step, 0, p.steps.length - 1); requestRender(); sendBoard();
+};
+// a line that starts on a player is a play instruction, not ink:
+// Cut/Pen -> he moves there in the next step; Pass -> pass event to the player it ends on; Screen -> screen event on him
+function boardInstruction(L) {
+  if (S.mode !== 'board' || S.board.anim || !['pen', 'arrow', 'pass', 'screen'].includes(L.type)) return false;
+  if (L.type === 'pen' ? L.pts.length < 2 : !(L.a && L.b)) return false;
+  const p = bPlay(), i = S.board.step;
+  const start = L.type === 'pen' ? L.pts[0] : L.a, end = L.type === 'pen' ? L.pts[L.pts.length - 1] : L.b;
+  const from = boardHitPlayer(start[0], start[1]); if (!from) return false;
+  const to = boardHitPlayer(end[0], end[1]);
+  const fe = nc(end[0], end[1]), fs = nc(start[0], start[1]); const distFt = Math.hypot(fe[0] - fs[0], fe[1] - fs[1]);
+  if (L.type === 'pass') {
+    if (!to || to.id === from.id) return false;
+    const s = p.steps[i]; s.events = s.events.filter(ev => ev.type !== 'pass'); s.events.push({ type: 'pass', from: from.id, to: to.id });
+    for (let k = i + 1; k < p.steps.length; k++) p.steps[k].ball = to.id;
+    if (i === 0 && p.steps.length === 1) s.ball = from.id;
+    toast(`Pass ${from.label} → ${to.label}`); return true;
+  }
+  if (L.type === 'screen') {
+    if (distFt < 1.5) return false;
+    const s = p.steps[i]; s.events = s.events.filter(ev => !(ev.type === 'screen' && ev.player === from.id));
+    const angle = Math.atan2((fe[1] - fs[1]) / FT, (fe[0] - fs[0]) / FT) * (S.board.size === 'full' ? 1 : 1);
+    s.events.push({ type: 'screen', player: from.id, angle, dwell: 0.7 }); toast(`Screen by ${from.label}`); return true;
+  }
+  if (L.type === 'arrow' || L.type === 'pen') {
+    if (distFt < 3) return false;
+    if (!p.steps[i + 1]) { const s = p.steps[i]; p.steps.push({ duration: 1.5, ball: s.ball, positions: JSON.parse(JSON.stringify(s.positions)), events: [], text: '' }); Object.values(p.steps[i + 1].positions).forEach(q => { delete q.cx; delete q.cz; }); }
+    const n = p.steps[i + 1]; const dest = ft2m(clamp(fe[0], -25, 25), clamp(fe[1], 0, S.board.size === 'full' ? NBA.L : 47));
+    n.positions[from.id] = { x: dest.x, z: dest.z };
+    if (L.type === 'pen') { // curved cut: bend so the path passes through the stroke's midpoint
+      const mid = L.pts[Math.floor(L.pts.length / 2)], fm = nc(mid[0], mid[1]), M = ft2m(fm[0], fm[1]);
+      const A = p.steps[i].positions[from.id], B = n.positions[from.id];
+      const cx = 2 * M.x - 0.5 * (A.x + B.x), cz = 2 * M.z - 0.5 * (A.z + B.z);
+      if (Math.hypot(cx - (A.x + B.x) / 2, cz - (A.z + B.z) / 2) > 0.3) { B.cx = +cx.toFixed(2); B.cz = +cz.toFixed(2); }
+    }
+    toast(`${from.label} cuts there in step ${i + 1}`); return true;
+  }
+  return false;
+}
 function boardHitPlayer(u, v) {
   const F = boardFrame(); const [xf, yf] = nc(u, v); const rft = Math.max(1.8, 14 / pxPerFt());
   return F.players.slice().reverse().find(pl => Math.hypot(pl.x - xf, pl.y - yf) < rft);
@@ -729,6 +809,17 @@ $('bPrev').onclick = () => boardGo(S.board.step - 1);
 $('bNext').onclick = () => boardGo(S.board.step + 1);
 $('bAddO').onclick = () => addBoardPlayer('offense');
 $('bAddX').onclick = () => addBoardPlayer('defense');
+$('bMatchD').onclick = () => {
+  // a defender on every offensive player, a step toward the basket (hoop at 0,-4.7 in play units)
+  const p = bPlay(), s = bStep(); let n = 0;
+  for (const o of p.players.filter(x => x.team === 'offense')) {
+    const num = o.id.slice(1), xid = 'X' + num, q = s.positions[o.id]; if (!q) continue;
+    const dx = 0 - q.x, dz = -4.7 - q.z, d = Math.hypot(dx, dz) || 1, spot = { x: +(q.x + dx / d * 1.1).toFixed(2), z: +(q.z + dz / d * 1.1).toFixed(2) };
+    if (!p.players.find(x => x.id === xid)) { p.players.push({ id: xid, team: 'defense', label: 'x' + num }); p.steps.forEach(st => { st.positions[xid] = { ...spot }; }); n++; }
+    else s.positions[xid] = spot;
+  }
+  p.hasDefense = true; requestRender(); sendBoard(); toast(n ? `${n} defenders added` : 'Defense reset onto the ball-side of each player');
+};
 function addBoardPlayer(team) {
   const p = bPlay(), pre = team === 'offense' ? 'O' : 'X';
   let id = null; for (let i = 1; i <= 5; i++) if (!p.players.find(x => x.id === pre + i)) { id = pre + i; break; }
@@ -833,16 +924,40 @@ function drawObject(o) {
       const l = o.pts[o.pts.length - 1]; ctx.lineTo(nx(l[0]), ny(l[1]));
       ctx.stroke(); break;
     }
-    case 'arrow': {
+    case 'arrow': case 'dribble': case 'pass': case 'screen': {
+      // basketball diagram lines: cut (solid), dribble (zigzag), pass (dashed), screen (T bar)
       strokeStyle(o);
       const ax = nx(o.a[0]), ay = ny(o.a[1]), bx = nx(o.b[0]), by = ny(o.b[1]);
-      const ang = Math.atan2(by - ay, bx - ax), hl = Math.max(14, ctx.lineWidth * 3.2);
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx - Math.cos(ang) * hl * 0.6, by - Math.sin(ang) * hl * 0.6); ctx.stroke();
+      const ang = Math.atan2(by - ay, bx - ax), len = Math.hypot(bx - ax, by - ay), hl = Math.max(14, ctx.lineWidth * 3.2);
+      const ux = Math.cos(ang), uy = Math.sin(ang), px = -uy, py = ux;
+      if (o.type === 'screen') {
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+        const bar = Math.max(16, ctx.lineWidth * 3.5);
+        ctx.beginPath(); ctx.moveTo(bx + px * bar, by + py * bar); ctx.lineTo(bx - px * bar, by - py * bar); ctx.stroke(); break;
+      }
+      const endX = bx - ux * hl * 0.6, endY = by - uy * hl * 0.6, L = Math.max(0, len - hl * 0.6);
+      if (o.type === 'dribble') {
+        const amp = Math.max(5, ctx.lineWidth * 1.3), wl = Math.max(12, ctx.lineWidth * 3);
+        ctx.beginPath(); ctx.moveTo(ax, ay);
+        for (let d = wl / 2, i = 0; d < L - wl / 4; d += wl / 2, i++) { const s = i % 2 ? -1 : 1; ctx.lineTo(ax + ux * d + px * amp * s, ay + uy * d + py * amp * s); }
+        ctx.lineTo(endX, endY); ctx.stroke();
+      } else {
+        if (o.type === 'pass') ctx.setLineDash([Math.max(10, ctx.lineWidth * 2.2), Math.max(8, ctx.lineWidth * 1.6)]);
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(endX, endY); ctx.stroke(); ctx.setLineDash([]);
+      }
       ctx.fillStyle = o.color; ctx.beginPath();
       ctx.moveTo(bx, by);
       ctx.lineTo(bx - hl * Math.cos(ang - 0.45), by - hl * Math.sin(ang - 0.45));
       ctx.lineTo(bx - hl * Math.cos(ang + 0.45), by - hl * Math.sin(ang + 0.45));
       ctx.closePath(); ctx.fill(); break;
+    }
+    case 'cone': {
+      const x = nx(o.p[0]), y = ny(o.p[1]), h = Math.max(16, fit.w * 0.024);
+      ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+      ctx.fillStyle = '#7a3d12'; ctx.beginPath(); ctx.ellipse(x, y, h * 0.55, h * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = o.color || '#FF6A1F'; ctx.beginPath(); ctx.moveTo(x, y - h); ctx.lineTo(x + h * 0.42, y); ctx.lineTo(x - h * 0.42, y); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(x - h * 0.22, y - h * 0.5, h * 0.44, h * 0.1);
+      break;
     }
     case 'ellipse': {
       strokeStyle(o);
@@ -1000,7 +1115,7 @@ function drawCourtPanel(objs) {
   for (const o of objs) {
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = o.color || '#fff'; ctx.lineWidth = Math.max(2, (o.width || 4) * 0.45);
     if (o.type === 'pen' || o.type === 'cpen') { const P = o.type === 'pen' ? o.pts.map(mapPt) : o.pts.map(cmapPt); ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); }
-    else if (o.type === 'arrow' || o.type === 'carrow') { const a = o.type === 'arrow' ? mapPt(o.a) : cmapPt(o.a), b = o.type === 'arrow' ? mapPt(o.b) : cmapPt(o.b); const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = 9; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.fillStyle = o.color; ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(b[0] - hl * Math.cos(ang - 0.5), b[1] - hl * Math.sin(ang - 0.5)); ctx.lineTo(b[0] - hl * Math.cos(ang + 0.5), b[1] - hl * Math.sin(ang + 0.5)); ctx.fill(); }
+    else if (['arrow', 'dribble', 'pass', 'screen', 'carrow'].includes(o.type)) { const a = o.type === 'carrow' ? cmapPt(o.a) : mapPt(o.a), b = o.type === 'carrow' ? cmapPt(o.b) : mapPt(o.b); const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = 9; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.fillStyle = o.color; ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(b[0] - hl * Math.cos(ang - 0.5), b[1] - hl * Math.sin(ang - 0.5)); ctx.lineTo(b[0] - hl * Math.cos(ang + 0.5), b[1] - hl * Math.sin(ang + 0.5)); ctx.fill(); }
     else if (o.type === 'zone') { const a = mapPt(o.a), b = mapPt(o.b), c = mapPt([o.b[0], o.a[1]]), d = mapPt([o.a[0], o.b[1]]); ctx.fillStyle = hexA(o.color, 0.25); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(d[0], d[1]); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     ctx.restore();
   }
@@ -1244,6 +1359,7 @@ function objRect(o) {
   if (o.type === 'cutout') return { x: nx(o.to[0]), y: ny(o.to[1]), w: o.bw * fit.w * o.scale, h: o.bh * fit.h * o.scale };
   if (o.type === 'figure') { const h = o.h * fit.h; return { x: nx(o.p[0]) - h * 0.3, y: ny(o.p[1]) - h * 1.02, w: h * 0.6, h: h * 1.12 }; }
   if (o.type === 'token') { const r = Math.max(10, fit.w * 0.016); return { x: nx(o.p[0]) - r * 1.5, y: ny(o.p[1]) - r * 2.4, w: r * 3, h: r * 3.2 }; }
+  if (o.type === 'cone') { const h = Math.max(16, fit.w * 0.024); return { x: nx(o.p[0]) - h * 0.55, y: ny(o.p[1]) - h, w: h * 1.1, h: h * 1.25 }; }
   if (o.type === 'text') { const size = (o.size || 44) * (fit.w / 1280); ctx.font = `900 ${size}px Inter, system-ui, sans-serif`; const w = ctx.measureText(o.s).width; return { x: nx(o.p[0]) - 4, y: ny(o.p[1]) - size * 0.6, w: w + 8, h: size * 1.2 }; }
   return null;
 }
@@ -1393,9 +1509,9 @@ function onDown(e) {
     }
     drag = { mode: 'none', id: e.pointerId }; return;
   }
-  if (S.tool === 'token') {
+  if (S.tool === 'token' || S.tool === 'cone') {
     pushHistory();
-    const t = { type: 'token', id: uid(), p: [x, y], color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
+    const t = { type: S.tool, id: uid(), p: [x, y], color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
     S.objects.push(t); S.selected = t; drag = { mode: 'move', id: e.pointerId, obj: t, start: [x, y], orig: [x, y], moved: false };
     updateObjbar(); sendObjects(); requestRender(); return;
   }
@@ -1420,7 +1536,7 @@ function onDown(e) {
   const pressure = isPen && e.pressure ? e.pressure : 0.5;
   switch (S.tool) {
     case 'pen': S.live = { type: 'pen', id: uid(), pts: [[x, y, pressure]], color: S.color, width: S.width, layer }; break;
-    case 'arrow': S.live = { type: 'arrow', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
+    case 'arrow': case 'dribble': case 'pass': case 'screen': S.live = { type: S.tool, id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'ellipse': S.live = { type: 'ellipse', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'zone': S.live = { type: 'zone', id: uid(), a: [x, y], b: [x, y], color: S.color, width: Math.max(3, S.width * 0.6), layer }; break;
     case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, layer }; break;
@@ -1499,6 +1615,7 @@ function onUp(e) {
   }
   if (d.mode !== 'draw' || !S.live) return;
   const L = S.live; S.live = null;
+  if (S.mode === 'board' && boardInstruction(L)) { send({ type: 'live', live: null }); requestRender(); sendBoard(); return; }
   if (L.type === 'lasso') {
     const cut = liftFromLasso(L.pts);
     if (cut) { pushHistory(); S.objects.push(cut); S.selected = cut; S.tool = 'move'; setToolUI(); updateObjbar(); toast('Lifted. Drag him where he should be.'); }
@@ -1523,6 +1640,7 @@ function kennyTap(x, y) {
 function setKenny(on) {
   S.kenny = on; $('kennyBtn').classList.toggle('on', on); $('pKenny').classList.toggle('on', on);
   if (on) { S.tool = 'pen'; setToolUI(); if (S.wipe != null) setWipeMode(false); toast('Kenny mode: tap a player to freeze + spotlight. Draw. Tap to clear.'); }
+  else if (!clearType('spot')) toast('Kenny mode off');
 }
 /* ---- Before/after wipe ---- */
 function setWipe(x) { S.wipe = clamp(x, 0, 1); requestRender(); throttleSend(() => send({ type: 'wipe', wipe: S.wipe })); }
@@ -1591,8 +1709,8 @@ function updateObjbar() {
   if (top < 70) top = sr.top - wr.top + (r.y + r.h) * S.view.s + 70;
   bar.style.left = clamp(left, 190, stagewrap.clientWidth - 190) + 'px'; bar.style.top = top + 'px';
   bar.classList.add('show');
-  $('obRotL').hidden = $('obRotR').hidden = o.type === 'text' || o.type === 'token';
-  $('obSmaller').hidden = $('obBigger').hidden = o.type === 'token';
+  $('obRotL').hidden = $('obRotR').hidden = o.type === 'text' || o.type === 'token' || o.type === 'cone';
+  $('obSmaller').hidden = $('obBigger').hidden = o.type === 'token' || o.type === 'cone';
   $('obGhost').hidden = o.type !== 'cutout'; $('obGhost').classList.toggle('on', o.type === 'cutout' && o.ghost !== false);
   $('obColor').hidden = o.type === 'cutout'; $('obColor').querySelector('i').style.background = o.color || '#fff';
   $('obNum').hidden = o.type !== 'figure' && o.type !== 'token';
@@ -1624,7 +1742,20 @@ $('textInput').addEventListener('keydown', e => { if (e.key === 'Enter') closeTe
 
 /* ---------------- UI wiring (coach) ---------------- */
 function setToolUI() { document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === S.tool)); }
-document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { S.tool = b.dataset.tool; if (S.tool !== 'move') { S.selected = null; updateObjbar(); requestRender(); } setToolUI(); }));
+const TOOL_TYPES = { lift: ['cutout'], spot: ['spot'], zone: ['zone'], pen: ['pen'], arrow: ['arrow'], dribble: ['dribble'], pass: ['pass'], screen: ['screen'], ellipse: ['ellipse'], text: ['text'], cone: ['cone'], token: ['token'], figure: ['figure'] };
+const TOOL_NAMES = { lift: 'cut-outs', spot: 'spotlights', zone: 'zones', pen: 'pen marks', arrow: 'cuts', dribble: 'dribbles', pass: 'passes', screen: 'screens', ellipse: 'circles', text: 'labels', cone: 'cones', token: 'tags', figure: 'players' };
+// tap the tool you're already on to clear just that tool's marks (spotlight off, cones gone) without wiping everything
+function clearType(tool) {
+  const types = TOOL_TYPES[tool]; if (!types) return false;
+  const n = S.objects.filter(o => types.includes(o.type)).length; if (!n) return false;
+  pushHistory(); S.objects = S.objects.filter(o => !types.includes(o.type)); S.selected = null; updateObjbar(); sendObjects(); requestRender();
+  toast(`${TOOL_NAMES[tool]} cleared`); return true;
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
+  const t = b.dataset.tool;
+  if (S.tool === t && clearType(t)) return;
+  S.tool = t; if (S.tool !== 'move') { S.selected = null; updateObjbar(); requestRender(); } setToolUI();
+}));
 const swEl = $('swatches');
 COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'sw' + (c === S.color ? ' on' : ''); b.style.background = c; b.onclick = () => { S.color = c; swEl.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); if (S.selected && (S.selected.type === 'figure' || S.selected.type === 'text')) { S.selected.color = c; sendObjects(); requestRender(); updateObjbar(); } }; swEl.appendChild(b); });
 const wdEl = $('widths');
