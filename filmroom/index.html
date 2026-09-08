@@ -82,6 +82,17 @@
   .tvbadge i{width:9px;height:9px;border-radius:50%;background:var(--faint)}
   .tvbadge.live i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
   .answerflag{position:absolute;left:12px;top:12px;background:rgba(224,169,60,.18);border:1px solid var(--warn);color:var(--warn);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;z-index:5;letter-spacing:.04em}
+  /* film / board mode switch */
+  .modesw{grid-column:1/3;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;width:120px;margin-bottom:4px}
+  .modesw button{flex:1;padding:8px 0;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .modesw button.on{background:var(--accent);color:#fff}
+  #app.board .film-only{display:none!important}
+  #app:not(.board) .board-only{display:none!important}
+  .boardbar{display:flex;align-items:center;gap:6px;padding-top:4px;flex-wrap:nowrap;overflow-x:auto}
+  .boardbar .tb{min-width:46px;padding:0 10px}
+  .boardbar select{height:54px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);padding:0 12px;font-weight:700;flex:1;min-width:120px;max-width:230px;-webkit-appearance:none;appearance:none}
+  .cue{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,10,11,.78);border:1px solid var(--border-2);color:#fff;border-radius:999px;padding:8px 22px;font-size:26px;font-weight:900;letter-spacing:.02em;z-index:5;pointer-events:none;display:none}
+  .cue.show{display:block}
   /* court calibration wizard */
   .wizard{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:6;background:rgba(16,16,18,.94);border:1px solid var(--border-2);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:92%}
   .wizard b{font-size:15px;font-weight:800}
@@ -218,6 +229,7 @@
   <!-- ============ Tool rail ============ -->
   <nav class="rail" id="rail">
     <div class="logo">J3</div>
+    <div class="modesw"><button id="modeFilm" class="on">Film</button><button id="modeBoard">Board</button></div>
     <button class="tool" data-open="library" title="Clips">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>Clips</button>
     <button class="tool" data-open="marks" title="Marks">
@@ -230,10 +242,10 @@
     <button class="tool" data-tool="spot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spotlight</button>
     <button class="tool" data-tool="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg>Text</button>
     <div class="sep"></div>
-    <button class="tool" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
-    <button class="tool" data-tool="figure"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6M7 11l5 3 5-3M9 21l3-7 3 7"/></svg>Player</button>
+    <button class="tool film-only" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
+    <button class="tool film-only" data-tool="figure"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6M7 11l5 3 5-3M9 21l3-7 3 7"/></svg>Player</button>
     <button class="tool" data-tool="token"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 3v4M9 19l3 2 3-2"/></svg>Tag</button>
-    <button class="tool" id="courtBtn" title="Top view court"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 21v-6h8v6M12 3v4"/><circle cx="12" cy="10" r="3"/></svg>Court</button>
+    <button class="tool film-only" id="courtBtn" title="Top view court"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 21v-6h8v6M12 3v4"/><circle cx="12" cy="10" r="3"/></svg>Court</button>
     <button class="tool" data-tool="move"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg>Move</button>
     <div class="sep"></div>
     <button class="tool" id="kennyBtn" title="Kenny mode: tap a player to freeze + spotlight, draw, tap to clear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Kenny</button>
@@ -272,6 +284,7 @@
     </div>
     <div class="tvbadge" id="tvbadge"><i></i><span>TV off</span></div>
     <div class="answerflag" id="answerflag" hidden>ANSWER LAYER · hidden on TV</div>
+    <div class="cue" id="cue"></div>
     <div class="wizard" id="wizard" hidden>
       <b id="wizText">Tap the paint corners</b>
       <div class="wizrow">
@@ -318,7 +331,23 @@
 
   <!-- ============ Dock ============ -->
   <div class="dock" id="dock">
-    <div class="timeline" id="timeline">
+    <div class="boardbar board-only" id="boardbar">
+      <div class="speed" id="courtSize"><button data-size="half" class="on">Half</button><button data-size="full">Full</button></div>
+      <select id="playSel"><option value="">Load a play from the designer…</option></select>
+      <button class="tb" id="bFirst" title="Back to the start">|◀</button>
+      <button class="tb" id="bPrev" title="Previous step"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="tb play" id="bPlay" title="Run the play"><svg viewBox="0 0 24 24" id="bPlayIcon"><path d="M7 5l12 7-12 7z"/></svg></button>
+      <button class="tb" id="bNext" title="Next step"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <div class="speed" id="bSpeed"><button data-rate="0.5">½</button><button data-rate="1" class="on">1×</button><button data-rate="2">2×</button></div>
+      <button class="tb" id="bAddO" title="Add an offensive player">+O</button>
+      <button class="tb" id="bAddX" title="Add a defender">+X</button>
+      <button class="tb" id="bAddStep" title="Add a step after this one with the players where they are now">+Step</button>
+      <button class="tb" id="bSave" title="Save this play to the designer">Save</button>
+      <button class="tb" id="bReset" title="Reset the board">Reset</button>
+      <button class="tb" id="tvBtn2" title="Open the TV window"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+      <button class="tb" id="presentBtn2" title="Present: hide all controls"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
+    </div>
+    <div class="timeline film-only" id="timeline">
       <div class="track" id="track">
         <div class="loopband" id="loopband" hidden></div>
         <div class="played" id="played"></div>
@@ -327,7 +356,7 @@
       </div>
       <div class="tc" id="tc">0:00.00</div>
     </div>
-    <div class="transport">
+    <div class="transport film-only">
       <button class="tb" id="stepB" title="Back one frame"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/><path d="M8 6v12"/></svg></button>
       <button class="tb play" id="play" title="Play / pause"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 5l12 7-12 7z"/></svg></button>
       <button class="tb" id="stepF" title="Forward one frame"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/><path d="M16 6v12"/></svg></button>
@@ -437,6 +466,9 @@ const S = {
   court: null,           // {pts:[[nx,ny]x4], mirror:bool} paint corners -> homography to court feet
   courtMode: 'off',      // off | small | large  (top-view panel size)
   calib: null,           // in-progress calibration taps
+  mode: 'film',          // film | board
+  board: { size: 'half', play: null, step: 0, anim: null, rate: 1, frame: null },
+  stash: [],             // ink objects of the other mode
   selected: null,
   view: { s: 1, x: 0, y: 0 },
   settings: { fingerDraws: true, clearOnPlay: false, hoverDot: true },
@@ -454,6 +486,7 @@ try { sb = createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { console.warn(
 let fit = { x: 0, y: 0, w: 1, h: 1 }; // where the video pixels sit inside the stage (CSS px)
 function computeFit() {
   const W = stage.clientWidth, H = stage.clientHeight;
+  if (S.mode === 'board') { fit = boardRect(W, H); return; }
   const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
   const s = Math.min(W / vw, H / vh);
   const w = vw * s, h = vh * s;
@@ -503,6 +536,7 @@ function render() {
   ctx.clearRect(0, 0, W, H);
   const visible = S.objects.filter(o => !(o.layer === 'b' && IS_TV && !S.reveal));
   const all = S.live ? visible.concat([S.live]) : visible;
+  if (S.mode === 'board') { drawCourtFloor(); drawBoardFrame(IS_TV ? S.board.frame : boardFrame()); }
   // spotlight dim layer
   const spots = all.filter(o => o.type === 'spot');
   if (spots.length) {
@@ -522,8 +556,243 @@ function render() {
   if (S.wipe != null) drawWipe(W, H);
   if (!IS_TV && S.selected) drawSelection(S.selected);
   if (!IS_TV && S.calib) drawCalib();
-  if (S.courtMode !== 'off' && courtH) drawCourtPanel(visible.concat(S.live ? [S.live] : []));
+  if (S.mode === 'film' && S.courtMode !== 'off' && courtH) drawCourtPanel(visible.concat(S.live ? [S.live] : []));
 }
+
+/* =====================================================================
+   BOARD — a clean NBA court (half or full) you mark up like a whiteboard,
+   and that runs the plays saved from the Quest 3 Play Designer.
+   Plays stay in the designer's units (arena metres, hoop end at z=-5) so they
+   round-trip to the quest3_plays table unchanged; drawing converts to feet.
+   ===================================================================== */
+const FT = 3.28084;
+const NBA = { W: 50, L: 94, keyW: 16, keyD: 19, ftR: 6, rimY: 5.25, rimR: 0.75, boardY: 4, boardW: 6, raR: 4, tpR: 23.75, tpX: 22, ccR: 6 };
+function boardRect(W, H) {
+  let w, h;
+  if (S.board.size === 'full') { w = W * 0.9; h = w * NBA.W / NBA.L; if (h > H * 0.9) { h = H * 0.9; w = h * NBA.L / NBA.W; } }
+  else { h = H * 0.9; w = h * NBA.W / 47; if (w > W * 0.9) { w = W * 0.9; h = w * 47 / NBA.W; } }
+  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+// court feet -> normalized over fit. Half court: basket at the top. Full court: left basket, landscape.
+function cn(xf, yf) { return S.board.size === 'full' ? [yf / NBA.L, (xf + 25) / NBA.W] : [(xf + 25) / NBA.W, yf / 47]; }
+function nc(u, v) { return S.board.size === 'full' ? [v * NBA.W - 25, u * NBA.L] : [u * NBA.W - 25, v * 47]; }
+function cp(xf, yf) { const [u, v] = cn(xf, yf); return [nx(u), ny(v)]; }
+const pxPerFt = () => S.board.size === 'full' ? fit.w / NBA.L : fit.w / NBA.W;
+const m2ft = (p) => [p.x * FT, (p.z + 5) * FT];
+const ft2m = (xf, yf) => ({ x: +(xf / FT).toFixed(2), z: +(yf / FT - 5).toFixed(2) });
+function cRect(x0, y0, x1, y1) { const a = cp(x0, y0), b = cp(x1, y1); return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])]; }
+function cArc(cx, cy, r, a0, a1, close) { const n = 48; ctx.beginPath(); for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; const p = cp(cx + r * Math.cos(a), cy + r * Math.sin(a)); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); } if (close) ctx.closePath(); }
+function cLine(x0, y0, x1, y1) { const a = cp(x0, y0), b = cp(x1, y1); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+function drawCourtFloor() {
+  const L = S.board.size === 'full' ? NBA.L : 47, s = pxPerFt();
+  ctx.save();
+  // apron + hardwood planks running the length of the court
+  ctx.fillStyle = '#6e4324'; ctx.fillRect(...cRect(-29, -4, 29, L + 4));
+  ctx.fillStyle = '#C8935A'; ctx.fillRect(...cRect(-25, 0, 25, L));
+  for (let i = 0; i < 50 / 1.25; i++) {
+    const x = -25 + i * 1.25, k = ((i * 7919) % 13) / 13 - 0.5;
+    ctx.fillStyle = `rgba(${k > 0 ? 255 : 0},${k > 0 ? 235 : 0},${k > 0 ? 200 : 0},${Math.abs(k) * 0.16})`;
+    ctx.fillRect(...cRect(x, 0, x + 1.25, L));
+    ctx.strokeStyle = 'rgba(70,40,15,.22)'; ctx.lineWidth = 1;
+    const off = (i * 3.7) % 8; for (let y = off; y < L; y += 8) cLine(x, y, x + 1.25, y);
+  }
+  ctx.strokeStyle = 'rgba(70,40,15,.18)'; ctx.lineWidth = 1;
+  for (let i = 1; i < 40; i++) cLine(-25 + i * 1.25, 0, -25 + i * 1.25, L);
+  // painted keys
+  const key = (flip) => { const Y = (y) => flip ? NBA.L - y : y; ctx.fillStyle = 'rgba(255,106,31,.30)'; ctx.fillRect(...cRect(-NBA.keyW / 2, Y(0), NBA.keyW / 2, Y(NBA.keyD))); };
+  key(false); if (S.board.size === 'full') key(true);
+  // lines
+  ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = Math.max(2, s * 0.17); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const end = (flip) => {
+    const Y = (y) => flip ? NBA.L - y : y, dir = flip ? -1 : 1;
+    ctx.strokeRect(...cRect(-NBA.keyW / 2, Y(0), NBA.keyW / 2, Y(NBA.keyD)));
+    cArc(0, Y(NBA.keyD), NBA.ftR, 0, Math.PI * 2, true); ctx.stroke();
+    cLine(-NBA.boardW / 2, Y(NBA.boardY), NBA.boardW / 2, Y(NBA.boardY));
+    ctx.lineWidth = Math.max(2, s * 0.12); cArc(0, Y(NBA.rimY), NBA.rimR, 0, Math.PI * 2, true); ctx.stroke(); ctx.lineWidth = Math.max(2, s * 0.17);
+    cArc(0, Y(NBA.rimY), NBA.raR, flip ? Math.PI : 0, flip ? Math.PI * 2 : Math.PI); ctx.stroke();
+    const yc = NBA.rimY + Math.sqrt(NBA.tpR ** 2 - NBA.tpX ** 2), a = Math.atan2(yc - NBA.rimY, NBA.tpX);
+    cLine(-NBA.tpX, Y(0), -NBA.tpX, Y(yc)); cLine(NBA.tpX, Y(0), NBA.tpX, Y(yc));
+    if (!flip) cArc(0, NBA.rimY, NBA.tpR, a, Math.PI - a); else cArc(0, NBA.L - NBA.rimY, NBA.tpR, Math.PI + a, 2 * Math.PI - a);
+    ctx.stroke();
+    cLine(-25, Y(28), -22, Y(28)); cLine(25, Y(28), 22, Y(28));
+    void dir;
+  };
+  end(false);
+  if (S.board.size === 'full') { end(true); cLine(-25, 47, 25, 47); cArc(0, 47, NBA.ccR, 0, Math.PI * 2, true); ctx.stroke(); }
+  else { cLine(-25, 47, 25, 47); cArc(0, 47, NBA.ccR, Math.PI, Math.PI * 2); ctx.stroke(); }
+  ctx.strokeRect(...cRect(-25, 0, 25, L));
+  ctx.restore();
+}
+/* ---- play model ---- */
+function newBoardPlay() {
+  const p = { format: 2, id: null, name: '', tag: '', hasDefense: false, role: 'O1', players: [], steps: [{ duration: 0, ball: 'O1', positions: {}, events: [], text: '' }] };
+  [['O1', '1', 0, 1.8], ['O2', '2', 3.5, -0.5], ['O3', '3', -3.5, -0.5], ['O4', '4', 6.2, -3.8], ['O5', '5', -6.2, -3.8]]
+    .forEach(([id, label, x, z]) => { p.players.push({ id, team: 'offense', label }); p.steps[0].positions[id] = { x, z }; });
+  return p;
+}
+function bPlay() { if (!S.board.play) S.board.play = newBoardPlay(); return S.board.play; }
+function bStep() { const p = bPlay(); S.board.step = clamp(S.board.step, 0, p.steps.length - 1); return p.steps[S.board.step]; }
+function easeK(k) { return k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; }
+function lerpPos(pa, pb, e) {
+  if (!pa || !pb) return pa || pb;
+  if (pb.cx === undefined) return { x: pa.x + (pb.x - pa.x) * e, z: pa.z + (pb.z - pa.z) * e };
+  const u = 1 - e; return { x: u * u * pa.x + 2 * u * e * pb.cx + e * e * pb.x, z: u * u * pa.z + 2 * u * e * pb.cz + e * e * pb.z };
+}
+// a drawable snapshot of the board: what both the iPad and the TV render
+function boardFrame() {
+  const p = bPlay(), A = S.board.anim;
+  const F = { players: [], ball: null, screens: [], passes: [], catches: [], arrows: [], cue: '', step: S.board.step, steps: p.steps.length - 1, role: p.role };
+  let posGet, evStep, ballId, e = 0;
+  if (A) {
+    const t = (performance.now() - A.t0) / 1000 * S.board.rate;
+    const seg = A.segs.find(s => t >= s.start && t < s.start + s.dur) || A.segs[A.segs.length - 1];
+    const a = p.steps[seg.i - 1], b = p.steps[seg.i];
+    e = easeK(clamp((t - seg.start) / seg.dur, 0, 1));
+    posGet = (id) => lerpPos(a.positions[id], b.positions[id], e);
+    evStep = b; ballId = b.ball; F.step = seg.i; F.cue = b.text || '';
+  } else {
+    const s = bStep(); posGet = (id) => s.positions[id]; evStep = s; ballId = s.ball; F.cue = s.text || '';
+    // upcoming movement arrows to the next step
+    const n = p.steps[S.board.step + 1];
+    if (n) for (const pl of p.players) { const a = s.positions[pl.id], b = n.positions[pl.id]; if (!a || !b) continue; if (Math.hypot(b.x - a.x, b.z - a.z) < 0.3) continue; F.arrows.push({ from: m2ft(a), to: m2ft(b), cp: b.cx !== undefined ? m2ft({ x: b.cx, z: b.cz }) : null, team: pl.team }); }
+  }
+  const passEv = A ? evStep.events.find(ev => ev.type === 'pass') : null;
+  for (const pl of p.players) { const q = posGet(pl.id); if (!q) continue; const [x, y] = m2ft(q); F.players.push({ id: pl.id, team: pl.team, label: pl.label, x, y, ball: !passEv && pl.id === ballId, role: pl.id === p.role }); }
+  for (const ev of evStep.events) {
+    if (ev.type === 'screen') { const q = posGet(ev.player); if (q) F.screens.push({ p: m2ft(q), angle: ev.angle }); }
+    else if (ev.type === 'pass') { const a = posGet(ev.from), b = posGet(ev.to); if (a && b) F.passes.push({ from: m2ft(a), to: m2ft(b) }); }
+    else if (ev.type === 'catch') { const q = posGet(ev.player); if (q) F.catches.push(m2ft(q)); }
+  }
+  if (passEv) { const a = posGet(passEv.from), b = posGet(passEv.to); if (a && b) { const fa = m2ft(a), fb = m2ft(b); F.ball = { x: fa[0] + (fb[0] - fa[0]) * e, y: fa[1] + (fb[1] - fa[1]) * e, lift: Math.sin(e * Math.PI) }; } }
+  return F;
+}
+function drawBoardFrame(F) {
+  if (!F) return;
+  const s = pxPerFt(), r = Math.max(12, s * 1.6);
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // upcoming movement
+  for (const a of F.arrows) {
+    const A = cp(...a.from), B = cp(...a.to), C = a.cp ? cp(...a.cp) : [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+    ctx.strokeStyle = a.team === 'offense' ? 'rgba(255,255,255,.9)' : 'rgba(34,211,238,.9)'; ctx.lineWidth = Math.max(3, s * 0.22); ctx.setLineDash(a.team === 'offense' ? [] : [10, 8]);
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.quadraticCurveTo(C[0], C[1], B[0], B[1]); ctx.stroke(); ctx.setLineDash([]);
+    const ang = Math.atan2(B[1] - C[1], B[0] - C[0]), hl = Math.max(10, s * 0.9);
+    ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.moveTo(B[0], B[1]); ctx.lineTo(B[0] - hl * Math.cos(ang - 0.5), B[1] - hl * Math.sin(ang - 0.5)); ctx.lineTo(B[0] - hl * Math.cos(ang + 0.5), B[1] - hl * Math.sin(ang + 0.5)); ctx.closePath(); ctx.fill();
+  }
+  // events of this step
+  for (const sc of F.screens) { const P = cp(...sc.p); const ax = -Math.sin(sc.angle), ay = Math.cos(sc.angle), half = s * 1.5; const A = cp(sc.p[0] - ax * 1.5, sc.p[1] - ay * 1.5), B = cp(sc.p[0] + ax * 1.5, sc.p[1] + ay * 1.5); void half; ctx.strokeStyle = '#FDE047'; ctx.lineWidth = Math.max(6, s * 0.5); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); void P; }
+  for (const ps of F.passes) { const A = cp(...ps.from), B = cp(...ps.to); ctx.strokeStyle = '#FDE047'; ctx.lineWidth = Math.max(3, s * 0.2); ctx.setLineDash([9, 7]); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.setLineDash([]); }
+  for (const c of F.catches) { const P = cp(...c); ctx.strokeStyle = '#3FB984'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(P[0], P[1], r * 1.45, 0, Math.PI * 2); ctx.stroke(); }
+  // players
+  for (const pl of F.players) {
+    const P = cp(pl.x, pl.y);
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+    ctx.fillStyle = pl.team === 'offense' ? COLORS[0] : COLORS[1];
+    ctx.beginPath(); ctx.arc(P[0], P[1], r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = pl.role ? '#fff' : 'rgba(0,0,0,.35)'; ctx.lineWidth = pl.role ? 3 : 2; ctx.stroke();
+    ctx.fillStyle = pl.team === 'offense' ? '#fff' : '#0a0a0b'; ctx.font = `900 ${r * 1.05}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(pl.label, P[0], P[1] + 1);
+    if (pl.ball) ball(P[0] + r * 0.85, P[1] - r * 0.85, r * 0.45);
+    if (!IS_TV && S.board.sel === pl.id && !S.board.anim) { ctx.strokeStyle = '#fff'; ctx.setLineDash([5, 4]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(P[0], P[1], r + 6, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  if (F.ball) { const P = cp(F.ball.x, F.ball.y); ball(P[0], P[1] - F.ball.lift * r * 1.6, r * 0.55 + F.ball.lift * r * 0.25); }
+  ctx.restore();
+  function ball(x, y, br) { ctx.fillStyle = '#E8842B'; ctx.beginPath(); ctx.arc(x, y, br, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#3a1d08'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - br, y); ctx.lineTo(x + br, y); ctx.moveTo(x, y - br); ctx.lineTo(x, y + br); ctx.stroke(); }
+  const cue = $('cue'); cue.textContent = F.cue; cue.classList.toggle('show', !!F.cue);
+}
+function boardHitPlayer(u, v) {
+  const F = boardFrame(); const [xf, yf] = nc(u, v); const rft = Math.max(1.8, 14 / pxPerFt());
+  return F.players.slice().reverse().find(pl => Math.hypot(pl.x - xf, pl.y - yf) < rft);
+}
+function sendBoard() { send({ type: 'board', mode: S.mode, size: S.board.size, frame: S.mode === 'board' ? boardFrame() : null }); }
+/* ---- playback ---- */
+function boardTick() {
+  if (!S.board.anim) return;
+  const A = S.board.anim, t = (performance.now() - A.t0) / 1000 * S.board.rate;
+  if (t >= A.total) { S.board.anim = null; S.board.step = bPlay().steps.length - 1; boardPlayIcon(false); requestRender(); sendBoard(); return; }
+  requestRender(); throttleSend(sendBoard); requestAnimationFrame(boardTick);
+}
+function boardTogglePlay() {
+  if (S.board.anim) { S.board.anim = null; boardPlayIcon(false); requestRender(); sendBoard(); return; }
+  const p = bPlay(); if (p.steps.length < 2) { toast('This play has one step. Load a play or add a step.'); return; }
+  const segs = []; let total = 0; const from = S.board.step >= p.steps.length - 1 ? 0 : S.board.step;
+  for (let i = from + 1; i < p.steps.length; i++) { const d = Math.max(p.steps[i].duration || 1.5, 0.2); segs.push({ i, start: total, dur: d }); total += d; }
+  S.board.anim = { t0: performance.now(), total, segs }; S.board.sel = null; boardPlayIcon(true); requestAnimationFrame(boardTick);
+}
+function boardPlayIcon(on) { const d = on ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M7 5l12 7-12 7z"/>'; $('bPlayIcon').innerHTML = d; if (S.mode === 'board') $('pPlay').querySelector('svg').innerHTML = d; }
+function boardGo(i) { S.board.anim = null; boardPlayIcon(false); S.board.step = clamp(i, 0, bPlay().steps.length - 1); requestRender(); sendBoard(); }
+/* ---- controls ---- */
+document.querySelectorAll('#courtSize button').forEach(b => b.onclick = () => { S.board.size = b.dataset.size; document.querySelectorAll('#courtSize button').forEach(x => x.classList.toggle('on', x === b)); layoutStage(); sendBoard(); });
+document.querySelectorAll('#bSpeed button').forEach(b => b.onclick = () => { S.board.rate = parseFloat(b.dataset.rate); document.querySelectorAll('#bSpeed button').forEach(x => x.classList.toggle('on', x === b)); });
+$('bPlay').onclick = boardTogglePlay;
+$('bFirst').onclick = () => boardGo(0);
+$('bPrev').onclick = () => boardGo(S.board.step - 1);
+$('bNext').onclick = () => boardGo(S.board.step + 1);
+$('bAddO').onclick = () => addBoardPlayer('offense');
+$('bAddX').onclick = () => addBoardPlayer('defense');
+function addBoardPlayer(team) {
+  const p = bPlay(), pre = team === 'offense' ? 'O' : 'X';
+  let id = null; for (let i = 1; i <= 5; i++) if (!p.players.find(x => x.id === pre + i)) { id = pre + i; break; }
+  if (!id) { toast('Five is the limit for that team'); return; }
+  const n = id.slice(1); p.players.push({ id, team, label: team === 'offense' ? n : 'x' + n });
+  if (team === 'defense') p.hasDefense = true;
+  const spot = { x: (team === 'offense' ? -1 : 1) * (2 + Number(n)), z: 6.5 };
+  p.steps.forEach(s => { s.positions[id] = { ...spot }; });
+  S.board.sel = id; requestRender(); sendBoard();
+}
+$('bAddStep').onclick = () => {
+  const p = bPlay(), s = bStep(); const n = { duration: 1.5, ball: s.ball, positions: JSON.parse(JSON.stringify(s.positions)), events: [], text: '' };
+  Object.values(n.positions).forEach(q => { delete q.cx; delete q.cz; });
+  p.steps.splice(S.board.step + 1, 0, n); S.board.step++; requestRender(); sendBoard(); toast(`Step ${S.board.step} added. Move the players to where they go next.`);
+};
+$('bReset').onclick = () => { if (!confirm('Reset the board to a fresh 5-out?')) return; S.board.play = newBoardPlay(); S.board.step = 0; S.board.anim = null; boardPlayIcon(false); $('playSel').value = ''; requestRender(); sendBoard(); };
+$('bSave').onclick = async () => {
+  const p = bPlay(); const name = prompt('Play name (same name updates it, a new name saves a copy)', p.name || ''); if (name == null) return;
+  const newName = name.trim() || 'Untitled';
+  if (p.id && newName !== p.name) p.id = null; // save as a copy, leave the original alone
+  p.name = newName; p.id = p.id || 'play_' + Date.now().toString(36);
+  p.savedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/quest3_plays', { method: 'POST', headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ id: p.id, name: p.name, data: p, updated_at: new Date().toISOString() }) });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 120));
+    toast(`Saved “${p.name}” to the designer`); loadPlayList(p.id);
+  } catch (e) { toast('Save failed: ' + e.message); }
+};
+let cloudPlays = [];
+async function loadPlayList(selectId) {
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/quest3_plays?select=id,name,data&order=updated_at.desc', { headers: { apikey: SUPABASE_KEY } });
+    if (!r.ok) throw new Error(r.status);
+    cloudPlays = await r.json();
+    const sel = $('playSel'); sel.innerHTML = `<option value="">Load a play from the designer (${cloudPlays.length})…</option>`;
+    cloudPlays.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name || '(unnamed)'; sel.appendChild(o); });
+    if (selectId) sel.value = selectId;
+  } catch (e) { console.warn('plays', e); }
+}
+$('playSel').onchange = (e) => {
+  const row = cloudPlays.find(p => p.id === e.target.value); if (!row) return;
+  const d = JSON.parse(JSON.stringify(row.data)); if (d.format !== 2 || !d.steps) { toast('That play is in an old format. Open it in the designer once to convert it.'); return; }
+  S.board.play = d; S.board.step = 0; S.board.anim = null; S.board.sel = null; boardPlayIcon(false);
+  requestRender(); sendBoard(); toast(`${d.name}: ${d.steps.length - 1} steps. Tap ▶ to run it.`);
+};
+/* ---- mode switch ---- */
+function setMode(m) {
+  if (S.mode === m) return;
+  if (m === 'board' && !video.paused) video.pause();
+  if (S.board.anim) { S.board.anim = null; boardPlayIcon(false); }
+  const tmp = S.stash; S.stash = S.objects; S.objects = tmp; S.selected = null; S.live = null; S.history = [];
+  S.mode = m; app.classList.toggle('board', m === 'board');
+  video.style.visibility = m === 'board' ? 'hidden' : ''; $('empty').hidden = m === 'board' || !!S.clip;
+  $('modeFilm').classList.toggle('on', m === 'film'); $('modeBoard').classList.toggle('on', m === 'board');
+  if (m === 'film' && ['lift', 'figure'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
+  if (m === 'board' && ['lift', 'figure', 'token'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
+  if (S.wipe != null) setWipeMode(false);
+  updateObjbar(); layoutStage(); $('cue').classList.remove('show');
+  if (m === 'board' && !cloudPlays.length) loadPlayList();
+  sendBoard(); sendObjects();
+  if (m === 'film') { $('pPlay').querySelector('svg').innerHTML = $('playIcon').innerHTML; }
+}
+$('modeFilm').onclick = () => setMode('film'); $('modeBoard').onclick = () => setMode('board');
+$('tvBtn2').onclick = () => $('tvBtn').onclick(); $('presentBtn2').onclick = () => $('presentBtn').onclick();
 // Before/after wipe: left of the divider is the raw frame (what happened), right is the corrected version.
 function drawWipe(W, H) {
   const x = fit.x + S.wipe * fit.w;
@@ -999,7 +1268,7 @@ function sendClip() {
   if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
   send(m);
 }
-function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); }
+function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); sendBoard(); }
 
 /* ---------------- video ---------------- */
 let rvfcLast = null, fpsSamples = [];
@@ -1067,6 +1336,7 @@ function loadClip(clip) {
   fpsSamples = []; rvfcLast = null; S.fpsLocked = false;
   video.src = clip.src; video.load();
   $('empty').hidden = true; $('tvidle').hidden = true;
+  if (!IS_TV && S.mode === 'board') setMode('film');
   if (!IS_TV) {
     $('uploadBox').hidden = !clip.local;
     if (clip.local) $('uploadTitle').value = clip.title.replace(/\.[a-z0-9]+$/i, '');
@@ -1104,6 +1374,12 @@ function onDown(e) {
   tapStart = { x: e.clientX, y: e.clientY, t: performance.now() };
   if (S.wipe != null) { drag = { mode: 'wipe', id: e.pointerId }; setWipe(x); return; }
   if (S.calib && S.calib.pts.length < 4) { calibTap(x, y); drag = { mode: 'none', id: e.pointerId }; return; }
+  // board: the Move tool or a finger drags players; the Pencil draws over them
+  if (S.mode === 'board' && !S.board.anim && (S.tool === 'move' || !isPen)) {
+    const hp = boardHitPlayer(x, y);
+    if (hp) { S.board.sel = hp.id; S.selected = null; updateObjbar(); drag = { mode: 'bplayer', id: e.pointerId, pid: hp.id, moved: false }; requestRender(); return; }
+    if (S.tool === 'move') { S.board.sel = null; requestRender(); }
+  }
   // top-view panel: drag a player on the court, or draw on the court
   const [spx, spy] = stagePx(e.clientX, e.clientY);
   if (inPanel(spx, spy)) {
@@ -1166,6 +1442,11 @@ function onMove(e) {
   if (!drag || drag.id !== e.pointerId) return;
   const [x, y] = toNorm(e.clientX, e.clientY);
   if (drag.mode === 'wipe') { setWipe(x); return; }
+  if (drag.mode === 'bplayer') {
+    const [xf, yf] = nc(x, y); const s = bStep(); const q = s.positions[drag.pid]; if (!q) return;
+    drag.moved = true; const m = ft2m(clamp(xf, -25, 25), clamp(yf, 0, S.board.size === 'full' ? NBA.L : 47)); q.x = m.x; q.z = m.z;
+    requestRender(); throttleSend(sendBoard); return;
+  }
   if (drag.mode === 'cmove' || drag.mode === 'cdraw') {
     const [spx, spy] = stagePx(e.clientX, e.clientY); const c = panelToCourt(spx, spy); if (!c) return;
     if (drag.mode === 'cmove') {
@@ -1204,6 +1485,7 @@ function onUp(e) {
   if (!drag || drag.id !== e.pointerId) return;
   const d = drag; drag = null;
   if (d.mode === 'wipe') return;
+  if (d.mode === 'bplayer') { sendBoard(); return; }
   if (d.mode === 'move' || d.mode === 'cmove') { if (d.moved) sendObjects(); return; }
   if (d.mode === 'cdraw') {
     const L = S.live; S.live = null; send({ type: 'live', live: null });
@@ -1349,9 +1631,10 @@ const wdEl = $('widths');
 WIDTHS.forEach(w => { const b = document.createElement('button'); b.className = 'wd' + (w === S.width ? ' on' : ''); b.innerHTML = `<i style="height:${w}px"></i>`; b.onclick = () => { S.width = w; wdEl.querySelectorAll('.wd').forEach(x => x.classList.toggle('on', x === b)); }; wdEl.appendChild(b); });
 $('undoBtn').onclick = undo; $('clearBtn').onclick = clearInk;
 $('pUndo').onclick = undo; $('pClear').onclick = clearInk;
-$('play').onclick = togglePlay; $('pPlay').onclick = togglePlay;
+$('play').onclick = togglePlay; $('pPlay').onclick = () => S.mode === 'board' ? boardTogglePlay() : togglePlay();
 $('stepB').onclick = () => step(-1); $('stepF').onclick = () => step(1);
-$('pStepB').onclick = () => step(-1); $('pStepF').onclick = () => step(1);
+$('pStepB').onclick = () => S.mode === 'board' ? boardGo(S.board.step - 1) : step(-1);
+$('pStepF').onclick = () => S.mode === 'board' ? boardGo(S.board.step + 1) : step(1);
 $('loopA').onclick = () => { S.loop.a = video.currentTime; if (S.loop.b != null && S.loop.b <= S.loop.a) S.loop.b = null; loopUI(); };
 $('loopB').onclick = () => { S.loop.b = video.currentTime; if (S.loop.a == null || S.loop.a >= S.loop.b) S.loop.a = Math.max(0, S.loop.b - 2); loopUI(); toast(`Loop ${fmt(S.loop.a)} → ${fmt(S.loop.b)}`); };
 $('loopClear').onclick = clearLoop; $('pLoop').onclick = () => { if (S.loop.a != null && S.loop.b != null) clearLoop(); else { S.loop = { a: Math.max(0, video.currentTime - 2), b: video.currentTime }; loopUI(); toast('Looping the last 2 seconds'); } };
@@ -1393,9 +1676,10 @@ jog.addEventListener('pointercancel', () => { jogX = null; jog.classList.remove(
 // keyboard (if a keyboard is attached)
 window.addEventListener('keydown', e => {
   if (IS_TV || e.target.tagName === 'INPUT') return;
-  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
-  else if (e.key === 'ArrowLeft') step(e.shiftKey ? -10 : -1);
-  else if (e.key === 'ArrowRight') step(e.shiftKey ? 10 : 1);
+  const board = S.mode === 'board';
+  if (e.key === ' ') { e.preventDefault(); board ? boardTogglePlay() : togglePlay(); }
+  else if (e.key === 'ArrowLeft') board ? boardGo(S.board.step - 1) : step(e.shiftKey ? -10 : -1);
+  else if (e.key === 'ArrowRight') board ? boardGo(S.board.step + 1) : step(e.shiftKey ? 10 : 1);
   else if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); }
   else if (e.key === 'Escape') { app.classList.remove('present'); layoutStage(); }
   else if (e.key === 'Backspace' && S.selected) $('obDel').onclick();
@@ -1564,6 +1848,11 @@ function setupTV() {
       case 'view': S.view = m.view; applyView(); break;
       case 'wipe': S.wipe = m.wipe; requestRender(); break;
       case 'court': S.court = m.court; S.courtMode = m.mode; rebuildCourt(); requestRender(); break;
+      case 'board': {
+        const was = S.mode; S.mode = m.mode; S.board.size = m.size; S.board.frame = m.frame;
+        if (was !== m.mode) { app.classList.toggle('board', m.mode === 'board'); video.style.visibility = m.mode === 'board' ? 'hidden' : ''; $('tvidle').hidden = m.mode === 'board' || !!S.clip; if (m.mode === 'film') $('cue').classList.remove('show'); layoutStage(); }
+        requestRender(); break;
+      }
       case 'cursor': {
         if (m.x < 0) { cur.classList.remove('show'); break; }
         cur.style.left = nx(m.x) + 'px'; cur.style.top = ny(m.y) + 'px'; cur.classList.add('show');
