@@ -664,7 +664,7 @@ function boardFrame() {
   const F = { players: [], ball: null, screens: [], passes: [], catches: [], arrows: [], cue: '', step: S.board.step, steps: p.steps.length - 1, role: p.role };
   let posGet, evStep, ballId, e = 0;
   if (A) {
-    const t = (performance.now() - A.t0) / 1000 * S.board.rate;
+    const t = animTime(A);
     const seg = A.segs.find(s => t >= s.start && t < s.start + s.dur) || A.segs[A.segs.length - 1];
     const a = p.steps[seg.i - 1], b = p.steps[seg.i];
     e = easeK(clamp((t - seg.start) / seg.dur, 0, 1));
@@ -785,14 +785,18 @@ function boardHitPlayer(u, v) {
 }
 function sendBoard() { send({ type: 'board', mode: S.mode, size: S.board.size, frame: S.mode === 'board' ? boardFrame() : null }); }
 /* ---- playback ---- */
+// elapsed play time in seconds; frozen while paused
+function animTime(A) { return A.paused ? A.pausedAt : (performance.now() - A.t0) / 1000 * S.board.rate; }
 function boardTick() {
-  if (!S.board.anim) return;
-  const A = S.board.anim, t = (performance.now() - A.t0) / 1000 * S.board.rate;
+  const A = S.board.anim; if (!A || A.paused) return;
+  const t = animTime(A);
   if (t >= A.total) { S.board.anim = null; S.board.step = bPlay().steps.length - 1; boardPlayIcon(false); requestRender(); sendBoard(); return; }
   requestRender(); throttleSend(sendBoard); requestAnimationFrame(boardTick);
 }
 function boardTogglePlay() {
-  if (S.board.anim) { S.board.anim = null; boardPlayIcon(false); requestRender(); sendBoard(); return; }
+  const A = S.board.anim;
+  if (A && !A.paused) { A.pausedAt = animTime(A); A.paused = true; boardPlayIcon(false); requestRender(); sendBoard(); return; } // pause = freeze right here
+  if (A && A.paused) { A.t0 = performance.now() - A.pausedAt / S.board.rate * 1000; A.paused = false; boardPlayIcon(true); requestAnimationFrame(boardTick); return; } // resume from the frozen spot
   const p = bPlay(); if (p.steps.length < 2) { toast('This play has one step. Load a play or add a step.'); return; }
   const segs = []; let total = 0; const from = S.board.step >= p.steps.length - 1 ? 0 : S.board.step;
   for (let i = from + 1; i < p.steps.length; i++) { const d = Math.max(p.steps[i].duration || 1.5, 0.2); segs.push({ i, start: total, dur: d }); total += d; }
@@ -802,7 +806,11 @@ function boardPlayIcon(on) { const d = on ? '<rect x="6" y="5" width="4" height=
 function boardGo(i) { S.board.anim = null; boardPlayIcon(false); S.board.step = clamp(i, 0, bPlay().steps.length - 1); requestRender(); sendBoard(); }
 /* ---- controls ---- */
 document.querySelectorAll('#courtSize button').forEach(b => b.onclick = () => { S.board.size = b.dataset.size; document.querySelectorAll('#courtSize button').forEach(x => x.classList.toggle('on', x === b)); layoutStage(); sendBoard(); });
-document.querySelectorAll('#bSpeed button').forEach(b => b.onclick = () => { S.board.rate = parseFloat(b.dataset.rate); document.querySelectorAll('#bSpeed button').forEach(x => x.classList.toggle('on', x === b)); });
+document.querySelectorAll('#bSpeed button').forEach(b => b.onclick = () => {
+  const A = S.board.anim, t = A ? animTime(A) : 0;
+  S.board.rate = parseFloat(b.dataset.rate); document.querySelectorAll('#bSpeed button').forEach(x => x.classList.toggle('on', x === b));
+  if (A && !A.paused) A.t0 = performance.now() - t / S.board.rate * 1000; // keep the play where it is when the speed changes
+});
 $('bPlay').onclick = boardTogglePlay;
 $('bFirst').onclick = () => boardGo(0);
 $('bPrev').onclick = () => boardGo(S.board.step - 1);
