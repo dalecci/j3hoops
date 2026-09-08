@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0B0B0C" />
+<meta name="description" content="J3 Film Room — live play breakdown on the big screen. iPad + Apple Pencil in, TV out." />
+<meta name="robots" content="noindex,nofollow" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Film Room" />
+<title>J3 Film Room</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0A0A0B; --surface:#101012; --surface-2:#16161A; --card:#16161A; --card-hi:#1D1D22;
+    --border:#26262C; --border-2:#34343C;
+    --text:#F4F4F5; --muted:#9A9AA2; --faint:#6B6B73;
+    --accent:#FF6A1F; --accent-2:#FF8A4D; --accent-soft:rgba(255,106,31,.15);
+    --ok:#3FB984; --warn:#E0A93C; --danger:#F0584F;
+    --r:14px; --r-sm:10px; --r-lg:18px;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+    --rail:140px; --dock:118px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:none;
+  }
+  button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  button{cursor:pointer;border:0;background:transparent;touch-action:manipulation}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  [hidden]{display:none!important}
+
+  /* ---------- App frame ---------- */
+  #app{position:fixed;inset:0;display:grid;grid-template-columns:var(--rail) 1fr;grid-template-rows:1fr var(--dock);
+       padding-top:var(--safe-t);padding-left:var(--safe-l);padding-right:var(--safe-r)}
+  #app.present{grid-template-columns:0 1fr;grid-template-rows:1fr 0}
+  #app.present .rail,#app.present .dock{display:none}
+  #app.tv{grid-template-columns:1fr;grid-template-rows:1fr;padding:0}
+  #app.tv .rail,#app.tv .dock{display:none}
+
+  /* ---------- Left tool rail ---------- */
+  .rail{grid-row:1/3;background:var(--surface);border-right:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:min-content;align-content:start;justify-items:center;gap:4px 2px;padding:8px 6px;overflow-y:auto;overflow-x:hidden}
+  .rail .logo{grid-column:1/3;width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#C24700);display:grid;place-items:center;color:#fff;font-weight:900;font-size:13px;letter-spacing:.5px;margin-bottom:4px;flex:none}
+  .tool{width:62px;height:54px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.02em;flex:none;position:relative}
+  .tool svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tool:active{background:var(--surface-2)}
+  .tool.on{background:var(--accent-soft);color:var(--accent-2);box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .tool.danger{color:var(--danger)}
+  .rail .sep{grid-column:1/3;width:100px;height:1px;background:var(--border);margin:3px 0;flex:none}
+  .rail .spacer{grid-column:1/3;flex:1;min-height:6px}
+  .swatches{grid-column:1/3;display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;padding:4px 0}
+  .sw{width:28px;height:28px;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1px rgba(0,0,0,.6) inset}
+  .sw.on{border-color:#fff;transform:scale(1.12)}
+  .widths{grid-column:1/3;display:flex;flex-direction:row;align-items:center;gap:4px;padding:2px 0}
+  .wd{width:38px;height:24px;border-radius:8px;display:grid;place-items:center;color:var(--faint)}
+  .wd i{display:block;background:currentColor;border-radius:99px;width:22px}
+  .wd.on{background:var(--surface-2);color:var(--text)}
+
+  /* ---------- Stage ---------- */
+  .stagewrap{position:relative;background:#000;overflow:hidden;display:grid;place-items:center}
+  .stage{position:relative;aspect-ratio:16/9;width:100%;max-height:100%;background:#000;overflow:hidden;transform-origin:0 0}
+  .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
+  .stage canvas.ink{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+  .stage .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:24px}
+  .stage .empty b{display:block;font-size:22px;color:var(--text);margin-bottom:8px}
+  .stage .empty .bigbtn{margin-top:18px}
+  .tvbadge{position:absolute;right:12px;top:12px;display:flex;align-items:center;gap:8px;background:rgba(10,10,11,.7);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted);z-index:5}
+  .tvbadge i{width:9px;height:9px;border-radius:50%;background:var(--faint)}
+  .tvbadge.live i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  .answerflag{position:absolute;left:12px;top:12px;background:rgba(224,169,60,.18);border:1px solid var(--warn);color:var(--warn);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;z-index:5;letter-spacing:.04em}
+  /* court calibration wizard */
+  .wizard{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:6;background:rgba(16,16,18,.94);border:1px solid var(--border-2);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;align-items:center;max-width:92%}
+  .wizard b{font-size:15px;font-weight:800}
+  .wizrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .wizrow button{padding:9px 12px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-weight:700;font-size:13px}
+  .wizrow button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  /* present-mode floating pill */
+  .pill{position:absolute;left:50%;bottom:calc(14px + var(--safe-b));transform:translateX(-50%);display:none;align-items:center;gap:6px;background:rgba(10,10,11,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:999px;padding:6px;z-index:6;opacity:.35;transition:opacity .2s}
+  .pill:hover,.pill:active,.pill.awake{opacity:1}
+  #app.present .pill{display:flex}
+  .pill button{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--text)}
+  .pill button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .pill button.on{background:var(--accent-soft);color:var(--accent-2)}
+  /* object bar (selected object) */
+  .objbar{position:absolute;display:none;align-items:center;gap:4px;background:rgba(16,16,18,.94);border:1px solid var(--border-2);border-radius:14px;padding:5px;z-index:7;box-shadow:0 10px 30px -10px #000;transform:translate(-50%,-100%)}
+  .objbar.show{display:flex}
+  .objbar button{width:46px;height:44px;border-radius:10px;display:grid;place-items:center;color:var(--text);font-weight:800;font-size:13px}
+  .objbar button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .objbar button.on{background:var(--accent-soft);color:var(--accent-2)}
+  .objbar .colorbtn i{width:18px;height:18px;border-radius:50%;display:block}
+  /* text entry */
+  .textentry{position:absolute;z-index:8;display:none;background:rgba(16,16,18,.96);border:1px solid var(--border-2);border-radius:12px;padding:8px;gap:8px;align-items:center;transform:translate(-50%,-50%)}
+  .textentry.show{display:flex}
+  .textentry input{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:18px;font-weight:800;width:260px;outline:none;-webkit-user-select:text;user-select:text}
+  .textentry button{padding:10px 14px;border-radius:9px;background:var(--accent);color:#fff;font-weight:800}
+
+  /* ---------- Bottom dock ---------- */
+  .dock{grid-column:2;background:var(--surface);border-top:1px solid var(--border);display:grid;grid-template-rows:auto 1fr;padding:6px 12px calc(6px + var(--safe-b))}
+  .timeline{position:relative;height:30px;display:flex;align-items:center}
+  .timeline .track{position:relative;flex:1;height:8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border)}
+  .timeline .loopband{position:absolute;top:-1px;bottom:-1px;background:rgba(255,106,31,.28);border-radius:99px}
+  .timeline .played{position:absolute;left:0;top:-1px;bottom:-1px;background:var(--accent);border-radius:99px;width:0}
+  .timeline .head{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,.6)}
+  .timeline .mark{position:absolute;top:-8px;width:3px;height:24px;background:var(--warn);border-radius:2px;transform:translateX(-50%)}
+  .timeline .tc{width:96px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);font-weight:700;margin-left:12px}
+  .transport{display:flex;align-items:center;gap:8px;padding-top:4px}
+  .tb{height:54px;min-width:54px;padding:0 12px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text);font-weight:800;font-size:13px;flex:none}
+  .tb svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .tb.play{width:72px;background:var(--accent);border-color:var(--accent);color:#fff}
+  .tb.play svg{fill:#fff;stroke:none}
+  .tb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-2)}
+  .tb:active{transform:scale(.97)}
+  .jog{flex:1;height:54px;border-radius:14px;background:repeating-linear-gradient(90deg,var(--border) 0 2px,transparent 2px 14px);background-color:var(--surface-2);border:1px solid var(--border);position:relative;display:grid;place-items:center;color:var(--faint);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;overflow:hidden;min-width:140px}
+  .jog span{background:var(--surface-2);padding:2px 10px;border-radius:99px;pointer-events:none}
+  .jog.active{border-color:var(--accent)}
+  .speed{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;overflow:hidden;height:54px;flex:none}
+  .speed button{padding:0 12px;font-weight:800;font-size:13px;color:var(--muted)}
+  .speed button.on{background:var(--accent-soft);color:var(--accent-2)}
+
+  /* ---------- Drawers ---------- */
+  .drawer{position:fixed;top:0;bottom:0;width:min(420px,88vw);background:var(--surface);border-right:1px solid var(--border);z-index:40;transform:translateX(-105%);transition:transform .22s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding-top:var(--safe-t)}
+  .drawer.right{left:auto;right:0;border-right:0;border-left:1px solid var(--border);transform:translateX(105%)}
+  .drawer.open{transform:none}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .drawer header b{font-size:16px;font-weight:800;flex:1}
+  .drawer header button{width:38px;height:38px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-size:18px}
+  .drawer .body{flex:1;overflow-y:auto;padding:12px 16px 40px;touch-action:pan-y}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:39;display:none}
+  .scrim.show{display:block}
+  .bigbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;font-size:15px}
+  .bigbtn.ghost{background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
+  .bigbtn + .bigbtn{margin-top:8px}
+  .clip{display:flex;gap:12px;align-items:center;padding:10px;border-radius:12px;border:1px solid var(--border);background:var(--card);margin-top:8px}
+  .clip:active{background:var(--card-hi)}
+  .clip .th{width:96px;height:54px;border-radius:8px;background:#000 center/cover no-repeat;flex:none;border:1px solid var(--border)}
+  .clip .meta{flex:1;min-width:0}
+  .clip .meta b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .clip .meta span{font-size:12px;color:var(--muted)}
+  .clip.cur{border-color:var(--accent)}
+  .h6{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin:20px 0 8px;font-weight:800}
+  .row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .row input[type=text]{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;outline:none;-webkit-user-select:text;user-select:text}
+  .note{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .note code{background:var(--surface-2);padding:1px 6px;border-radius:5px;font-size:12px}
+  .toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+  .toggle b{font-size:14px;font-weight:700}
+  .toggle small{display:block;color:var(--muted);font-size:12px;font-weight:500;margin-top:2px}
+  .sw2{width:52px;height:30px;border-radius:99px;background:var(--border-2);position:relative;flex:none;transition:.15s}
+  .sw2::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
+  .sw2.on{background:var(--ok)}
+  .sw2.on::after{left:25px}
+  .markitem{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;border:1px solid var(--border);background:var(--card);margin-top:8px}
+  .markitem .t{font-variant-numeric:tabular-nums;font-weight:800;color:var(--accent-2);width:64px}
+  .markitem .l{flex:1;font-weight:600;font-size:14px}
+  .markitem button{width:36px;height:36px;border-radius:9px;background:var(--surface-2);color:var(--muted);display:grid;place-items:center}
+  .progress{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:10px}
+  .progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;left:50%;top:calc(14px + var(--safe-t));transform:translateX(-50%) translateY(-20px);background:rgba(16,16,18,.96);border:1px solid var(--border-2);border-radius:12px;padding:10px 16px;font-weight:700;font-size:14px;z-index:90;opacity:0;transition:.2s;pointer-events:none;max-width:80vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+
+  /* ---------- Gate ---------- */
+  .gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:grid;place-items:center;padding:24px}
+  .gate .card{width:min(360px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:26px;text-align:center}
+  .gate .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#C24700);display:grid;place-items:center;color:#fff;font-weight:900;font-size:16px;margin:0 auto 14px}
+  .gate h1{font-size:20px;font-weight:800}
+  .gate p{color:var(--muted);font-size:13px;margin-top:4px}
+  .gate input{margin:18px auto 8px;display:block;width:170px;text-align:center;font-size:30px;letter-spacing:.4em;font-weight:800;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 0 10px .4em;outline:none;-webkit-user-select:text;user-select:text}
+  .gate input:focus{border-color:var(--accent)}
+  .gate .err{color:var(--danger);font-size:12px;height:16px;font-weight:700}
+  .gate button{margin-top:10px;width:100%;padding:13px;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;font-size:15px}
+
+  /* ---------- TV mode ---------- */
+  #app.tv .stagewrap{background:#000}
+  .tvidle{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted)}
+  .tvidle .logo{width:110px;height:110px;border-radius:30px;background:linear-gradient(135deg,var(--accent),#C24700);display:grid;place-items:center;color:#fff;font-weight:900;font-size:34px;margin:0 auto 22px;box-shadow:0 20px 60px -20px var(--accent)}
+  .tvidle b{display:block;font-size:34px;color:var(--text);font-weight:900;letter-spacing:-.01em}
+  .tvidle span{display:block;font-size:18px;margin-top:8px}
+  .cursor{position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(255,106,31,.55);border:3px solid #fff;box-shadow:0 0 18px var(--accent);transform:translate(-50%,-50%);pointer-events:none;display:none;z-index:4}
+  .cursor.show{display:block}
+  @media (max-width:760px){
+    :root{--rail:64px;--dock:108px}
+    .tool{width:54px;height:50px;font-size:9px}
+    .tb{height:48px;min-width:48px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ PIN gate (matches /admin and /warriors: 4545, sessionStorage j3-hoops-unlocked) ============ -->
+<div class="gate" id="gate" hidden>
+  <div class="card">
+    <div class="logo">J3</div>
+    <h1>Film Room</h1>
+    <p>Coach access</p>
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="pin" placeholder="••••" autocomplete="off" aria-label="Four-digit code" />
+    <div class="err" id="pinErr"></div>
+    <button id="pinGo">Enter</button>
+  </div>
+</div>
+
+<div id="app">
+  <!-- ============ Tool rail ============ -->
+  <nav class="rail" id="rail">
+    <div class="logo">J3</div>
+    <button class="tool" data-open="library" title="Clips">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>Clips</button>
+    <button class="tool" data-open="marks" title="Marks">
+      <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Marks</button>
+    <div class="sep"></div>
+    <button class="tool on" data-tool="pen"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M13 7l3 3"/></svg>Pen</button>
+    <button class="tool" data-tool="arrow"><svg viewBox="0 0 24 24"><path d="M5 19L19 5"/><path d="M10 5h9v9"/></svg>Arrow</button>
+    <button class="tool" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>Circle</button>
+    <button class="tool" data-tool="zone"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" stroke-dasharray="3 3"/></svg>Zone</button>
+    <button class="tool" data-tool="spot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spotlight</button>
+    <button class="tool" data-tool="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg>Text</button>
+    <div class="sep"></div>
+    <button class="tool" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
+    <button class="tool" data-tool="figure"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6M7 11l5 3 5-3M9 21l3-7 3 7"/></svg>Player</button>
+    <button class="tool" data-tool="token"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 3v4M9 19l3 2 3-2"/></svg>Tag</button>
+    <button class="tool" id="courtBtn" title="Top view court"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 21v-6h8v6M12 3v4"/><circle cx="12" cy="10" r="3"/></svg>Court</button>
+    <button class="tool" data-tool="move"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg>Move</button>
+    <div class="sep"></div>
+    <button class="tool" id="kennyBtn" title="Kenny mode: tap a player to freeze + spotlight, draw, tap to clear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>Kenny</button>
+    <button class="tool" id="wipeBtn" title="Before / after wipe"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 3v18M8 12H5M19 12h-3"/></svg>Wipe</button>
+    <div class="sep"></div>
+    <div class="swatches" id="swatches"></div>
+    <div class="widths" id="widths"></div>
+    <div class="sep"></div>
+    <button class="tool" id="undoBtn"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg>Undo</button>
+    <button class="tool danger" id="clearBtn"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Clear</button>
+    <div class="spacer"></div>
+    <button class="tool" id="answerBtn" title="Answer layer: hidden on the TV until you reveal"><svg viewBox="0 0 24 24"><path d="M3 12s3-6 9-6 9 6 9 6-3 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/><path d="M4 4l16 16"/></svg>Answer</button>
+    <button class="tool" data-open="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14 3h-4l-.6 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5a7 7 0 000 2.4l-2 1.5 2 3.4 2.3-.9a7 7 0 002 1.2L10 21h4l.6-2.6a7 7 0 002-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Setup</button>
+  </nav>
+
+  <!-- ============ Stage ============ -->
+  <div class="stagewrap" id="stagewrap">
+    <div class="stage" id="stage">
+      <video id="video" playsinline webkit-playsinline muted preload="auto" crossorigin="anonymous" disablepictureinpicture x-webkit-airplay="deny"></video>
+      <canvas class="ink" id="ink"></canvas>
+      <div class="cursor" id="cursor"></div>
+      <div class="empty" id="empty">
+        <div>
+          <b>No clip loaded</b>
+          Open a clip from your library or straight from Files.
+          <button class="bigbtn" id="emptyOpen">Open clips</button>
+        </div>
+      </div>
+      <div class="tvidle" id="tvidle" hidden>
+        <div>
+          <div class="logo">J3</div>
+          <b>Film Room</b>
+          <span>Waiting for Coach…</span>
+        </div>
+      </div>
+    </div>
+    <div class="tvbadge" id="tvbadge"><i></i><span>TV off</span></div>
+    <div class="answerflag" id="answerflag" hidden>ANSWER LAYER · hidden on TV</div>
+    <div class="wizard" id="wizard" hidden>
+      <b id="wizText">Tap the paint corners</b>
+      <div class="wizrow">
+        <button id="wizUndo">Undo tap</button>
+        <button id="wizMirror">Mirror</button>
+        <button id="wizAuto">✨ Auto-tag players</button>
+        <button id="wizClear">Remove court</button>
+        <button id="wizDone" class="primary">Done</button>
+      </div>
+    </div>
+
+    <!-- present-mode pill -->
+    <div class="pill" id="pill">
+      <button id="pStepB" title="Back a frame"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button id="pPlay" title="Play/pause"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button>
+      <button id="pStepF" title="Forward a frame"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button id="pLoop" title="Loop"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+      <button id="pUndo" title="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg></button>
+      <button id="pClear" title="Clear"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+      <button id="pKenny" title="Kenny mode"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+      <button id="pWipe" title="Before / after wipe"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 3v18"/></svg></button>
+      <button id="pReveal" title="Reveal answer"><svg viewBox="0 0 24 24"><path d="M3 12s3-6 9-6 9 6 9 6-3 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+      <button id="pExit" title="Exit present mode"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <!-- selected object bar -->
+    <div class="objbar" id="objbar">
+      <button id="obRotL" title="Turn left"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v5h5"/></svg></button>
+      <button id="obRotR" title="Turn right"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-9-9"/><path d="M21 4v5h-5"/></svg></button>
+      <button id="obSmaller" title="Smaller">−</button>
+      <button id="obBigger" title="Bigger">+</button>
+      <button id="obGhost" title="Ghost at original spot"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 00-7 7v11l2.5-2 2.5 2 2-2 2 2 2.5-2 2.5 2V10a7 7 0 00-7-7z"/><circle cx="9.5" cy="11" r="1"/><circle cx="14.5" cy="11" r="1"/></svg></button>
+      <button id="obColor" class="colorbtn" title="Team color"><i></i></button>
+      <button id="obNum" title="Number">#</button>
+      <button id="obDel" title="Delete" style="color:var(--danger)"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+    </div>
+
+    <!-- text entry -->
+    <div class="textentry" id="textentry">
+      <input id="textInput" placeholder="Type…" autocomplete="off" />
+      <button id="textOk">Add</button>
+    </div>
+  </div>
+
+  <!-- ============ Dock ============ -->
+  <div class="dock" id="dock">
+    <div class="timeline" id="timeline">
+      <div class="track" id="track">
+        <div class="loopband" id="loopband" hidden></div>
+        <div class="played" id="played"></div>
+        <div id="markpins"></div>
+        <div class="head" id="head"></div>
+      </div>
+      <div class="tc" id="tc">0:00.00</div>
+    </div>
+    <div class="transport">
+      <button class="tb" id="stepB" title="Back one frame"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/><path d="M8 6v12"/></svg></button>
+      <button class="tb play" id="play" title="Play / pause"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 5l12 7-12 7z"/></svg></button>
+      <button class="tb" id="stepF" title="Forward one frame"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/><path d="M16 6v12"/></svg></button>
+      <div class="jog" id="jog"><span>◀ jog ▶</span></div>
+      <button class="tb" id="loopA" title="Set loop start">A</button>
+      <button class="tb" id="loopB" title="Set loop end">B</button>
+      <button class="tb" id="loopClear" title="Clear loop" hidden>✕</button>
+      <div class="speed" id="speed">
+        <button data-rate="0.25">¼</button><button data-rate="0.5">½</button><button data-rate="1" class="on">1×</button>
+      </div>
+      <button class="tb" id="saveMark" title="Save this frame + drawings as a mark"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Mark</button>
+      <button class="tb" id="tvBtn" title="Open the TV window"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>TV</button>
+      <button class="tb" id="presentBtn" title="Present: hide all controls"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Drawers ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer-library">
+  <header><b>Clips</b><button data-close>✕</button></header>
+  <div class="body">
+    <button class="bigbtn" id="openFile">📂 Open from Files / Photos</button>
+    <input type="file" id="fileInput" accept="video/*" hidden />
+    <div class="note">Opens instantly, nothing uploads. Pick <b>Upload to library</b> below to keep it in the cloud for next time.</div>
+    <div id="uploadBox" hidden>
+      <div class="h6">Upload to library</div>
+      <div class="row"><input type="text" id="uploadTitle" placeholder="Title, e.g. Jaguars vs Storm · Q2 help-side" /></div>
+      <div class="row"><input type="text" id="uploadGame" placeholder="Game / date (optional)" /></div>
+      <button class="bigbtn ghost" id="uploadBtn">☁️ Upload this clip</button>
+      <div class="progress" id="uploadProg" hidden><i></i></div>
+    </div>
+    <div class="h6">Library</div>
+    <div id="clipList"><div class="note">Loading…</div></div>
+  </div>
+</aside>
+
+<aside class="drawer" id="drawer-marks">
+  <header><b>Marks</b><button data-close>✕</button></header>
+  <div class="body">
+    <div class="note">A mark is a frozen frame plus everything you drew on it. Prep them at home, jump to them in the gym.</div>
+    <div id="markList"></div>
+  </div>
+</aside>
+
+<aside class="drawer right" id="drawer-settings">
+  <header><b>Setup</b><button data-close>✕</button></header>
+  <div class="body">
+    <div class="h6">TV output</div>
+    <div class="note">
+      <b>Stage mode (best):</b> turn on Stage Manager, plug in the HDMI adapter, tap <b>TV</b>. A clean 16:9 window opens. Drag it onto the TV and make it full screen. You draw on the iPad, players watch the TV.<br><br>
+      <b>Mirror mode (zero setup):</b> just plug in. Tap <b>Present</b> to hide the controls. The TV shows black bars because the iPad is 4:3.
+    </div>
+    <button class="bigbtn ghost" id="fsBtn" style="margin-top:12px">⛶ Full screen on this iPad</button>
+    <div class="h6">Drawing</div>
+    <div class="toggle"><div><b>Finger draws</b><small>Off = only Apple Pencil draws, fingers only move things</small></div><button class="sw2 on" data-setting="fingerDraws"></button></div>
+    <div class="toggle"><div><b>Clear ink when play starts</b><small>Kenny-style: drawings vanish when the play runs</small></div><button class="sw2" data-setting="clearOnPlay"></button></div>
+    <div class="toggle"><div><b>Show Pencil hover dot on TV</b><small>A laser pointer while you hover before touching</small></div><button class="sw2 on" data-setting="hoverDot"></button></div>
+    <div class="h6">Playback</div>
+    <div class="toggle"><div><b>Frame rate</b><small id="fpsNote">Auto-detected from the clip</small></div><b id="fpsVal">—</b></div>
+    <div class="h6">About</div>
+    <div class="note">J3 Film Room v0.1 · Built for iPad Pro + Apple Pencil + a big TV. Coach view: <code>/video</code> · TV view: <code>/video?tv</code></div>
+  </div>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script type="importmap">{ "imports": { "three": "../quest3/vendor/three.module.js" } }</script>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+
+/* =====================================================================
+   J3 Film Room — coach view + TV view in one page.
+   Coordinates for everything drawn are normalized to the VIDEO frame
+   (0..1 across width and height) so the iPad and the TV render the same
+   thing at any size.
+   ===================================================================== */
+const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
+const BUCKET = 'film';
+const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
+const CHANNEL = 'j3-film-room';
+const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
+
+const qs = new URLSearchParams(location.search);
+const IS_TV = qs.has('tv') || location.hash === '#tv';
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+const COLORS = ['#FF6A1F', '#22D3EE', '#FFFFFF', '#FDE047', '#F0584F', '#3FB984'];
+const WIDTHS = [3, 6, 11];
+
+/* ---------------- state ---------------- */
+const S = {
+  clip: null,            // {id, title, src, key, local:bool, file?}
+  fps: 30, fpsLocked: false,
+  tool: 'pen', color: COLORS[0], width: WIDTHS[1],
+  objects: [],           // drawn objects for the current frame
+  history: [],
+  live: null,            // stroke in progress
+  loop: { a: null, b: null },
+  rate: 1,
+  answerMode: false, reveal: false,
+  kenny: false,          // tap a player = freeze + spotlight; draw; tap = clear
+  wipe: null,            // null or 0..1: before/after divider across the stage
+  court: null,           // {pts:[[nx,ny]x4], mirror:bool} paint corners -> homography to court feet
+  courtMode: 'off',      // off | small | large  (top-view panel size)
+  calib: null,           // in-progress calibration taps
+  selected: null,
+  view: { s: 1, x: 0, y: 0 },
+  settings: { fingerDraws: true, clearOnPlay: false, hoverDot: true },
+  marks: [],
+  tvSeen: 0,
+};
+try { Object.assign(S.settings, JSON.parse(localStorage.getItem('j3film-settings') || '{}')); } catch {}
+
+const app = $('app'), video = $('video'), ink = $('ink'), stage = $('stage'), stagewrap = $('stagewrap');
+const ctx = ink.getContext('2d');
+let sb = null;
+try { sb = createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { console.warn('supabase init failed', e); }
+
+/* ---------------- geometry ---------------- */
+let fit = { x: 0, y: 0, w: 1, h: 1 }; // where the video pixels sit inside the stage (CSS px)
+function computeFit() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+  const s = Math.min(W / vw, H / vh);
+  const w = vw * s, h = vh * s;
+  fit = { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+function sizeCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (ink.width !== Math.round(W * dpr) || ink.height !== Math.round(H * dpr)) {
+    ink.width = Math.round(W * dpr); ink.height = Math.round(H * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  computeFit();
+  requestRender();
+}
+function layoutStage() {
+  // keep the 16:9 stage as large as possible inside stagewrap
+  const W = stagewrap.clientWidth, H = stagewrap.clientHeight;
+  const s = Math.min(W / 16, H / 9);
+  stage.style.width = (16 * s) + 'px';
+  stage.style.height = (9 * s) + 'px';
+  applyView();
+  sizeCanvas();
+}
+function applyView() {
+  const { s, x, y } = S.view;
+  stage.style.transformOrigin = '0 0';
+  stage.style.transform = `translate(${x}px,${y}px) scale(${s})`;
+}
+new ResizeObserver(layoutStage).observe(stagewrap);
+window.addEventListener('orientationchange', () => setTimeout(layoutStage, 300));
+
+// stage CSS px -> normalized video coords
+function toNorm(px, py) {
+  const r = stage.getBoundingClientRect();
+  const sx = (px - r.left) / S.view.s, sy = (py - r.top) / S.view.s;
+  return [(sx - fit.x) / fit.w, (sy - fit.y) / fit.h];
+}
+const nx = (v) => fit.x + v * fit.w, ny = (v) => fit.y + v * fit.h;
+
+/* ---------------- rendering ---------------- */
+let renderQueued = false;
+function requestRender() { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } }
+function render() {
+  renderQueued = false;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  ctx.clearRect(0, 0, W, H);
+  const visible = S.objects.filter(o => !(o.layer === 'b' && IS_TV && !S.reveal));
+  const all = S.live ? visible.concat([S.live]) : visible;
+  // spotlight dim layer
+  const spots = all.filter(o => o.type === 'spot');
+  if (spots.length) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.68)';
+    ctx.fillRect(fit.x, fit.y, fit.w, fit.h);
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const o of spots) {
+      const cx = nx(o.c[0]), cy = ny(o.c[1]), r = o.r * fit.w;
+      const g = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  for (const o of all) drawObject(o);
+  if (S.wipe != null) drawWipe(W, H);
+  if (!IS_TV && S.selected) drawSelection(S.selected);
+  if (!IS_TV && S.calib) drawCalib();
+  if (S.courtMode !== 'off' && courtH) drawCourtPanel(visible.concat(S.live ? [S.live] : []));
+}
+// Before/after wipe: left of the divider is the raw frame (what happened), right is the corrected version.
+function drawWipe(W, H) {
+  const x = fit.x + S.wipe * fit.w;
+  ctx.save();
+  ctx.clearRect(0, 0, x, H);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(fit.x, fit.y, x - fit.x, fit.h);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.moveTo(x, fit.y); ctx.lineTo(x, fit.y + fit.h); ctx.stroke();
+  const cy = fit.y + fit.h / 2, r = Math.max(18, fit.w * 0.022);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(2, r * 0.14);
+  ctx.beginPath(); ctx.moveTo(x - r * 0.55, cy); ctx.lineTo(x - r * 0.2, cy - r * 0.32); ctx.moveTo(x - r * 0.55, cy); ctx.lineTo(x - r * 0.2, cy + r * 0.32);
+  ctx.moveTo(x + r * 0.55, cy); ctx.lineTo(x + r * 0.2, cy - r * 0.32); ctx.moveTo(x + r * 0.55, cy); ctx.lineTo(x + r * 0.2, cy + r * 0.32); ctx.stroke();
+  const size = Math.max(13, fit.w * 0.018);
+  ctx.font = `900 ${size}px Inter, system-ui, sans-serif`; ctx.textBaseline = 'top'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 6;
+  const pad = size * 0.5;
+  const tag = (t, tx, align, col) => { ctx.textAlign = align; ctx.fillStyle = 'rgba(0,0,0,.55)'; const w = ctx.measureText(t).width + pad * 2; ctx.fillRect(align === 'left' ? tx - pad : tx - w + pad, fit.y + size * 0.6, w, size * 1.7); ctx.fillStyle = col; ctx.fillText(t, tx, fit.y + size * 0.95); };
+  if (x - fit.x > size * 9) tag('WHAT HAPPENED', fit.x + size * 1.2, 'left', '#fff');
+  if (fit.x + fit.w - x > size * 11) tag("WHAT SHOULD'VE", fit.x + fit.w - size * 1.2, 'right', '#FF8A4D');
+  ctx.restore();
+}
+function strokeStyle(o) {
+  ctx.strokeStyle = o.color; ctx.lineWidth = o.width * (fit.w / 1280); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 4;
+}
+function drawObject(o) {
+  ctx.save();
+  if (o.layer === 'b' && !IS_TV && !S.reveal) ctx.globalAlpha = 0.55;
+  switch (o.type) {
+    case 'pen': {
+      if (o.pts.length < 2) { ctx.restore(); return; }
+      strokeStyle(o);
+      ctx.beginPath(); ctx.moveTo(nx(o.pts[0][0]), ny(o.pts[0][1]));
+      for (let i = 1; i < o.pts.length - 1; i++) {
+        const a = o.pts[i], b = o.pts[i + 1];
+        ctx.quadraticCurveTo(nx(a[0]), ny(a[1]), (nx(a[0]) + nx(b[0])) / 2, (ny(a[1]) + ny(b[1])) / 2);
+      }
+      const l = o.pts[o.pts.length - 1]; ctx.lineTo(nx(l[0]), ny(l[1]));
+      ctx.stroke(); break;
+    }
+    case 'arrow': {
+      strokeStyle(o);
+      const ax = nx(o.a[0]), ay = ny(o.a[1]), bx = nx(o.b[0]), by = ny(o.b[1]);
+      const ang = Math.atan2(by - ay, bx - ax), hl = Math.max(14, ctx.lineWidth * 3.2);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx - Math.cos(ang) * hl * 0.6, by - Math.sin(ang) * hl * 0.6); ctx.stroke();
+      ctx.fillStyle = o.color; ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx - hl * Math.cos(ang - 0.45), by - hl * Math.sin(ang - 0.45));
+      ctx.lineTo(bx - hl * Math.cos(ang + 0.45), by - hl * Math.sin(ang + 0.45));
+      ctx.closePath(); ctx.fill(); break;
+    }
+    case 'ellipse': {
+      strokeStyle(o);
+      const ax = nx(o.a[0]), ay = ny(o.a[1]), bx = nx(o.b[0]), by = ny(o.b[1]);
+      ctx.beginPath(); ctx.ellipse((ax + bx) / 2, (ay + by) / 2, Math.abs(bx - ax) / 2 || 1, Math.abs(by - ay) / 2 || 1, 0, 0, Math.PI * 2); ctx.stroke(); break;
+    }
+    case 'zone': {
+      strokeStyle(o); ctx.setLineDash([10, 8]);
+      const ax = nx(o.a[0]), ay = ny(o.a[1]), bx = nx(o.b[0]), by = ny(o.b[1]);
+      ctx.fillStyle = hexA(o.color, 0.22); ctx.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+      ctx.strokeRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay)); break;
+    }
+    case 'spot': {
+      ctx.strokeStyle = hexA(o.color, 0.9); ctx.lineWidth = 3 * (fit.w / 1280);
+      ctx.beginPath(); ctx.arc(nx(o.c[0]), ny(o.c[1]), o.r * fit.w, 0, Math.PI * 2); ctx.stroke(); break;
+    }
+    case 'text': {
+      const size = (o.size || 44) * (fit.w / 1280);
+      ctx.font = `900 ${size}px Inter, system-ui, sans-serif`;
+      ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.lineWidth = size * 0.18; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+      ctx.strokeText(o.s, nx(o.p[0]), ny(o.p[1]));
+      ctx.fillStyle = o.color; ctx.fillText(o.s, nx(o.p[0]), ny(o.p[1])); break;
+    }
+    case 'lasso': {
+      // in-progress lift outline
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+      ctx.beginPath(); o.pts.forEach((p, i) => i ? ctx.lineTo(nx(p[0]), ny(p[1])) : ctx.moveTo(nx(p[0]), ny(p[1])));
+      ctx.stroke(); break;
+    }
+    case 'cutout': drawCutout(o); break;
+    case 'figure': drawFigure(o); break;
+    case 'token': {
+      const x = nx(o.p[0]), y = ny(o.p[1]), r = Math.max(10, fit.w * 0.016);
+      ctx.strokeStyle = o.color; ctx.lineWidth = Math.max(2.5, r * 0.22); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 5;
+      ctx.fillStyle = hexA(o.color, 0.25);
+      ctx.beginPath(); ctx.ellipse(x, y, r * 1.5, r * 0.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      if (o.num) { const size = r * 1.5; ctx.font = `900 ${size}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineWidth = size * 0.2; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(o.num, x, y - r * 0.9); ctx.fillStyle = '#fff'; ctx.fillText(o.num, x, y - r * 0.9); }
+      break;
+    }
+    case 'cpen': case 'carrow': {
+      // drawn on the top view, projected back onto the floor in perspective
+      if (!courtHinv) break;
+      const proj = o.type === 'cpen' ? { ...o, type: 'pen', pts: o.pts.map(p => courtToNorm(p)) } : { ...o, type: 'arrow', a: courtToNorm(o.a), b: courtToNorm(o.b) };
+      ctx.restore(); drawObject(proj); ctx.save(); break;
+    }
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   TOP VIEW COURT
+   Calibrate once per clip by tapping the 4 corners of the paint (the key).
+   That gives a homography from video pixels to court feet, so every player
+   token, cut-out, figure and drawing can be shown on a bird's-eye court,
+   and anything drawn on the court projects back onto the floor in perspective.
+   High-school court: 84x50 ft, key 12 ft wide, free-throw line 19 ft from the baseline.
+   Court coords: x across (-25..25, ft), y up-court from the near baseline (0..84).
+   ===================================================================== */
+const COURT = { W: 50, L: 84, keyW: 12, ftY: 19, rimY: 5.25, arcR: 19.75, circleR: 6 };
+const PAINT_CORNERS = [[-6, 0], [6, 0], [-6, 19], [6, 19]]; // baseline-left, baseline-right, FT-left, FT-right
+const CALIB_STEPS = ['Tap the LEFT corner of the paint on the BASELINE', 'Tap the RIGHT corner of the paint on the BASELINE', 'Tap the LEFT corner of the paint at the FREE-THROW line', 'Tap the RIGHT corner of the paint at the FREE-THROW line'];
+let courtH = null, courtHinv = null;
+function solveHomography(src, dst) { // 4 point pairs, src -> dst, returns 3x3 row-major
+  const A = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = src[i], [u, v] = dst[i];
+    A.push([-x, -y, -1, 0, 0, 0, u * x, u * y, u]);
+    A.push([0, 0, 0, -x, -y, -1, v * x, v * y, v]);
+  }
+  // solve A h = 0 with h[8] = 1  -> 8x8 system
+  const M = A.map(r => r.slice(0, 8)), b = A.map(r => -r[8]);
+  const n = 8;
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    [M[c], M[p]] = [M[p], M[c]]; [b[c], b[p]] = [b[p], b[c]];
+    for (let r = 0; r < n; r++) { if (r === c) continue; const f = M[r][c] / M[c][c]; for (let k = c; k < n; k++) M[r][k] -= f * M[c][k]; b[r] -= f * b[c]; }
+  }
+  const h = b.map((v, i) => v / M[i][i]); h.push(1);
+  return h;
+}
+function invert3(h) {
+  const [a, b, c, d, e, f, g, hh, i] = h;
+  const A = e * i - f * hh, B = -(d * i - f * g), C = d * hh - e * g;
+  const det = a * A + b * B + c * C; if (Math.abs(det) < 1e-12) return null;
+  return [A / det, -(b * i - c * hh) / det, (b * f - c * e) / det, B / det, (a * i - c * g) / det, -(a * f - c * d) / det, C / det, -(a * hh - b * g) / det, (a * e - b * d) / det];
+}
+function applyH(h, p) { const w = h[6] * p[0] + h[7] * p[1] + h[8]; return [(h[0] * p[0] + h[1] * p[1] + h[2]) / w, (h[3] * p[0] + h[4] * p[1] + h[5]) / w]; }
+function normToCourt(p) { return courtH ? applyH(courtH, p) : null; }
+function courtToNorm(c) { return courtHinv ? applyH(courtHinv, c) : [0, 0]; }
+function rebuildCourt() {
+  courtH = courtHinv = null;
+  if (!S.court || !S.court.pts || S.court.pts.length !== 4) return;
+  const dst = PAINT_CORNERS.map(([x, y]) => [S.court.mirror ? -x : x, y]);
+  courtH = solveHomography(S.court.pts, dst);
+  courtHinv = courtH ? invert3(courtH) : null;
+  if (!courtH) toast('Those four taps don’t make a paint. Try again.');
+}
+// feet point of anything that stands on the floor
+function footOf(o) {
+  if (o.type === 'token' || o.type === 'figure') return o.p;
+  if (o.type === 'cutout') return [o.to[0] + o.bw * o.scale / 2, o.to[1] + o.bh * o.scale * 0.96];
+  return null;
+}
+let panelRect = null;
+function courtPanelRect() {
+  const m = fit.h * 0.02;
+  const ph = S.courtMode === 'large' ? fit.h * 0.9 : fit.h * 0.36;
+  return { x: fit.x + fit.w - ph * (50 / 47) - m, y: fit.y + m, w: ph * (50 / 47), h: ph };
+}
+function drawCourtPanel(objs) {
+  const R = panelRect = courtPanelRect();
+  // decide half or full court: full if anything sits past half court
+  const pts = objs.map(o => { const f = footOf(o); return f ? normToCourt(f) : null; }).filter(Boolean);
+  const full = pts.some(p => p[1] > 47);
+  const L = full ? COURT.L : 47;
+  const cx = (x) => R.x + (x + 25) / 50 * R.w, cy = (y) => R.y + R.h - (y / L) * R.h;
+  const ft = R.h / L; // px per foot (vertical)
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 16;
+  ctx.fillStyle = 'rgba(14,14,16,.92)'; ctx.fillRect(R.x, R.y, R.w, R.h); ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1; ctx.strokeRect(R.x, R.y, R.w, R.h);
+  // floor
+  ctx.fillStyle = '#c99a5b'; ctx.fillRect(cx(-25), cy(L), R.w, R.h);
+  ctx.fillStyle = '#b8864a'; ctx.fillRect(cx(-6), cy(COURT.ftY), 12 * (R.w / 50), COURT.ftY * ft);
+  if (full) ctx.fillRect(cx(-6), cy(COURT.L), 12 * (R.w / 50), COURT.ftY * ft);
+  ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1, ft * 0.35);
+  const lines = (yFlip) => {
+    const Y = (y) => cy(yFlip ? COURT.L - y : y);
+    ctx.strokeRect(cx(-6), Math.min(Y(0), Y(COURT.ftY)), 12 * (R.w / 50), COURT.ftY * ft);
+    ctx.beginPath(); ctx.arc(cx(0), Y(COURT.ftY), COURT.circleR * ft, 0, Math.PI * 2); ctx.stroke();
+    // 3-pt arc (HS: pure arc 19'9" from rim center)
+    const rimY = yFlip ? COURT.L - COURT.rimY : COURT.rimY;
+    ctx.beginPath();
+    const a0 = Math.asin(Math.min(1, (25 - 0.1) / COURT.arcR));
+    if (!yFlip) ctx.arc(cx(0), cy(rimY), COURT.arcR * ft, -Math.PI / 2 - a0, -Math.PI / 2 + a0);
+    else ctx.arc(cx(0), cy(rimY), COURT.arcR * ft, Math.PI / 2 - a0, Math.PI / 2 + a0);
+    ctx.stroke();
+    // rim + backboard
+    ctx.beginPath(); ctx.arc(cx(0), cy(rimY), 0.75 * ft, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx(-3), cy(yFlip ? COURT.L - 4 : 4)); ctx.lineTo(cx(3), cy(yFlip ? COURT.L - 4 : 4)); ctx.stroke();
+  };
+  lines(false); if (full) lines(true);
+  // half-court line + circle
+  ctx.beginPath(); ctx.moveTo(cx(-25), cy(42)); ctx.lineTo(cx(25), cy(42)); ctx.stroke();
+  if (full) { ctx.beginPath(); ctx.arc(cx(0), cy(42), COURT.circleR * ft, 0, Math.PI * 2); ctx.stroke(); }
+  else { ctx.beginPath(); ctx.arc(cx(0), cy(42), COURT.circleR * ft, 0, Math.PI); ctx.stroke(); }
+  ctx.strokeRect(cx(-25), cy(L), R.w, R.h);
+  // clip everything below to the panel
+  ctx.beginPath(); ctx.rect(R.x, R.y, R.w, R.h); ctx.clip();
+  const mapPt = (p) => { const c = normToCourt(p); return [cx(c[0]), cy(c[1])]; };
+  const cmapPt = (c) => [cx(c[0]), cy(c[1])];
+  // drawings projected onto the court
+  for (const o of objs) {
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = o.color || '#fff'; ctx.lineWidth = Math.max(2, (o.width || 4) * 0.45);
+    if (o.type === 'pen' || o.type === 'cpen') { const P = o.type === 'pen' ? o.pts.map(mapPt) : o.pts.map(cmapPt); ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); }
+    else if (o.type === 'arrow' || o.type === 'carrow') { const a = o.type === 'arrow' ? mapPt(o.a) : cmapPt(o.a), b = o.type === 'arrow' ? mapPt(o.b) : cmapPt(o.b); const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = 9; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.fillStyle = o.color; ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(b[0] - hl * Math.cos(ang - 0.5), b[1] - hl * Math.sin(ang - 0.5)); ctx.lineTo(b[0] - hl * Math.cos(ang + 0.5), b[1] - hl * Math.sin(ang + 0.5)); ctx.fill(); }
+    else if (o.type === 'zone') { const a = mapPt(o.a), b = mapPt(o.b), c = mapPt([o.b[0], o.a[1]]), d = mapPt([o.a[0], o.b[1]]); ctx.fillStyle = hexA(o.color, 0.25); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(d[0], d[1]); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
+  // players
+  const tr = Math.max(7, ft * 1.4);
+  for (const o of objs) {
+    const f = footOf(o); if (!f) continue;
+    if (o.type === 'cutout' && o.ghost !== false) { const g = mapPt([o.from[0] + o.bw / 2, o.from[1] + o.bh * 0.96]); const t = mapPt(f); ctx.save(); ctx.globalAlpha = 0.45; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(g[0], g[1], tr, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.8; ctx.setLineDash([4, 4]); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(g[0], g[1]); ctx.lineTo(t[0], t[1]); ctx.stroke(); ctx.restore(); }
+    const p = mapPt(f);
+    ctx.save();
+    ctx.fillStyle = o.color || '#fff'; ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 4;
+    ctx.beginPath(); ctx.arc(p[0], p[1], tr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (o.type === 'figure') { const dx = Math.sin(o.yaw), dy = -Math.cos(o.yaw); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + dx * tr * 2.2, p[1] + dy * tr * 2.2); ctx.stroke(); }
+    if (o.num) { ctx.shadowBlur = 0; ctx.fillStyle = '#111'; ctx.font = `900 ${tr * 1.25}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.num, p[0], p[1] + 0.5); }
+    if (o === S.selected && !IS_TV) { ctx.strokeStyle = '#fff'; ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p[0], p[1], tr + 5, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
+  ctx.restore();
+  panelRect.L = L;
+}
+function panelToCourt(px, py) { // stage px -> court ft
+  const R = panelRect; if (!R) return null;
+  return [(px - R.x) / R.w * 50 - 25, (R.y + R.h - py) / R.h * (R.L || 47)];
+}
+function inPanel(px, py) { const R = panelRect; return R && S.courtMode !== 'off' && px >= R.x && px <= R.x + R.w && py >= R.y && py <= R.y + R.h; }
+function stagePx(clientX, clientY) { const r = stage.getBoundingClientRect(); return [(clientX - r.left) / S.view.s, (clientY - r.top) / S.view.s]; }
+function drawCalib() {
+  const pts = S.calib.pts;
+  ctx.save();
+  pts.forEach((p, i) => { const x = nx(p[0]), y = ny(p[1]); ctx.fillStyle = '#FF6A1F'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = '900 13px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(i + 1), x, y); });
+  if (pts.length > 1) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; const order = [0, 1, 3, 2]; ctx.beginPath(); order.filter(i => pts[i]).forEach((i, k) => k ? ctx.lineTo(nx(pts[i][0]), ny(pts[i][1])) : ctx.moveTo(nx(pts[i][0]), ny(pts[i][1]))); if (pts.length === 4) ctx.closePath(); ctx.stroke(); }
+  ctx.restore();
+}
+function startCalib() {
+  if (!S.clip) { toast('Load a clip first'); return; }
+  if (!video.paused) video.pause();
+  S.calib = { pts: [] }; S.selected = null; updateObjbar();
+  $('wizard').hidden = false; wizText(); requestRender();
+}
+function wizText() {
+  const n = S.calib ? S.calib.pts.length : 4;
+  $('wizText').textContent = n < 4 ? `${n + 1}/4 · ${CALIB_STEPS[n]}` : 'Court set. Tag players, or ✨ auto-tag them.';
+  $('wizAuto').hidden = n < 4 && !courtH; $('wizMirror').hidden = !courtH && n < 4; $('wizClear').hidden = !S.court;
+}
+function calibTap(x, y) {
+  S.calib.pts.push([x, y]);
+  if (S.calib.pts.length === 4) { S.court = { pts: S.calib.pts.slice(), mirror: false }; rebuildCourt(); if (courtH) { S.courtMode = 'small'; $('courtBtn').classList.add('on'); saveCourt(); sendCourt(); } else { S.court = null; S.calib.pts = []; } }
+  wizText(); requestRender();
+}
+function endCalib() { S.calib = null; $('wizard').hidden = true; requestRender(); }
+$('courtBtn').onclick = () => {
+  if (!S.court) return startCalib();
+  S.courtMode = S.courtMode === 'off' ? 'small' : S.courtMode === 'small' ? 'large' : 'off';
+  $('courtBtn').classList.toggle('on', S.courtMode !== 'off');
+  if (S.courtMode === 'off') endCalib(); else { $('wizard').hidden = false; wizText(); }
+  sendCourt(); requestRender();
+};
+$('wizUndo').onclick = () => { if (S.calib && S.calib.pts.length) { S.calib.pts.pop(); wizText(); requestRender(); } };
+$('wizMirror').onclick = () => { if (!S.court) return; S.court.mirror = !S.court.mirror; rebuildCourt(); saveCourt(); sendCourt(); requestRender(); };
+$('wizClear').onclick = () => { S.court = null; S.courtMode = 'off'; rebuildCourt(); $('courtBtn').classList.remove('on'); saveCourt(); sendCourt(); endCalib(); };
+$('wizDone').onclick = endCalib;
+function sendCourt() { send({ type: 'court', court: S.court, mode: S.courtMode }); }
+function courtKey() { return 'j3film-court:' + (S.clip ? S.clip.key : ''); }
+async function saveCourt() {
+  try { if (S.court) localStorage.setItem(courtKey(), JSON.stringify(S.court)); else localStorage.removeItem(courtKey()); } catch {}
+  if (S.clip && S.clip.id && sb) await sb.from('film_clips').update({ court: S.court }).eq('id', S.clip.id);
+}
+async function loadCourt() {
+  S.court = null; S.courtMode = 'off'; $('courtBtn').classList.remove('on');
+  let c = null;
+  try { c = JSON.parse(localStorage.getItem(courtKey()) || 'null'); } catch {}
+  if (!c && S.clip && S.clip.id && sb) { const { data } = await sb.from('film_clips').select('court').eq('id', S.clip.id).single(); c = data && data.court; }
+  if (c && c.pts && c.pts.length === 4) { S.court = c; rebuildCourt(); if (courtH) { S.courtMode = 'small'; $('courtBtn').classList.add('on'); } }
+  else rebuildCourt();
+  sendCourt(); requestRender();
+}
+
+/* ---- AI auto-tag: detect people in the frozen frame, drop a token at each player's feet, split into two teams by jersey colour ---- */
+let detector = null;
+async function autoTag() {
+  if (!S.clip || !video.videoWidth) return;
+  if (!video.paused) video.pause();
+  const btn = $('wizAuto'); btn.disabled = true; btn.textContent = '✨ Looking…';
+  try {
+    if (!detector) {
+      const vis = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12');
+      const files = await vis.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm');
+      detector = await vis.ObjectDetector.createFromOptions(files, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float16/1/efficientdet_lite2.tflite', delegate: 'GPU' }, scoreThreshold: 0.3, maxResults: 20, runningMode: 'IMAGE' });
+    }
+    const res = detector.detect(video);
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const people = (res.detections || []).filter(d => d.categories.some(c => c.categoryName === 'person')).map(d => d.boundingBox);
+    if (!people.length) { toast('No players found in this frame. Tag them by hand with the Tag tool.'); return; }
+    // jersey colour sample from the chest area of each box
+    const c = document.createElement('canvas'); c.width = vw; c.height = vh; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(video, 0, 0);
+    const feats = people.map(b => { const x = Math.round(b.originX + b.width * 0.3), y = Math.round(b.originY + b.height * 0.22), w = Math.max(2, Math.round(b.width * 0.4)), h = Math.max(2, Math.round(b.height * 0.25)); const d = g.getImageData(x, y, w, h).data; let r = 0, gg = 0, bb = 0, n = 0; for (let i = 0; i < d.length; i += 16) { r += d[i]; gg += d[i + 1]; bb += d[i + 2]; n++; } return [r / n, gg / n, bb / n]; });
+    // 2-means on colour
+    let ca = feats[0], cb = feats.reduce((p, f) => dist(f, feats[0]) > dist(p, feats[0]) ? f : p, feats[0]);
+    let assign = [];
+    for (let it = 0; it < 8; it++) { assign = feats.map(f => dist(f, ca) <= dist(f, cb) ? 0 : 1); const mean = (k) => { const m = [0, 0, 0]; let n = 0; feats.forEach((f, i) => { if (assign[i] === k) { m[0] += f[0]; m[1] += f[1]; m[2] += f[2]; n++; } }); return n ? m.map(v => v / n) : null; }; ca = mean(0) || ca; cb = mean(1) || cb; }
+    pushHistory();
+    S.objects = S.objects.filter(o => o.type !== 'token' || !o.auto);
+    people.forEach((b, i) => { S.objects.push({ type: 'token', id: uid(), p: [(b.originX + b.width / 2) / vw, (b.originY + b.height) / vh], color: assign[i] === 0 ? COLORS[0] : COLORS[1], num: '', auto: true, layer: 'a' }); });
+    sendObjects(); requestRender();
+    toast(`${people.length} players tagged. Tap a token with Move to fix a colour or add a number.`);
+  } catch (e) { console.error(e); toast('Auto-tag failed: ' + (e.message || e)); }
+  finally { btn.disabled = false; btn.textContent = '✨ Auto-tag players'; }
+}
+function dist(a, b) { return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2; }
+$('wizAuto').onclick = autoTag;
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/* ---- cut-outs: a lasso'd piece of the paused frame you can drag; a ghost stays behind ---- */
+const imgCache = new Map();
+function cutImage(o) {
+  let im = imgCache.get(o.id);
+  if (!im) { im = new Image(); im.onload = requestRender; im.src = o.img; imgCache.set(o.id, im); }
+  return im.complete && im.naturalWidth ? im : null;
+}
+function drawCutout(o) {
+  const im = cutImage(o); if (!im) return;
+  const bw = o.bw * fit.w, bh = o.bh * fit.h; // original bbox size on stage
+  if (o.ghost !== false) {
+    ctx.save(); ctx.globalAlpha = 0.38; ctx.filter = 'grayscale(1) brightness(1.15)';
+    ctx.drawImage(im, nx(o.from[0]), ny(o.from[1]), bw, bh); ctx.restore();
+    // dashed path from ghost to new spot
+    const gx = nx(o.from[0]) + bw / 2, gy = ny(o.from[1]) + bh * 0.92;
+    const tx = nx(o.to[0]) + bw * o.scale / 2, ty = ny(o.to[1]) + bh * o.scale * 0.92;
+    if (Math.hypot(tx - gx, ty - gy) > 12) {
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.setLineDash([8, 7]); ctx.lineWidth = 3 * (fit.w / 1280);
+      ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(tx, ty); ctx.stroke(); ctx.restore();
+    }
+  }
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+  const w = bw * o.scale, h = bh * o.scale, x = nx(o.to[0]), y = ny(o.to[1]);
+  if (o.flip) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, w, h); }
+  else ctx.drawImage(im, x, y, w, h);
+  ctx.restore();
+}
+function bbox(pts) {
+  let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+  for (const p of pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+  return { x0: clamp(x0, 0, 1), y0: clamp(y0, 0, 1), x1: clamp(x1, 0, 1), y1: clamp(y1, 0, 1) };
+}
+function liftFromLasso(pts) {
+  if (pts.length < 6 || !video.videoWidth) return null;
+  const b = bbox(pts);
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const px = Math.floor(b.x0 * vw), py = Math.floor(b.y0 * vh);
+  const pw = Math.max(2, Math.ceil((b.x1 - b.x0) * vw)), ph = Math.max(2, Math.ceil((b.y1 - b.y0) * vh));
+  const c = document.createElement('canvas'); c.width = pw; c.height = ph;
+  const g = c.getContext('2d');
+  g.beginPath(); pts.forEach((p, i) => { const X = p[0] * vw - px, Y = p[1] * vh - py; i ? g.lineTo(X, Y) : g.moveTo(X, Y); });
+  g.closePath(); g.clip();
+  try { g.drawImage(video, px, py, pw, ph, 0, 0, pw, ph); } catch (e) { console.warn(e); return null; }
+  let img;
+  try { img = c.toDataURL('image/png'); } catch (e) { toast('Can’t lift from this video source (CORS). Open it from Files instead.'); return null; }
+  return { type: 'cutout', id: uid(), img, from: [b.x0, b.y0], to: [b.x0, b.y0], bw: b.x1 - b.x0, bh: b.y1 - b.y0, scale: 1, ghost: true, flip: false, layer: S.answerMode ? 'b' : 'a' };
+}
+
+/* ---- 3D player figure (three.js, rendered offscreen and composited into the ink canvas) ---- */
+let THREE = null, fig3d = null, threeLoading = null;
+async function ensureThree() {
+  if (fig3d) return fig3d;
+  if (!threeLoading) threeLoading = (async () => {
+    THREE = await import('three');
+    const W = 320, H = 420;
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1); renderer.setSize(W, H); renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(28, W / H, 0.1, 50);
+    camera.position.set(0, 2.2, 6.2); camera.lookAt(0, 0.95, 0);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a44, 1.35));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(2, 5, 4); scene.add(sun);
+    const group = new THREE.Group(); scene.add(group);
+    const skin = new THREE.MeshStandardMaterial({ color: 0x8d5a3b, roughness: 0.8 });
+    const jersey = new THREE.MeshStandardMaterial({ color: 0xff6a1f, roughness: 0.6 });
+    const shorts = new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.8 });
+    const shoe = new THREE.MeshStandardMaterial({ color: 0xf2f2f2, roughness: 0.5 });
+    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); group.add(m); return m; };
+    add(new THREE.SphereGeometry(0.13, 24, 18), skin, 0, 1.63, 0);
+    add(new THREE.SphereGeometry(0.06, 12, 10), shorts, 0, 1.6, 0.1); // face marker so "front" reads on TV
+    add(new THREE.CapsuleGeometry(0.2, 0.42, 6, 18), jersey, 0, 1.2, 0);
+    add(new THREE.CylinderGeometry(0.2, 0.23, 0.3, 18), shorts, 0, 0.82, 0);
+    // arms out: defensive stance
+    add(new THREE.CapsuleGeometry(0.06, 0.5, 4, 12), skin, -0.42, 1.28, 0.05, 0, 0, 1.25);
+    add(new THREE.CapsuleGeometry(0.06, 0.5, 4, 12), skin, 0.42, 1.28, 0.05, 0, 0, -1.25);
+    // legs bent, wide
+    add(new THREE.CapsuleGeometry(0.075, 0.55, 4, 12), skin, -0.17, 0.38, 0.03, 0.12, 0, 0.18);
+    add(new THREE.CapsuleGeometry(0.075, 0.55, 4, 12), skin, 0.17, 0.38, 0.03, 0.12, 0, -0.18);
+    add(new THREE.SphereGeometry(0.1, 12, 10), shoe, -0.23, 0.06, 0.08);
+    add(new THREE.SphereGeometry(0.1, 12, 10), shoe, 0.23, 0.06, 0.08);
+    fig3d = { renderer, scene, camera, group, jersey, canvas: renderer.domElement, W, H };
+    requestRender();
+    return fig3d;
+  })();
+  return threeLoading;
+}
+function drawFigure(o) {
+  const h = o.h * fit.h; // figure height on stage
+  const x = nx(o.p[0]), y = ny(o.p[1]); // feet point
+  // floor ring + facing arrow (perspective-squashed)
+  const ry = h * 0.09, rx = h * 0.26;
+  ctx.save();
+  ctx.strokeStyle = hexA(o.color, 0.95); ctx.fillStyle = hexA(o.color, 0.22); ctx.lineWidth = Math.max(2, h * 0.02);
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  const dx = Math.sin(o.yaw), dy = -Math.cos(o.yaw) * (ry / rx);
+  const L = rx * 1.55, ax = x + dx * L, ay = y + dy * L;
+  ctx.beginPath(); ctx.moveTo(x + dx * rx * 0.9, y + dy * rx * 0.9); ctx.lineTo(ax, ay); ctx.stroke();
+  const ang = Math.atan2(ay - y, ax - x), hl = Math.max(8, h * 0.07);
+  ctx.fillStyle = hexA(o.color, 0.95); ctx.beginPath(); ctx.moveTo(ax, ay);
+  ctx.lineTo(ax - hl * Math.cos(ang - 0.5), ay - hl * Math.sin(ang - 0.5)); ctx.lineTo(ax - hl * Math.cos(ang + 0.5), ay - hl * Math.sin(ang + 0.5)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  if (!fig3d) { ensureThree(); // placeholder while three.js loads
+    ctx.save(); ctx.fillStyle = hexA(o.color, 0.8); ctx.fillRect(x - h * 0.12, y - h, h * 0.24, h); ctx.restore();
+  } else {
+    const F = fig3d;
+    F.group.rotation.y = o.yaw + Math.PI; // yaw 0 = facing the camera (toward the viewer)
+    F.jersey.color.set(o.color);
+    F.renderer.render(F.scene, F.camera);
+    const fw = h * (F.W / F.H) * 1.02, fh = h * 1.02;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+    ctx.drawImage(F.canvas, x - fw / 2, y - fh + h * 0.03, fw, fh); ctx.restore();
+  }
+  if (o.num) {
+    const size = h * 0.16;
+    ctx.save(); ctx.font = `900 ${size}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * 0.2; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(o.num, x, y - h * 1.12);
+    ctx.fillStyle = '#fff'; ctx.fillText(o.num, x, y - h * 1.12); ctx.restore();
+  }
+}
+function drawSelection(o) {
+  const r = objRect(o); if (!r) return;
+  ctx.save(); ctx.strokeStyle = '#fff'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+  ctx.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12); ctx.restore();
+}
+function objRect(o) {
+  if (o.type === 'cutout') return { x: nx(o.to[0]), y: ny(o.to[1]), w: o.bw * fit.w * o.scale, h: o.bh * fit.h * o.scale };
+  if (o.type === 'figure') { const h = o.h * fit.h; return { x: nx(o.p[0]) - h * 0.3, y: ny(o.p[1]) - h * 1.02, w: h * 0.6, h: h * 1.12 }; }
+  if (o.type === 'token') { const r = Math.max(10, fit.w * 0.016); return { x: nx(o.p[0]) - r * 1.5, y: ny(o.p[1]) - r * 2.4, w: r * 3, h: r * 3.2 }; }
+  if (o.type === 'text') { const size = (o.size || 44) * (fit.w / 1280); ctx.font = `900 ${size}px Inter, system-ui, sans-serif`; const w = ctx.measureText(o.s).width; return { x: nx(o.p[0]) - 4, y: ny(o.p[1]) - size * 0.6, w: w + 8, h: size * 1.2 }; }
+  return null;
+}
+function hitTest(px, py) {
+  const r0 = stage.getBoundingClientRect();
+  const sx = (px - r0.left) / S.view.s, sy = (py - r0.top) / S.view.s;
+  for (let i = S.objects.length - 1; i >= 0; i--) {
+    const r = objRect(S.objects[i]); if (!r) continue;
+    if (sx >= r.x - 10 && sx <= r.x + r.w + 10 && sy >= r.y - 10 && sy <= r.y + r.h + 10) return S.objects[i];
+  }
+  return null;
+}
+
+/* ---------------- broadcast channel (coach <-> tv) ---------------- */
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL) : null;
+function send(msg) { if (bc) try { bc.postMessage(msg); } catch (e) { console.warn('bc', e); } }
+function sendObjects() { send({ type: 'objects', objects: S.objects, reveal: S.reveal }); }
+function sendTime(extra = {}) { send({ type: 'time', t: video.currentTime, playing: !video.paused, rate: S.rate, ...extra }); }
+function sendClip() {
+  if (!S.clip) return;
+  const m = { type: 'clip', title: S.clip.title, key: S.clip.key, session: SESSION };
+  if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
+  send(m);
+}
+function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); }
+
+/* ---------------- video ---------------- */
+let rvfcLast = null, fpsSamples = [];
+function onFrame(now, meta) {
+  if (rvfcLast != null && !S.fpsLocked) {
+    const d = meta.mediaTime - rvfcLast;
+    if (d > 0.004 && d < 0.2) { fpsSamples.push(1 / d); if (fpsSamples.length > 40) fpsSamples.shift(); }
+    if (fpsSamples.length >= 20) {
+      const sorted = [...fpsSamples].sort((a, b) => a - b); const med = sorted[sorted.length >> 1];
+      const cands = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 120];
+      S.fps = cands.reduce((p, c) => Math.abs(c - med) < Math.abs(p - med) ? c : p, 30);
+      $('fpsVal').textContent = S.fps.toFixed(2).replace(/\.?0+$/, '') + ' fps';
+    }
+  }
+  rvfcLast = meta.mediaTime;
+  // loop
+  if (!video.paused && S.loop.a != null && S.loop.b != null && video.currentTime >= S.loop.b) video.currentTime = S.loop.a;
+  updateTimeline();
+  if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(onFrame);
+}
+if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(onFrame);
+else video.addEventListener('timeupdate', updateTimeline);
+
+function fmt(t) { if (!isFinite(t)) return '0:00.00'; const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(2).padStart(5, '0')}`; }
+function updateTimeline() {
+  if (IS_TV) return;
+  const d = video.duration || 0, t = video.currentTime || 0, p = d ? t / d : 0;
+  $('played').style.width = (p * 100) + '%';
+  $('head').style.left = (p * 100) + '%';
+  $('tc').textContent = fmt(t);
+  const lb = $('loopband');
+  if (S.loop.a != null && S.loop.b != null && d) { lb.hidden = false; lb.style.left = (S.loop.a / d * 100) + '%'; lb.style.width = ((S.loop.b - S.loop.a) / d * 100) + '%'; }
+  else lb.hidden = true;
+}
+function seek(t, opts = {}) {
+  const d = video.duration || 0;
+  video.currentTime = clamp(t, 0, d ? d - 0.001 : t);
+  if (!opts.silent) sendTime();
+}
+function step(n) { if (!video.paused) video.pause(); seek(video.currentTime + n / S.fps + (n > 0 ? 0.0005 : -0.0005)); }
+function togglePlay() { if (video.paused) play(); else pause(); }
+function play() {
+  if (!S.clip) return;
+  if (S.loop.a != null && S.loop.b != null && (video.currentTime < S.loop.a || video.currentTime >= S.loop.b)) video.currentTime = S.loop.a;
+  if (S.settings.clearOnPlay && S.objects.length) { pushHistory(); S.objects = []; S.selected = null; sendObjects(); requestRender(); updateObjbar(); }
+  video.playbackRate = S.rate;
+  video.play().catch(e => toast('Tap play again (' + e.message + ')'));
+}
+function pause() { video.pause(); }
+video.addEventListener('play', () => { setPlayIcon(true); sendTime(); });
+video.addEventListener('pause', () => { setPlayIcon(false); sendTime(); });
+video.addEventListener('seeked', () => { updateTimeline(); if (!IS_TV) sendTime(); });
+video.addEventListener('loadedmetadata', () => { computeFit(); layoutStage(); updateTimeline(); });
+video.addEventListener('ended', () => { setPlayIcon(false); });
+function setPlayIcon(playing) {
+  const d = playing ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>' : '<path d="M7 5l12 7-12 7z"/>';
+  $('playIcon').innerHTML = d;
+  $('pPlay').querySelector('svg').innerHTML = d;
+}
+setInterval(() => { if (!IS_TV && S.clip && !video.paused) sendTime(); }, 400);
+
+function loadClip(clip) {
+  S.clip = clip; S.objects = []; S.history = []; S.live = null; S.selected = null; S.loop = { a: null, b: null };
+  S.view = { s: 1, x: 0, y: 0 }; applyView();
+  fpsSamples = []; rvfcLast = null; S.fpsLocked = false;
+  video.src = clip.src; video.load();
+  $('empty').hidden = true; $('tvidle').hidden = true;
+  if (!IS_TV) {
+    $('uploadBox').hidden = !clip.local;
+    if (clip.local) $('uploadTitle').value = clip.title.replace(/\.[a-z0-9]+$/i, '');
+    $('loopClear').hidden = true; $('loopA').classList.remove('on'); $('loopB').classList.remove('on');
+    setTimeout(() => { sendClip(); sendObjects(); send({ type: 'view', view: S.view }); }, 50);
+    loadMarks();
+    loadCourt();
+    renderClipList();
+    updateObjbar();
+  }
+  requestRender();
+}
+
+/* ---------------- pointer input (Pencil + touch) ---------------- */
+const pointers = new Map();
+let drag = null;     // {mode:'draw'|'move'|'pinch'|..., ...}
+let lastTap = 0;
+ink.addEventListener('pointerdown', onDown);
+ink.addEventListener('pointermove', onMove);
+ink.addEventListener('pointerup', onUp);
+ink.addEventListener('pointercancel', onUp);
+ink.addEventListener('pointerleave', (e) => { if (e.pointerType === 'pen') hideCursor(); });
+ink.addEventListener('contextmenu', e => e.preventDefault());
+
+function onDown(e) {
+  if (IS_TV) return;
+  e.preventDefault();
+  closeTextEntry(false);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+  if (pointers.size === 2) { startPinch(); return; }
+  if (pointers.size > 2) return;
+  const isPen = e.pointerType === 'pen';
+  const [x, y] = toNorm(e.clientX, e.clientY);
+  try { ink.setPointerCapture(e.pointerId); } catch {}
+  tapStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  if (S.wipe != null) { drag = { mode: 'wipe', id: e.pointerId }; setWipe(x); return; }
+  if (S.calib && S.calib.pts.length < 4) { calibTap(x, y); drag = { mode: 'none', id: e.pointerId }; return; }
+  // top-view panel: drag a player on the court, or draw on the court
+  const [spx, spy] = stagePx(e.clientX, e.clientY);
+  if (inPanel(spx, spy)) {
+    const c = panelToCourt(spx, spy);
+    const hitTok = S.objects.slice().reverse().find(o => { const f = footOf(o); if (!f) return false; const q = normToCourt(f); return q && Math.hypot(q[0] - c[0], q[1] - c[1]) < 2.2; });
+    if (hitTok) { S.selected = hitTok; drag = { mode: 'cmove', id: e.pointerId, obj: hitTok, moved: false }; updateObjbar(); requestRender(); return; }
+    if (S.tool === 'pen' || S.tool === 'arrow') {
+      const layer = S.answerMode ? 'b' : 'a';
+      S.live = S.tool === 'pen' ? { type: 'cpen', id: uid(), pts: [c], color: S.color, width: S.width, layer } : { type: 'carrow', id: uid(), a: c, b: c, color: S.color, width: S.width, layer };
+      drag = { mode: 'cdraw', id: e.pointerId }; requestRender(); return;
+    }
+    drag = { mode: 'none', id: e.pointerId }; return;
+  }
+  if (S.tool === 'token') {
+    pushHistory();
+    const t = { type: 'token', id: uid(), p: [x, y], color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
+    S.objects.push(t); S.selected = t; drag = { mode: 'move', id: e.pointerId, obj: t, start: [x, y], orig: [x, y], moved: false };
+    updateObjbar(); sendObjects(); requestRender(); return;
+  }
+  // selection / move first (any pointer type)
+  const hit = hitTest(e.clientX, e.clientY);
+  if (S.tool === 'move' || (hit && (hit === S.selected || !isPen && !S.settings.fingerDraws))) {
+    S.selected = hit;
+    drag = hit ? { mode: 'move', id: e.pointerId, obj: hit, start: [x, y], orig: JSON.parse(JSON.stringify(hit.type === 'figure' ? hit.p : hit.to)), moved: false } : { mode: 'none', id: e.pointerId };
+    updateObjbar(); requestRender(); return;
+  }
+  if (!isPen && !S.settings.fingerDraws) { drag = { mode: 'none', id: e.pointerId }; return; }
+  if (S.tool === 'figure') {
+    pushHistory();
+    const f = { type: 'figure', id: uid(), p: [x, y], yaw: 0, h: 0.28, color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
+    S.objects.push(f); S.selected = f; ensureThree();
+    drag = { mode: 'move', id: e.pointerId, obj: f, start: [x, y], orig: [x, y], moved: false };
+    updateObjbar(); sendObjects(); requestRender(); return;
+  }
+  if (S.tool === 'text') { openTextEntry(e.clientX, e.clientY, [x, y]); drag = { mode: 'none', id: e.pointerId }; return; }
+  S.selected = null; updateObjbar();
+  const layer = S.answerMode ? 'b' : 'a';
+  const pressure = isPen && e.pressure ? e.pressure : 0.5;
+  switch (S.tool) {
+    case 'pen': S.live = { type: 'pen', id: uid(), pts: [[x, y, pressure]], color: S.color, width: S.width, layer }; break;
+    case 'arrow': S.live = { type: 'arrow', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
+    case 'ellipse': S.live = { type: 'ellipse', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
+    case 'zone': S.live = { type: 'zone', id: uid(), a: [x, y], b: [x, y], color: S.color, width: Math.max(3, S.width * 0.6), layer }; break;
+    case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, layer }; break;
+    case 'lift': if (!video.paused) { toast('Pause first, then lasso the player'); drag = { mode: 'none', id: e.pointerId }; return; } S.live = { type: 'lasso', pts: [[x, y]] }; break;
+  }
+  drag = { mode: 'draw', id: e.pointerId };
+  requestRender();
+  if (S.live) send({ type: 'live', live: S.live });
+}
+function onMove(e) {
+  if (IS_TV) return;
+  if (e.pointerType === 'pen' && pointers.size === 0) { // hover
+    if (S.settings.hoverDot) { const [x, y] = toNorm(e.clientX, e.clientY); send({ type: 'cursor', x, y }); }
+    return;
+  }
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+  if (drag && drag.mode === 'pinch') { updatePinch(); return; }
+  if (!drag || drag.id !== e.pointerId) return;
+  const [x, y] = toNorm(e.clientX, e.clientY);
+  if (drag.mode === 'wipe') { setWipe(x); return; }
+  if (drag.mode === 'cmove' || drag.mode === 'cdraw') {
+    const [spx, spy] = stagePx(e.clientX, e.clientY); const c = panelToCourt(spx, spy); if (!c) return;
+    if (drag.mode === 'cmove') {
+      if (!drag.moved) { drag.moved = true; pushHistory(); }
+      const o = drag.obj, n = courtToNorm(c);
+      if (o.type === 'cutout') o.to = [n[0] - o.bw * o.scale / 2, n[1] - o.bh * o.scale * 0.96]; else o.p = n;
+      updateObjbar(); requestRender(); throttleSend(sendObjects); return;
+    }
+    if (S.live) { if (S.live.type === 'cpen') S.live.pts.push(c); else S.live.b = c; requestRender(); throttleSend(() => send({ type: 'live', live: S.live })); }
+    return;
+  }
+  if (drag.mode === 'move' && drag.obj) {
+    const dx = x - drag.start[0], dy = y - drag.start[1];
+    if (Math.hypot(dx, dy) > 0.002 && !drag.moved) { drag.moved = true; pushHistory(); }
+    if (drag.obj.type === 'figure') drag.obj.p = [drag.orig[0] + dx, drag.orig[1] + dy];
+    else if (drag.obj.type === 'cutout') drag.obj.to = [drag.orig[0] + dx, drag.orig[1] + dy];
+    else drag.obj.p = [drag.orig[0] + dx, drag.orig[1] + dy];
+    updateObjbar(); requestRender(); throttleSend(sendObjects); return;
+  }
+  if (drag.mode !== 'draw' || !S.live) return;
+  const L = S.live;
+  if (L.type === 'pen') {
+    let evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    if (!evs || !evs.length) evs = [e];
+    for (const ev of evs) { const [px, py] = toNorm(ev.clientX, ev.clientY); L.pts.push([px, py, ev.pressure || 0.5]); }
+  } else if (L.type === 'lasso') L.pts.push([x, y]);
+  else if (L.type === 'spot') L.r = Math.max(0.03, Math.hypot(x - L.c[0], (y - L.c[1]) * (fit.h / fit.w)));
+  else L.b = [x, y];
+  requestRender();
+  throttleSend(() => send({ type: 'live', live: S.live }));
+}
+function onUp(e) {
+  if (IS_TV) return;
+  pointers.delete(e.pointerId);
+  if (drag && drag.mode === 'pinch') { if (pointers.size < 2) drag = null; return; }
+  if (!drag || drag.id !== e.pointerId) return;
+  const d = drag; drag = null;
+  if (d.mode === 'wipe') return;
+  if (d.mode === 'move' || d.mode === 'cmove') { if (d.moved) sendObjects(); return; }
+  if (d.mode === 'cdraw') {
+    const L = S.live; S.live = null; send({ type: 'live', live: null });
+    if (L && ((L.type === 'cpen' && L.pts.length > 1) || (L.type === 'carrow' && Math.hypot(L.b[0] - L.a[0], L.b[1] - L.a[1]) > 0.5))) { pushHistory(); S.objects.push(L); }
+    sendObjects(); requestRender(); return;
+  }
+  // Kenny mode: a quick tap (no drag) is the whole interface
+  if (S.kenny && tapStart && performance.now() - tapStart.t < 320 && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) < 10 && d.mode !== 'none') {
+    S.live = null; send({ type: 'live', live: null });
+    kennyTap(...toNorm(e.clientX, e.clientY)); return;
+  }
+  if (d.mode !== 'draw' || !S.live) return;
+  const L = S.live; S.live = null;
+  if (L.type === 'lasso') {
+    const cut = liftFromLasso(L.pts);
+    if (cut) { pushHistory(); S.objects.push(cut); S.selected = cut; S.tool = 'move'; setToolUI(); updateObjbar(); toast('Lifted. Drag him where he should be.'); }
+  } else if (L.type === 'pen') {
+    if (L.pts.length > 1) { pushHistory(); S.objects.push(L); }
+  } else if (L.type === 'spot') { pushHistory(); S.objects.push(L); }
+  else {
+    if (Math.hypot(L.b[0] - L.a[0], L.b[1] - L.a[1]) > 0.01) { pushHistory(); S.objects.push(L); }
+  }
+  send({ type: 'live', live: null });
+  sendObjects(); requestRender();
+}
+let tapStart = null;
+/* ---- Kenny mode: tap a player = freeze + spotlight him; draw the correction; tap again = clear ---- */
+function kennyTap(x, y) {
+  if (S.objects.length) { clearInk(); toast('Cleared'); return; }
+  if (!video.paused) video.pause();
+  pushHistory();
+  S.objects.push({ type: 'spot', id: uid(), c: [x, y], r: 0.07, color: S.color, layer: 'a' });
+  S.tool = 'pen'; setToolUI(); sendObjects(); requestRender();
+}
+function setKenny(on) {
+  S.kenny = on; $('kennyBtn').classList.toggle('on', on); $('pKenny').classList.toggle('on', on);
+  if (on) { S.tool = 'pen'; setToolUI(); if (S.wipe != null) setWipeMode(false); toast('Kenny mode: tap a player to freeze + spotlight. Draw. Tap to clear.'); }
+}
+/* ---- Before/after wipe ---- */
+function setWipe(x) { S.wipe = clamp(x, 0, 1); requestRender(); throttleSend(() => send({ type: 'wipe', wipe: S.wipe })); }
+function setWipeMode(on) {
+  if (on && !S.objects.length) { toast('Nothing to compare yet. Move a player or draw the fix first.'); return; }
+  S.wipe = on ? 0.5 : null;
+  $('wipeBtn').classList.toggle('on', on); $('pWipe').classList.toggle('on', on);
+  if (on) { if (!video.paused) video.pause(); S.selected = null; updateObjbar(); toast('Drag the divider: left = what happened, right = the fix'); }
+  send({ type: 'wipe', wipe: S.wipe }); requestRender();
+}
+let throttleT = 0;
+function throttleSend(fn) { const now = performance.now(); if (now - throttleT > 16) { throttleT = now; fn(); } }
+
+// two-finger pinch = zoom/pan the stage (synced to the TV); pinch on a selected object = scale it
+function startPinch() {
+  const [a, b] = [...pointers.values()];
+  const d = Math.hypot(a.x - b.x, a.y - b.y);
+  if (S.live) { S.live = null; send({ type: 'live', live: null }); }
+  drag = { mode: 'pinch', d0: d, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, view0: { ...S.view }, obj: S.selected, s0: S.selected ? (S.selected.type === 'figure' ? S.selected.h : S.selected.scale) : null, ang0: Math.atan2(b.y - a.y, b.x - a.x), yaw0: S.selected && S.selected.type === 'figure' ? S.selected.yaw : 0 };
+}
+function updatePinch() {
+  const [a, b] = [...pointers.values()]; if (!a || !b) return;
+  const d = Math.hypot(a.x - b.x, a.y - b.y), k = d / drag.d0;
+  if (drag.obj) {
+    if (drag.obj.type === 'figure') { drag.obj.h = clamp(drag.s0 * k, 0.08, 0.9); drag.obj.yaw = drag.yaw0 + (Math.atan2(b.y - a.y, b.x - a.x) - drag.ang0); }
+    else if (drag.obj.type === 'cutout') drag.obj.scale = clamp(drag.s0 * k, 0.3, 4);
+    updateObjbar(); requestRender(); throttleSend(sendObjects); return;
+  }
+  const r = stagewrap.getBoundingClientRect();
+  const cx = drag.cx - r.left, cy = drag.cy - r.top;
+  const mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top;
+  const s = clamp(drag.view0.s * k, 1, 5);
+  // keep the point under the fingers fixed, then pan by finger travel
+  const ox = cx - (cx - drag.view0.x) * (s / drag.view0.s), oy = cy - (cy - drag.view0.y) * (s / drag.view0.s);
+  S.view = { s, x: ox + (mx - cx), y: oy + (my - cy) };
+  clampView(); applyView(); throttleSend(() => send({ type: 'view', view: S.view }));
+}
+function clampView() {
+  const W = stage.clientWidth * S.view.s, H = stage.clientHeight * S.view.s;
+  const ww = stagewrap.clientWidth, wh = stagewrap.clientHeight;
+  const sx = (ww - stage.clientWidth) / 2, sy = (wh - stage.clientHeight) / 2; // stage offset within wrap at scale 1
+  if (S.view.s === 1) { S.view.x = 0; S.view.y = 0; return; }
+  S.view.x = clamp(S.view.x, ww - W - sx, -sx); S.view.y = clamp(S.view.y, wh - H - sy, -sy);
+}
+stage.addEventListener('dblclick', () => { if (S.view.s !== 1) { S.view = { s: 1, x: 0, y: 0 }; applyView(); send({ type: 'view', view: S.view }); } });
+
+/* ---------------- Pencil cursor on TV ---------------- */
+function hideCursor() { send({ type: 'cursor', x: -1, y: -1 }); }
+
+/* ---------------- history ---------------- */
+function pushHistory() { S.history.push(JSON.stringify(S.objects)); if (S.history.length > 40) S.history.shift(); }
+function undo() {
+  if (!S.history.length) return;
+  S.objects = JSON.parse(S.history.pop()); S.selected = null; updateObjbar(); sendObjects(); requestRender();
+}
+function clearInk() { if (!S.objects.length) return; pushHistory(); S.objects = []; S.selected = null; updateObjbar(); sendObjects(); requestRender(); }
+
+/* ---------------- object bar ---------------- */
+function updateObjbar() {
+  const bar = $('objbar'), o = S.selected;
+  if (!o || IS_TV) { bar.classList.remove('show'); return; }
+  const r = objRect(o); if (!r) { bar.classList.remove('show'); return; }
+  const sr = stage.getBoundingClientRect(), wr = stagewrap.getBoundingClientRect();
+  const left = sr.left - wr.left + (r.x + r.w / 2) * S.view.s;
+  let top = sr.top - wr.top + r.y * S.view.s - 14;
+  if (top < 70) top = sr.top - wr.top + (r.y + r.h) * S.view.s + 70;
+  bar.style.left = clamp(left, 190, stagewrap.clientWidth - 190) + 'px'; bar.style.top = top + 'px';
+  bar.classList.add('show');
+  $('obRotL').hidden = $('obRotR').hidden = o.type === 'text' || o.type === 'token';
+  $('obSmaller').hidden = $('obBigger').hidden = o.type === 'token';
+  $('obGhost').hidden = o.type !== 'cutout'; $('obGhost').classList.toggle('on', o.type === 'cutout' && o.ghost !== false);
+  $('obColor').hidden = o.type === 'cutout'; $('obColor').querySelector('i').style.background = o.color || '#fff';
+  $('obNum').hidden = o.type !== 'figure' && o.type !== 'token';
+}
+$('obRotL').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.yaw -= Math.PI / 8; else if (o.type === 'cutout') o.flip = !o.flip; sendObjects(); requestRender(); };
+$('obRotR').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.yaw += Math.PI / 8; else if (o.type === 'cutout') o.flip = !o.flip; sendObjects(); requestRender(); };
+$('obSmaller').onclick = () => scaleSel(1 / 1.15); $('obBigger').onclick = () => scaleSel(1.15);
+function scaleSel(k) { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.h = clamp(o.h * k, 0.08, 0.9); else if (o.type === 'cutout') o.scale = clamp(o.scale * k, 0.3, 4); else if (o.type === 'text') o.size = clamp((o.size || 44) * k, 18, 160); updateObjbar(); sendObjects(); requestRender(); }
+$('obGhost').onclick = () => { const o = S.selected; if (!o || o.type !== 'cutout') return; pushHistory(); o.ghost = o.ghost === false; updateObjbar(); sendObjects(); requestRender(); };
+$('obColor').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); o.color = COLORS[(COLORS.indexOf(o.color) + 1) % COLORS.length]; updateObjbar(); sendObjects(); requestRender(); };
+$('obNum').onclick = () => { const o = S.selected; if (!o) return; const n = prompt('Jersey number', o.num || ''); if (n == null) return; pushHistory(); o.num = n.trim().slice(0, 3); sendObjects(); requestRender(); };
+$('obDel').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); S.objects = S.objects.filter(x => x !== o); S.selected = null; updateObjbar(); sendObjects(); requestRender(); };
+
+/* ---------------- text entry ---------------- */
+let textAt = null;
+function openTextEntry(cx, cy, norm) {
+  const wr = stagewrap.getBoundingClientRect();
+  const te = $('textentry'); te.style.left = clamp(cx - wr.left, 170, stagewrap.clientWidth - 170) + 'px'; te.style.top = (cy - wr.top) + 'px';
+  te.classList.add('show'); textAt = norm; $('textInput').value = ''; setTimeout(() => $('textInput').focus(), 30);
+}
+function closeTextEntry(commit) {
+  const te = $('textentry'); if (!te.classList.contains('show')) return;
+  const s = $('textInput').value.trim();
+  if (commit && s && textAt) { pushHistory(); S.objects.push({ type: 'text', id: uid(), p: textAt, s, color: S.color, size: 44, layer: S.answerMode ? 'b' : 'a' }); sendObjects(); requestRender(); }
+  te.classList.remove('show'); textAt = null; $('textInput').blur();
+}
+$('textOk').onclick = () => closeTextEntry(true);
+$('textInput').addEventListener('keydown', e => { if (e.key === 'Enter') closeTextEntry(true); if (e.key === 'Escape') closeTextEntry(false); });
+
+/* ---------------- UI wiring (coach) ---------------- */
+function setToolUI() { document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === S.tool)); }
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { S.tool = b.dataset.tool; if (S.tool !== 'move') { S.selected = null; updateObjbar(); requestRender(); } setToolUI(); }));
+const swEl = $('swatches');
+COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'sw' + (c === S.color ? ' on' : ''); b.style.background = c; b.onclick = () => { S.color = c; swEl.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); if (S.selected && (S.selected.type === 'figure' || S.selected.type === 'text')) { S.selected.color = c; sendObjects(); requestRender(); updateObjbar(); } }; swEl.appendChild(b); });
+const wdEl = $('widths');
+WIDTHS.forEach(w => { const b = document.createElement('button'); b.className = 'wd' + (w === S.width ? ' on' : ''); b.innerHTML = `<i style="height:${w}px"></i>`; b.onclick = () => { S.width = w; wdEl.querySelectorAll('.wd').forEach(x => x.classList.toggle('on', x === b)); }; wdEl.appendChild(b); });
+$('undoBtn').onclick = undo; $('clearBtn').onclick = clearInk;
+$('pUndo').onclick = undo; $('pClear').onclick = clearInk;
+$('play').onclick = togglePlay; $('pPlay').onclick = togglePlay;
+$('stepB').onclick = () => step(-1); $('stepF').onclick = () => step(1);
+$('pStepB').onclick = () => step(-1); $('pStepF').onclick = () => step(1);
+$('loopA').onclick = () => { S.loop.a = video.currentTime; if (S.loop.b != null && S.loop.b <= S.loop.a) S.loop.b = null; loopUI(); };
+$('loopB').onclick = () => { S.loop.b = video.currentTime; if (S.loop.a == null || S.loop.a >= S.loop.b) S.loop.a = Math.max(0, S.loop.b - 2); loopUI(); toast(`Loop ${fmt(S.loop.a)} → ${fmt(S.loop.b)}`); };
+$('loopClear').onclick = clearLoop; $('pLoop').onclick = () => { if (S.loop.a != null && S.loop.b != null) clearLoop(); else { S.loop = { a: Math.max(0, video.currentTime - 2), b: video.currentTime }; loopUI(); toast('Looping the last 2 seconds'); } };
+function clearLoop() { S.loop = { a: null, b: null }; loopUI(); }
+function loopUI() { $('loopA').classList.toggle('on', S.loop.a != null); $('loopB').classList.toggle('on', S.loop.b != null); $('loopClear').hidden = !(S.loop.a != null && S.loop.b != null); $('pLoop').classList.toggle('on', S.loop.a != null && S.loop.b != null); updateTimeline(); }
+document.querySelectorAll('#speed button').forEach(b => b.onclick = () => { S.rate = parseFloat(b.dataset.rate); video.playbackRate = S.rate; document.querySelectorAll('#speed button').forEach(x => x.classList.toggle('on', x === b)); sendTime(); });
+$('presentBtn').onclick = () => { app.classList.add('present'); setTimeout(layoutStage, 30); wakePill(); };
+$('pExit').onclick = () => { app.classList.remove('present'); setTimeout(layoutStage, 30); };
+function wakePill() { const p = $('pill'); p.classList.add('awake'); clearTimeout(wakePill.t); wakePill.t = setTimeout(() => p.classList.remove('awake'), 2500); }
+stagewrap.addEventListener('pointerdown', wakePill, true);
+$('answerBtn').onclick = () => { S.answerMode = !S.answerMode; $('answerBtn').classList.toggle('on', S.answerMode); $('answerflag').hidden = !S.answerMode; if (S.answerMode) { S.reveal = false; sendObjects(); requestRender(); toast('Answer layer on: what you draw now stays hidden on the TV until you Reveal'); } };
+$('pReveal').onclick = toggleReveal;
+$('kennyBtn').onclick = () => setKenny(!S.kenny); $('pKenny').onclick = () => setKenny(!S.kenny);
+$('wipeBtn').onclick = () => setWipeMode(S.wipe == null); $('pWipe').onclick = () => setWipeMode(S.wipe == null);
+function toggleReveal() { S.reveal = !S.reveal; $('pReveal').classList.toggle('on', S.reveal); sendObjects(); requestRender(); toast(S.reveal ? 'Revealed on TV' : 'Answer hidden on TV'); }
+$('answerflag').onclick = toggleReveal;
+$('fsBtn').onclick = () => { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || (() => toast('Add to Home Screen for a full-screen app'))).call(el); };
+$('tvBtn').onclick = openTV;
+function openTV() {
+  const u = new URL(location.href); u.search = '?tv'; u.hash = '';
+  const w = window.open(u.toString(), 'j3tv');
+  if (!w) toast('Pop-up blocked. Open ' + u.pathname + '?tv in a second window.');
+  else toast('TV window opened. Drag it onto the TV, then make it full screen.');
+}
+
+// scrubbing on the timeline track
+const track = $('track');
+track.addEventListener('pointerdown', e => { track.setPointerCapture(e.pointerId); scrubTo(e); track.dataset.on = 1; });
+track.addEventListener('pointermove', e => { if (track.dataset.on) scrubTo(e); });
+track.addEventListener('pointerup', () => { delete track.dataset.on; });
+function scrubTo(e) { const r = track.getBoundingClientRect(); const p = clamp((e.clientX - r.left) / r.width, 0, 1); if (!video.paused) video.pause(); seek(p * (video.duration || 0)); }
+// jog strip: drag = scrub by frames. slow drag = 1 frame per 6px, fast drag accelerates
+const jog = $('jog'); let jogX = null, jogAcc = 0;
+jog.addEventListener('pointerdown', e => { jog.setPointerCapture(e.pointerId); jogX = e.clientX; jogAcc = 0; jog.classList.add('active'); if (!video.paused) video.pause(); });
+jog.addEventListener('pointermove', e => { if (jogX == null) return; const dx = e.clientX - jogX; jogX = e.clientX; jogAcc += dx * (Math.abs(dx) > 14 ? 3 : 1); const frames = Math.trunc(jogAcc / 6); if (frames) { jogAcc -= frames * 6; seek(video.currentTime + frames / S.fps); } });
+jog.addEventListener('pointerup', () => { jogX = null; jog.classList.remove('active'); });
+jog.addEventListener('pointercancel', () => { jogX = null; jog.classList.remove('active'); });
+
+// keyboard (if a keyboard is attached)
+window.addEventListener('keydown', e => {
+  if (IS_TV || e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowLeft') step(e.shiftKey ? -10 : -1);
+  else if (e.key === 'ArrowRight') step(e.shiftKey ? 10 : 1);
+  else if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); }
+  else if (e.key === 'Escape') { app.classList.remove('present'); layoutStage(); }
+  else if (e.key === 'Backspace' && S.selected) $('obDel').onclick();
+});
+
+/* ---------------- drawers ---------------- */
+function openDrawer(name) { document.querySelectorAll('.drawer').forEach(d => d.classList.toggle('open', d.id === 'drawer-' + name)); $('scrim').classList.add('show'); }
+function closeDrawers() { document.querySelectorAll('.drawer').forEach(d => d.classList.remove('open')); $('scrim').classList.remove('show'); }
+document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openDrawer(b.dataset.open));
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeDrawers);
+$('scrim').onclick = closeDrawers;
+$('emptyOpen').onclick = () => openDrawer('library');
+document.querySelectorAll('[data-setting]').forEach(b => {
+  b.classList.toggle('on', !!S.settings[b.dataset.setting]);
+  b.onclick = () => { S.settings[b.dataset.setting] = !S.settings[b.dataset.setting]; b.classList.toggle('on', S.settings[b.dataset.setting]); localStorage.setItem('j3film-settings', JSON.stringify(S.settings)); };
+});
+
+/* ---------------- files & library ---------------- */
+$('openFile').onclick = () => $('fileInput').click();
+$('fileInput').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  const src = URL.createObjectURL(f);
+  loadClip({ id: null, title: f.name, src, key: 'local:' + f.name + ':' + f.size, local: true, file: f });
+  closeDrawers(); e.target.value = '';
+});
+let clips = [];
+async function loadLibrary() {
+  const list = $('clipList');
+  if (!sb) { list.innerHTML = '<div class="note">Cloud library unavailable.</div>'; return; }
+  const { data, error } = await sb.from('film_clips').select('*').order('created_at', { ascending: false }).limit(200);
+  if (error) { list.innerHTML = `<div class="note">Library not set up yet. Run <code>video/schema.sql</code> in Supabase once.<br><span style="color:var(--faint)">${error.message}</span></div>`; return; }
+  clips = data || []; renderClipList();
+}
+function renderClipList() {
+  const list = $('clipList');
+  if (!clips.length) { list.innerHTML = '<div class="note">No clips in the library yet.</div>'; return; }
+  list.innerHTML = '';
+  for (const c of clips) {
+    const el = document.createElement('div'); el.className = 'clip' + (S.clip && S.clip.id === c.id ? ' cur' : '');
+    el.innerHTML = `<div class="th" style="background-image:url('${c.thumb_url || ''}')"></div><div class="meta"><b>${esc(c.title)}</b><span>${esc(c.game || '')}${c.duration_s ? ' · ' + fmt(c.duration_s).replace(/\.\d+$/, '') : ''}</span></div>`;
+    el.onclick = () => { loadClip({ id: c.id, title: c.title, src: c.public_url, key: 'clip:' + c.id, local: false }); closeDrawers(); };
+    list.appendChild(el);
+  }
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+$('uploadBtn').onclick = async () => {
+  const c = S.clip; if (!c || !c.local || !sb) return;
+  const title = $('uploadTitle').value.trim() || c.title;
+  const game = $('uploadGame').value.trim();
+  const prog = $('uploadProg'); prog.hidden = false; prog.firstElementChild.style.width = '8%';
+  $('uploadBtn').disabled = true;
+  try {
+    const ext = (c.file.name.match(/\.([a-z0-9]+)$/i) || [, 'mp4'])[1].toLowerCase();
+    const path = `${new Date().toISOString().slice(0, 10)}/${uid()}.${ext}`;
+    const { error: upErr } = await sb.storage.from(BUCKET).upload(path, c.file, { contentType: c.file.type || 'video/mp4', upsert: false });
+    if (upErr) throw upErr;
+    prog.firstElementChild.style.width = '80%';
+    const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(path);
+    let thumb_url = null;
+    try {
+      const t = await grabThumb(); if (t) {
+        const tpath = path.replace(/\.[a-z0-9]+$/, '.jpg');
+        const { error: tErr } = await sb.storage.from(BUCKET).upload(tpath, t, { contentType: 'image/jpeg', upsert: true });
+        if (!tErr) thumb_url = sb.storage.from(BUCKET).getPublicUrl(tpath).data.publicUrl;
+      }
+    } catch {}
+    const row = { title, game: game || null, storage_path: path, public_url: pub.publicUrl, thumb_url, duration_s: video.duration || null, width: video.videoWidth || null, height: video.videoHeight || null, fps: S.fps };
+    const { data, error } = await sb.from('film_clips').insert(row).select().single();
+    if (error) throw error;
+    prog.firstElementChild.style.width = '100%';
+    clips.unshift(data);
+    // migrate any local marks to the cloud clip
+    const localMarks = S.marks.slice();
+    S.clip = { id: data.id, title: data.title, src: c.src, key: 'clip:' + data.id, local: false };
+    for (const m of localMarks) await saveMarkRow(m);
+    $('uploadBox').hidden = true; renderClipList(); loadMarks();
+    toast('Uploaded to the library');
+  } catch (e) { console.error(e); toast('Upload failed: ' + (e.message || e)); }
+  finally { $('uploadBtn').disabled = false; setTimeout(() => { prog.hidden = true; prog.firstElementChild.style.width = '0'; }, 800); }
+};
+function grabThumb() {
+  return new Promise(res => {
+    if (!video.videoWidth) return res(null);
+    const c = document.createElement('canvas'); const k = 480 / video.videoWidth; c.width = 480; c.height = Math.round(video.videoHeight * k);
+    try { c.getContext('2d').drawImage(video, 0, 0, c.width, c.height); c.toBlob(b => res(b), 'image/jpeg', 0.8); } catch { res(null); }
+  });
+}
+
+/* ---------------- marks (frozen frame + drawings) ---------------- */
+function marksKey() { return 'j3film-marks:' + (S.clip ? S.clip.key : ''); }
+async function loadMarks() {
+  S.marks = [];
+  if (!S.clip) return renderMarks();
+  if (S.clip.id && sb) {
+    const { data, error } = await sb.from('film_marks').select('*').eq('clip_id', S.clip.id).order('t_ms');
+    if (!error && data) S.marks = data.map(r => ({ id: r.id, t: r.t_ms / 1000, label: r.label, objects: r.payload?.objects || [], loop: r.payload?.loop || null }));
+  } else {
+    try { S.marks = JSON.parse(localStorage.getItem(marksKey()) || '[]'); } catch { S.marks = []; }
+  }
+  renderMarks();
+}
+async function saveMarkRow(m) {
+  if (S.clip.id && sb) {
+    const { data, error } = await sb.from('film_marks').insert({ clip_id: S.clip.id, t_ms: Math.round(m.t * 1000), label: m.label, payload: { objects: m.objects, loop: m.loop } }).select().single();
+    if (error) { toast('Mark saved on this iPad only (' + error.message + ')'); saveLocalMark(m); return; }
+    m.id = data.id;
+  } else saveLocalMark(m);
+}
+function saveLocalMark(m) { const arr = (() => { try { return JSON.parse(localStorage.getItem(marksKey()) || '[]'); } catch { return []; } })(); m.id = m.id || uid(); arr.push(m); try { localStorage.setItem(marksKey(), JSON.stringify(arr)); } catch { toast('Not enough room to save this mark locally'); } }
+$('saveMark').onclick = async () => {
+  if (!S.clip) return;
+  const m = { t: video.currentTime, label: `Mark ${S.marks.length + 1}`, objects: JSON.parse(JSON.stringify(S.objects)), loop: (S.loop.a != null && S.loop.b != null) ? { ...S.loop } : null };
+  const lbl = prompt('Name this mark', m.label); if (lbl == null) return; m.label = lbl.trim() || m.label;
+  S.marks.push(m); await saveMarkRow(m); S.marks.sort((a, b) => a.t - b.t); renderMarks(); toast('Mark saved');
+};
+function renderMarks() {
+  const list = $('markList'), pins = $('markpins');
+  pins.innerHTML = ''; list.innerHTML = S.marks.length ? '' : '<div class="note" style="margin-top:14px">No marks yet. Pause on a frame, draw, tap <b>Mark</b>.</div>';
+  const d = video.duration || 0;
+  for (const m of S.marks) {
+    if (d) { const p = document.createElement('div'); p.className = 'mark'; p.style.left = (m.t / d * 100) + '%'; pins.appendChild(p); }
+    const el = document.createElement('div'); el.className = 'markitem';
+    el.innerHTML = `<div class="t">${fmt(m.t).replace(/\.\d+$/, '')}</div><div class="l">${esc(m.label)}</div><button title="Delete">✕</button>`;
+    el.querySelector('.l').onclick = el.querySelector('.t').onclick = () => { gotoMark(m); closeDrawers(); };
+    el.querySelector('button').onclick = async (e) => { e.stopPropagation(); if (!confirm('Delete this mark?')) return; S.marks = S.marks.filter(x => x !== m); if (S.clip.id && sb && m.id) await sb.from('film_marks').delete().eq('id', m.id); else try { localStorage.setItem(marksKey(), JSON.stringify(S.marks)); } catch {} renderMarks(); };
+    list.appendChild(el);
+  }
+}
+function gotoMark(m) {
+  if (!video.paused) video.pause();
+  pushHistory(); S.objects = JSON.parse(JSON.stringify(m.objects)); S.selected = null; updateObjbar();
+  if (m.loop) { S.loop = { ...m.loop }; loopUI(); }
+  seek(m.t); sendObjects(); requestRender();
+}
+
+/* ---------------- toast ---------------- */
+let toastT = 0;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ---------------- TV view ---------------- */
+function setupTV() {
+  app.classList.add('tv'); document.title = 'J3 Film Room · TV';
+  $('empty').hidden = true; $('tvidle').hidden = false; $('tvbadge').hidden = true;
+  const cur = $('cursor');
+  let cursorT = 0;
+  if (bc) bc.onmessage = (ev) => {
+    const m = ev.data; if (!m) return;
+    switch (m.type) {
+      case 'clip': {
+        if (S.clip && S.clip.key === m.key && S.clip.session === m.session) break;
+        if (S.clip && S.clip.src && S.clip.src.startsWith('blob:')) URL.revokeObjectURL(S.clip.src);
+        const src = m.file ? URL.createObjectURL(m.file) : m.src;
+        loadClip({ id: null, title: m.title, src, key: m.key, local: !!m.file, session: m.session });
+        break;
+      }
+      case 'objects': S.objects = m.objects; S.reveal = !!m.reveal; requestRender(); break;
+      case 'live': S.live = m.live; requestRender(); break;
+      case 'time': {
+        if (!S.clip) break;
+        S.rate = m.rate; video.playbackRate = m.rate;
+        const drift = Math.abs(video.currentTime - m.t);
+        if (m.playing) { if (video.paused) { video.currentTime = m.t; video.play().catch(() => {}); } else if (drift > 0.12) video.currentTime = m.t; }
+        else { if (!video.paused) video.pause(); if (drift > 0.001) video.currentTime = m.t; }
+        break;
+      }
+      case 'view': S.view = m.view; applyView(); break;
+      case 'wipe': S.wipe = m.wipe; requestRender(); break;
+      case 'court': S.court = m.court; S.courtMode = m.mode; rebuildCourt(); requestRender(); break;
+      case 'cursor': {
+        if (m.x < 0) { cur.classList.remove('show'); break; }
+        cur.style.left = nx(m.x) + 'px'; cur.style.top = ny(m.y) + 'px'; cur.classList.add('show');
+        clearTimeout(cursorT); cursorT = setTimeout(() => cur.classList.remove('show'), 1500); break;
+      }
+      case 'ping': send({ type: 'hello' }); break; // a fresh coach page: ask for the full state again
+    }
+  };
+  send({ type: 'hello' });
+  setInterval(() => send({ type: 'pong' }), 1000);
+  // fullscreen on first tap
+  stage.addEventListener('click', () => { const el = document.documentElement; if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {}); });
+  layoutStage();
+}
+function setupCoach() {
+  if (bc) bc.onmessage = (ev) => {
+    const m = ev.data; if (!m) return;
+    if (m.type === 'hello') { S.tvSeen = Date.now(); sendAll(); tvBadge(); }
+    else if (m.type === 'pong') { S.tvSeen = Date.now(); tvBadge(); }
+  };
+  setInterval(tvBadge, 1500);
+  setTimeout(() => send({ type: 'ping' }), 200);
+  loadLibrary();
+  setToolUI(); layoutStage(); updateTimeline();
+  // gate
+  const gate = $('gate');
+  if (sessionStorage.getItem(GATE_KEY) !== '1') {
+    gate.hidden = false;
+    const tryPin = () => { if ($('pin').value === PIN) { sessionStorage.setItem(GATE_KEY, '1'); gate.hidden = true; } else { $('pinErr').textContent = 'Wrong code'; $('pin').value = ''; } };
+    $('pinGo').onclick = tryPin; $('pin').addEventListener('input', () => { if ($('pin').value.length === 4) tryPin(); });
+    setTimeout(() => $('pin').focus(), 100);
+  }
+}
+function tvBadge() { const on = Date.now() - S.tvSeen < 3200; const b = $('tvbadge'); b.classList.toggle('live', on); b.querySelector('span').textContent = on ? 'TV live' : 'TV off'; }
+
+if (IS_TV) setupTV(); else setupCoach();
+window.__j3 = { S, loadClip, video, requestRender, send };
+window.addEventListener('pagehide', () => { if (S.clip && S.clip.local && S.clip.src.startsWith('blob:')) URL.revokeObjectURL(S.clip.src); });
+</script>
+</body>
+</html>
