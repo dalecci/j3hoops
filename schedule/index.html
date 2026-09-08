@@ -146,9 +146,9 @@
   .chip .grip:active{cursor:grabbing}
   .chip .txt{min-width:0;display:flex;flex-direction:column;gap:2px}
   .chip .t{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);line-height:1.2;word-break:break-word}
-  .chip .w{font-family:var(--cond);font-weight:500;font-size:11.5px;letter-spacing:.03em;line-height:1.25;color:var(--ink-2);white-space:pre-line;word-break:break-word}
-  .chip .w:empty{min-height:13px}
-  .chip:not(:hover):not(:focus-within) .w:empty::before{content:""}
+  .chip .w{font-family:var(--cond);font-weight:600;font-size:12px;letter-spacing:.03em;line-height:1.25;color:var(--brand-ink);white-space:pre-line;word-break:break-word}
+  .chip .w:empty{min-height:14px}
+  .chip .w:empty::before{content:"+ Grades / times";font-style:normal;font-weight:600;opacity:.55}
   .parents .chip .w:empty{display:none}
   .chip .c{font-family:var(--cond);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;line-height:1.25;color:var(--ink-2);word-break:break-word}
   .chip .c:empty{min-height:13px}
@@ -379,6 +379,7 @@
   /* ---------- seed: Dale's availability, Sept–Dec 2026, from the PDF ---------- */
   const NF='N. Fort 5–9 PM', YT='YMCA 6–8 PM', YS='YMCA 9–10 AM';
   const WHO={[NF]:'5–7 Grade 3 & 5\n7–9 Grade 6-7-8',[YT]:'All grades',[YS]:'All grades'};
+  function defaultWho(title){ if(WHO[title]!==undefined) return WHO[title]; const s=String(title||''); if(/fort/i.test(s)) return WHO[NF]; if(/ymca/i.test(s)) return 'All grades'; return ''; }
   const AWAY='Dale away flying', CHURCH='Church — absent', NG='Next Gen — arrive 7 PM';
   const SEEDROWS=[
     ['2026-09-15',NF,'green'],['2026-09-17',YT,'red',AWAY],['2026-09-18',NF,'red',AWAY],
@@ -403,7 +404,7 @@
     return {
       v:1, eyebrow:'SWFL Jaguars Basketball', title:'Dale Availability', season:'September – December 2026',
       legend:{green:'Attending practice',red:'Cannot attend practice',yellow:'Next Gen — arrive 7 PM'},
-      range:{from:'2026-09',to:'2026-12'},
+      range:{from:'2026-09',to:'2026-12'}, whoFilled:true,
       events:SEEDROWS.map(([date,title,status,coach])=>({id:uid(),date,title,who:WHO[title]||'',coach:coach||'',status,note:''})),
     };
   }
@@ -413,7 +414,8 @@
     s.legend=Object.assign({},d.legend,s.legend||{});
     s.range=Object.assign({},d.range,s.range||{});
     if(!Array.isArray(s.events)) s.events=[];
-    s.events=s.events.filter(e=>e&&e.date).map(e=>({id:e.id||uid(),date:e.date,title:e.title||'',who:e.who||'',coach:e.coach||'',status:e.status||'none',note:e.note||''}));
+    s.events=s.events.filter(e=>e&&e.date).map(e=>({id:e.id||uid(),date:e.date,title:e.title||'',who:(e.who===undefined||e.who===null)?defaultWho(e.title):String(e.who),coach:e.coach||'',status:e.status||'none',note:e.note||''}));
+    if(!s.whoFilled){ for(const e of s.events){ if(!e.who) e.who=defaultWho(e.title); } s.whoFilled=true; }
     return s;
   }
 
@@ -429,10 +431,12 @@
   function save(){ if(viewer)return; try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){} cloudQueue(); }
 
   /* ---------- cloud sync ---------- */
-  let remoteAt=null, pushing=false, pushTimer=null, pulling=false;
+  let remoteAt=null, pushing=false, pushTimer=null, pulling=false, ready=false, pendingPush=false;
   function syncSet(st,msg){ const el=$('#sync'); el.className='sync coach-only '+st; $('#syncMsg').textContent=msg; }
   function cloudPush(){
-    if(viewer||pushing)return Promise.resolve(false);
+    if(viewer)return Promise.resolve(false);
+    if(!ready){ pendingPush=true; syncSet('busy','saving'); return Promise.resolve(false); }
+    if(pushing)return Promise.resolve(false);
     pushing=true; syncSet('busy','saving');
     const stamp=new Date().toISOString();
     return fetch(SB_URL+'/rest/v1/'+SB_TABLE,{method:'POST',headers:Object.assign({},SB_H,{Prefer:'resolution=merge-duplicates'}),
@@ -447,15 +451,15 @@
   function cloudPull(force){
     if(pulling)return Promise.resolve(false); pulling=true;
     return cloudGet().then(row=>{
-      if(!row){ if(!viewer){ syncSet('busy','first save'); return cloudPush(); } syncSet('err','nothing published yet'); return false; }
+      if(!row){ if(!viewer){ ready=true; syncSet('busy','first save'); return cloudPush(); } syncSet('err','nothing published yet'); return false; }
       const newer=!remoteAt||new Date(row.updated_at)>new Date(remoteAt);
       if(!force&&!newer){ syncSet('ok','synced'); return false; }
       if(!force&&editing()){ return false; }
-      const d=migrate(row.data); remoteAt=row.updated_at;
+      const raw=JSON.stringify(row.data); const d=migrate(row.data); remoteAt=row.updated_at; const healed=JSON.stringify(d)!==raw;
       if(JSON.stringify(d)===JSON.stringify(state)){ syncSet('ok','synced'); return false; }
       state=d; if(!viewer){ try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){} }
-      render(); syncSet('ok','synced'); if(!force) toast('Updated from another device'); return true;
-    }).catch(e=>{ syncSet('err','offline, changes kept here'); return false; }).then(v=>{ pulling=false; return v; });
+      render(); syncSet('ok','synced'); if(!force) toast('Updated from another device'); if(healed&&!viewer) cloudQueue(); return true;
+    }).catch(e=>{ syncSet('err','offline, changes kept here'); return false; }).then(v=>{ pulling=false; if(force&&!ready){ ready=true; if(pendingPush){ pendingPush=false; cloudPush(); } } return v; });
   }
   function snapshot(){ undo.push(JSON.stringify(state)); if(undo.length>60)undo.shift(); $('#undoBtn').disabled=false; }
   function commit(fn){ snapshot(); fn(); save(); render(); }
