@@ -344,6 +344,9 @@
       <button id="obGhost" title="Ghost at original spot"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 00-7 7v11l2.5-2 2.5 2 2-2 2 2 2.5-2 2.5 2V10a7 7 0 00-7-7z"/><circle cx="9.5" cy="11" r="1"/><circle cx="14.5" cy="11" r="1"/></svg></button>
       <button id="obColor" class="colorbtn" title="Team color"><i></i></button>
       <button id="obNum" title="Number">#</button>
+      <button id="obStyle" title="Spotlight style" style="font-size:11px">Both</button>
+      <button id="obTrack" title="Track: tap the player as the clip plays"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/></svg></button>
+      <button id="obPath" title="Forget the recorded path"><svg viewBox="0 0 24 24"><path d="M4 18c4 0 4-12 8-12s4 12 8 12" stroke-dasharray="3 3"/><path d="M5 5l14 14"/></svg></button>
       <button id="obDel" title="Delete" style="color:var(--danger)"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
     </div>
 
@@ -450,6 +453,7 @@
     </div>
     <button class="bigbtn ghost" id="fsBtn" style="margin-top:12px">⛶ Full screen on this iPad</button>
     <div class="h6">Drawing</div>
+    <div class="toggle"><div><b>Spotlight style</b><small>Dim the room, a light beam over the player, or both</small></div><button class="chip" id="spotStyleBtn">Both</button></div>
     <div class="toggle"><div><b>Finger draws</b><small>Off = only Apple Pencil draws, fingers only move things</small></div><button class="sw2 on" data-setting="fingerDraws"></button></div>
     <div class="toggle"><div><b>Clear ink when play starts</b><small>Kenny-style: drawings vanish when the play runs</small></div><button class="sw2" data-setting="clearOnPlay"></button></div>
     <div class="toggle"><div><b>Show Pencil hover dot on TV</b><small>A laser pointer while you hover before touching</small></div><button class="sw2 on" data-setting="hoverDot"></button></div>
@@ -476,7 +480,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.5.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.6.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -511,7 +515,8 @@ const S = {
   objStore: { film: [], board: [], yt: [] },   // ink objects of the modes you are not in
   selected: null,
   view: { s: 1, x: 0, y: 0 },
-  settings: { fingerDraws: true, clearOnPlay: false, hoverDot: true },
+  settings: { fingerDraws: true, clearOnPlay: false, hoverDot: true, spotStyle: 'both' },
+  trackSpot: null,       // spotlight currently recording keyframes from taps
   marks: [],
   tvSeen: 0,
 };
@@ -579,14 +584,14 @@ function render() {
   const all = S.live ? visible.concat([S.live]) : visible;
   if (S.mode === 'board') { drawCourtFloor(); drawBoardFrame(IS_TV ? S.board.frame : boardFrame()); renderSteps(); }
   // spotlight dim layer
-  const spots = all.filter(o => o.type === 'spot');
+  const spots = all.filter(o => o.type === 'spot' && (o.style || 'both') !== 'beam');
   if (spots.length) {
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.68)';
     ctx.fillRect(fit.x, fit.y, fit.w, fit.h);
     ctx.globalCompositeOperation = 'destination-out';
     for (const o of spots) {
-      const cx = nx(o.c[0]), cy = ny(o.c[1]), r = o.r * fit.w;
+      const c = spotPos(o), cx = nx(c[0]), cy = ny(c[1]), r = o.r * fit.w;
       const g = ctx.createRadialGradient(cx, cy, r * 0.75, cx, cy, r);
       g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
@@ -1007,8 +1012,14 @@ function drawObject(o) {
       ctx.strokeRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay)); break;
     }
     case 'spot': {
-      ctx.strokeStyle = hexA(o.color, 0.9); ctx.lineWidth = 3 * (fit.w / 1280);
-      ctx.beginPath(); ctx.arc(nx(o.c[0]), ny(o.c[1]), o.r * fit.w, 0, Math.PI * 2); ctx.stroke(); break;
+      const c = spotPos(o), cx = nx(c[0]), cy = ny(c[1]), r = o.r * fit.w, style = o.style || 'both';
+      if (style !== 'beam') { ctx.strokeStyle = hexA(o.color, 0.9); ctx.lineWidth = 3 * (fit.w / 1280); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); }
+      if (style !== 'dim') drawBeam(cx, cy, r, o.color);
+      if (!IS_TV && o.keys && o.keys.length > 1 && o === S.selected) { // the recorded path, coach only
+        ctx.strokeStyle = hexA(o.color, 0.5); ctx.lineWidth = 2; ctx.setLineDash([4, 5]); ctx.beginPath();
+        o.keys.forEach((k, i) => i ? ctx.lineTo(nx(k.x), ny(k.y)) : ctx.moveTo(nx(k.x), ny(k.y))); ctx.stroke(); ctx.setLineDash([]);
+      }
+      break;
     }
     case 'text': {
       const size = (o.size || 44) * (fit.w / 1280);
@@ -1391,7 +1402,41 @@ function drawSelection(o) {
   ctx.save(); ctx.strokeStyle = '#fff'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
   ctx.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12); ctx.restore();
 }
+/* ---- spotlight follow: a spot can carry keyframes {t,x,y}; its position is interpolated at the clip time ---- */
+function spotPos(o, t) {
+  const K = o.keys; if (!K || !K.length) return o.c;
+  if (t == null) t = P.time();
+  if (t <= K[0].t) return [K[0].x, K[0].y];
+  const last = K[K.length - 1]; if (t >= last.t) return [last.x, last.y];
+  let i = 1; while (i < K.length && K[i].t < t) i++;
+  const a = K[i - 1], b = K[i], k = (t - a.t) / Math.max(1e-6, b.t - a.t);
+  return [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k];
+}
+function addKey(o, t, x, y) {
+  o.keys = o.keys || [];
+  const near = o.keys.find(k => Math.abs(k.t - t) < 0.06);
+  if (near) { near.x = x; near.y = y; } else { o.keys.push({ t: +t.toFixed(3), x, y }); o.keys.sort((p, q) => p.t - q.t); }
+  o.c = [x, y];
+}
+function hasFollow() { return S.objects.some(o => o.type === 'spot' && o.keys && o.keys.length > 1); }
+// keep rendering while the clip plays and a spotlight has a path to follow (iPad and TV)
+(function followLoop() { if (hasFollow() && !P.paused()) requestRender(); requestAnimationFrame(followLoop); })();
+function drawBeam(cx, cy, r, color) {
+  const h = r * 3.4, rt = r * 0.82, ry = r * 0.36, ryt = ry * 0.85;
+  ctx.save();
+  const g = ctx.createLinearGradient(0, cy, 0, cy - h);
+  g.addColorStop(0, hexA(color, 0.42)); g.addColorStop(0.6, hexA(color, 0.18)); g.addColorStop(1, hexA(color, 0.02));
+  ctx.fillStyle = g; ctx.beginPath();
+  ctx.moveTo(cx - r, cy); ctx.lineTo(cx - rt, cy - h); ctx.ellipse(cx, cy - h, rt, ryt, 0, Math.PI, 0, false); ctx.lineTo(cx + r, cy);
+  ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI, false); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = hexA(color, 0.35); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx - rt, cy - h); ctx.moveTo(cx + r, cy); ctx.lineTo(cx + rt, cy - h); ctx.stroke();
+  ctx.fillStyle = hexA(color, 0.35); ctx.beginPath(); ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = hexA(color, 0.95); ctx.lineWidth = Math.max(2, r * 0.07); ctx.stroke();
+  ctx.strokeStyle = hexA(color, 0.5); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(cx, cy - h, rt, ryt, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
 function objRect(o) {
+  if (o.type === 'spot') { const c = spotPos(o), r = o.r * fit.w; return { x: nx(c[0]) - r, y: ny(c[1]) - r * 0.4, w: r * 2, h: r * 0.8 }; }
   if (o.type === 'cutout') return { x: nx(o.to[0]), y: ny(o.to[1]), w: o.bw * fit.w * o.scale, h: o.bh * fit.h * o.scale };
   if (o.type === 'figure') { const h = o.h * fit.h; return { x: nx(o.p[0]) - h * 0.3, y: ny(o.p[1]) - h * 1.02, w: h * 0.6, h: h * 1.12 }; }
   if (o.type === 'token') { const r = Math.max(10, fit.w * 0.016); return { x: nx(o.p[0]) - r * 1.5, y: ny(o.p[1]) - r * 2.4, w: r * 3, h: r * 3.2 }; }
@@ -1639,10 +1684,16 @@ function onDown(e) {
     updateObjbar(); sendObjects(); requestRender(); return;
   }
   // selection / move first (any pointer type)
+  // tracking a spotlight: every tap is a keyframe at the current clip time
+  if (S.trackSpot && S.objects.includes(S.trackSpot) && S.tool !== 'move') {
+    pushHistory(); addKey(S.trackSpot, P.time(), x, y); drag = { mode: 'none', id: e.pointerId }; requestRender(); sendObjects(); return;
+  }
   const hit = hitTest(e.clientX, e.clientY);
-  if (S.tool === 'move' || (hit && (hit === S.selected || !isPen && !S.settings.fingerDraws))) {
+  // a finger on a spotlight always grabs it, so you can ride it along the player while the clip plays
+  if (S.tool === 'move' || (hit && (hit === S.selected || (!isPen && (hit.type === 'spot' || !S.settings.fingerDraws))))) {
     S.selected = hit;
-    drag = hit ? { mode: 'move', id: e.pointerId, obj: hit, start: [x, y], orig: JSON.parse(JSON.stringify(hit.type === 'figure' ? hit.p : hit.to)), moved: false } : { mode: 'none', id: e.pointerId };
+    const anchor = hit ? (hit.type === 'cutout' ? hit.to : hit.type === 'spot' ? spotPos(hit) : hit.p) : null;
+    drag = hit ? { mode: 'move', id: e.pointerId, obj: hit, start: [x, y], orig: JSON.parse(JSON.stringify(anchor)), moved: false, lastKey: 0 } : { mode: 'none', id: e.pointerId };
     updateObjbar(); requestRender(); return;
   }
   if (!isPen && !S.settings.fingerDraws) { drag = { mode: 'none', id: e.pointerId }; return; }
@@ -1662,7 +1713,7 @@ function onDown(e) {
     case 'arrow': case 'dribble': case 'pass': case 'screen': S.live = { type: S.tool, id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'ellipse': S.live = { type: 'ellipse', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'zone': S.live = { type: 'zone', id: uid(), a: [x, y], b: [x, y], color: S.color, width: Math.max(3, S.width * 0.6), layer }; break;
-    case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, layer }; break;
+    case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, style: S.settings.spotStyle || 'both', layer }; break;
     case 'lift': if (!P.paused()) { toast('Pause first, then lasso the player'); drag = { mode: 'none', id: e.pointerId }; return; } S.live = { type: 'lasso', pts: [[x, y]] }; break;
   }
   drag = { mode: 'draw', id: e.pointerId };
@@ -1702,6 +1753,13 @@ function onMove(e) {
     if (Math.hypot(dx, dy) > 0.002 && !drag.moved) { drag.moved = true; pushHistory(); }
     if (drag.obj.type === 'figure') drag.obj.p = [drag.orig[0] + dx, drag.orig[1] + dy];
     else if (drag.obj.type === 'cutout') drag.obj.to = [drag.orig[0] + dx, drag.orig[1] + dy];
+    else if (drag.obj.type === 'spot') {
+      const o = drag.obj, pos = [drag.orig[0] + dx, drag.orig[1] + dy];
+      // finger follow: dragging while the clip plays records the path; while paused it re-keys this moment
+      if (!P.paused()) { const now = performance.now(); if (now - drag.lastKey > 70) { drag.lastKey = now; addKey(o, P.time(), pos[0], pos[1]); } o.c = pos; }
+      else if (o.keys && o.keys.length) addKey(o, P.time(), pos[0], pos[1]);
+      else o.c = pos;
+    }
     else drag.obj.p = [drag.orig[0] + dx, drag.orig[1] + dy];
     updateObjbar(); requestRender(); throttleSend(sendObjects); return;
   }
@@ -1757,7 +1815,7 @@ function kennyTap(x, y) {
   if (S.objects.length) { clearInk(); toast('Cleared'); return; }
   if (!P.paused()) P.pause();
   pushHistory();
-  S.objects.push({ type: 'spot', id: uid(), c: [x, y], r: 0.07, color: S.color, layer: 'a' });
+  S.objects.push({ type: 'spot', id: uid(), c: [x, y], r: 0.07, color: S.color, style: S.settings.spotStyle || 'both', layer: 'a' });
   S.tool = 'pen'; setToolUI(); sendObjects(); requestRender();
 }
 function setKenny(on) {
@@ -1832,8 +1890,10 @@ function updateObjbar() {
   if (top < 70) top = sr.top - wr.top + (r.y + r.h) * S.view.s + 70;
   bar.style.left = clamp(left, 190, stagewrap.clientWidth - 190) + 'px'; bar.style.top = top + 'px';
   bar.classList.add('show');
-  $('obRotL').hidden = $('obRotR').hidden = o.type === 'text' || o.type === 'token' || o.type === 'cone';
+  $('obRotL').hidden = $('obRotR').hidden = o.type === 'text' || o.type === 'token' || o.type === 'cone' || o.type === 'spot';
   $('obSmaller').hidden = $('obBigger').hidden = o.type === 'token' || o.type === 'cone';
+  $('obStyle').hidden = $('obTrack').hidden = o.type !== 'spot'; $('obPath').hidden = !(o.type === 'spot' && o.keys && o.keys.length);
+  if (o.type === 'spot') { $('obStyle').textContent = { dim: 'Dim', beam: 'Beam', both: 'Both' }[o.style || 'both']; $('obTrack').classList.toggle('on', S.trackSpot === o); }
   $('obGhost').hidden = o.type !== 'cutout'; $('obGhost').classList.toggle('on', o.type === 'cutout' && o.ghost !== false);
   $('obColor').hidden = o.type === 'cutout'; $('obColor').querySelector('i').style.background = o.color || '#fff';
   $('obNum').hidden = o.type !== 'figure' && o.type !== 'token';
@@ -1841,7 +1901,15 @@ function updateObjbar() {
 $('obRotL').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.yaw -= Math.PI / 8; else if (o.type === 'cutout') o.flip = !o.flip; sendObjects(); requestRender(); };
 $('obRotR').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.yaw += Math.PI / 8; else if (o.type === 'cutout') o.flip = !o.flip; sendObjects(); requestRender(); };
 $('obSmaller').onclick = () => scaleSel(1 / 1.15); $('obBigger').onclick = () => scaleSel(1.15);
-function scaleSel(k) { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.h = clamp(o.h * k, 0.08, 0.9); else if (o.type === 'cutout') o.scale = clamp(o.scale * k, 0.3, 4); else if (o.type === 'text') o.size = clamp((o.size || 44) * k, 18, 160); updateObjbar(); sendObjects(); requestRender(); }
+function scaleSel(k) { const o = S.selected; if (!o) return; pushHistory(); if (o.type === 'figure') o.h = clamp(o.h * k, 0.08, 0.9); else if (o.type === 'cutout') o.scale = clamp(o.scale * k, 0.3, 4); else if (o.type === 'text') o.size = clamp((o.size || 44) * k, 18, 160); else if (o.type === 'spot') o.r = clamp(o.r * k, 0.02, 0.3); updateObjbar(); sendObjects(); requestRender(); }
+$('obStyle').onclick = () => { const o = S.selected; if (!o || o.type !== 'spot') return; pushHistory(); const order = ['dim', 'beam', 'both']; o.style = order[(order.indexOf(o.style || 'both') + 1) % 3]; updateObjbar(); sendObjects(); requestRender(); };
+$('obTrack').onclick = () => {
+  const o = S.selected; if (!o || o.type !== 'spot') return;
+  if (S.trackSpot === o) { S.trackSpot = null; toast('Tracking stopped'); }
+  else { S.trackSpot = o; if (!o.keys || !o.keys.length) addKey(o, P.time(), o.c[0], o.c[1]); toast('Tracking: tap the player as the clip plays (or step through it). Tap Track again to stop.'); }
+  updateObjbar(); sendObjects(); requestRender();
+};
+$('obPath').onclick = () => { const o = S.selected; if (!o || o.type !== 'spot') return; pushHistory(); o.c = spotPos(o); delete o.keys; if (S.trackSpot === o) S.trackSpot = null; updateObjbar(); sendObjects(); requestRender(); toast('Path cleared'); };
 $('obGhost').onclick = () => { const o = S.selected; if (!o || o.type !== 'cutout') return; pushHistory(); o.ghost = o.ghost === false; updateObjbar(); sendObjects(); requestRender(); };
 $('obColor').onclick = () => { const o = S.selected; if (!o) return; pushHistory(); o.color = COLORS[(COLORS.indexOf(o.color) + 1) % COLORS.length]; updateObjbar(); sendObjects(); requestRender(); };
 $('obNum').onclick = () => { const o = S.selected; if (!o) return; const n = prompt('Jersey number', o.num || ''); if (n == null) return; pushHistory(); o.num = n.trim().slice(0, 3); sendObjects(); requestRender(); };
@@ -1876,6 +1944,7 @@ function clearType(tool) {
 }
 document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
   const t = b.dataset.tool;
+  if (S.trackSpot) { S.trackSpot = null; updateObjbar(); }
   if (S.tool === t && clearType(t)) return;
   S.tool = t; if (S.tool !== 'move') { S.selected = null; updateObjbar(); requestRender(); } setToolUI();
 }));
@@ -1946,6 +2015,8 @@ document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openDraw
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeDrawers);
 $('scrim').onclick = closeDrawers;
 $('emptyOpen').onclick = () => openDrawer('library');
+$('spotStyleBtn').textContent = { dim: 'Dim', beam: 'Beam', both: 'Both' }[S.settings.spotStyle || 'both'];
+$('spotStyleBtn').onclick = () => { const order = ['dim', 'beam', 'both']; S.settings.spotStyle = order[(order.indexOf(S.settings.spotStyle || 'both') + 1) % 3]; $('spotStyleBtn').textContent = { dim: 'Dim', beam: 'Beam', both: 'Both' }[S.settings.spotStyle]; localStorage.setItem('j3film-settings', JSON.stringify(S.settings)); };
 document.querySelectorAll('[data-setting]').forEach(b => {
   b.classList.toggle('on', !!S.settings[b.dataset.setting]);
   b.onclick = () => { S.settings[b.dataset.setting] = !S.settings[b.dataset.setting]; b.classList.toggle('on', S.settings[b.dataset.setting]); localStorage.setItem('j3film-settings', JSON.stringify(S.settings)); };
