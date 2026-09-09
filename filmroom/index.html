@@ -82,6 +82,7 @@
   .tvbadge i{width:9px;height:9px;border-radius:50%;background:var(--faint)}
   .tvbadge.live i{background:var(--ok);box-shadow:0 0 10px var(--ok)}
   .answerflag{position:absolute;left:12px;top:12px;background:rgba(224,169,60,.18);border:1px solid var(--warn);color:var(--warn);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;z-index:5;letter-spacing:.04em}
+  .ver{grid-column:1/3;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin:-2px 0 4px}
   /* film / board mode switch */
   .modesw{grid-column:1/3;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;width:120px;margin-bottom:4px}
   .modesw button{flex:1;padding:8px 0;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -238,6 +239,7 @@
   <nav class="rail" id="rail">
     <div class="logo">J3</div>
     <div class="modesw"><button id="modeFilm" class="on">Film</button><button id="modeBoard">Board</button></div>
+    <div class="ver" id="verRail"></div>
     <button class="tool" data-open="library" title="Clips">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>Clips</button>
     <button class="tool" data-open="marks" title="Marks">
@@ -291,6 +293,7 @@
           <div class="logo">J3</div>
           <b>Film Room</b>
           <span>Waiting for Coach…</span>
+          <span class="ver" id="verTv" style="margin-top:14px"></span>
         </div>
       </div>
     </div>
@@ -438,7 +441,7 @@
     <div class="h6">Playback</div>
     <div class="toggle"><div><b>Frame rate</b><small id="fpsNote">Auto-detected from the clip</small></div><b id="fpsVal">—</b></div>
     <div class="h6">About</div>
-    <div class="note">J3 Film Room v0.1 · Built for iPad Pro + Apple Pencil + a big TV. Coach view: <code>/filmroom</code> · TV view: <code>/filmroom?tv</code></div>
+    <div class="note">J3 Film Room <b id="verSetup"></b> · Built for iPad Pro + Apple Pencil + a big TV. Coach view: <code>/filmroom</code> · TV view: <code>/filmroom?tv</code></div>
   </div>
 </aside>
 
@@ -458,7 +461,9 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
+const VERSION = '0.4.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
+['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
 
 const qs = new URLSearchParams(location.search);
@@ -1960,7 +1965,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 
 /* ---------------- TV view ---------------- */
 function setupTV() {
-  app.classList.add('tv'); document.title = 'J3 Film Room · TV';
+  app.classList.add('tv'); document.title = 'J3 Film Room · TV v' + VERSION;
   $('empty').hidden = true; $('tvidle').hidden = false; $('tvbadge').hidden = true;
   const cur = $('cursor');
   let cursorT = 0;
