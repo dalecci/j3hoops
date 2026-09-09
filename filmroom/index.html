@@ -93,6 +93,19 @@
   #ytwrap{position:absolute;inset:0;display:none;background:#000}
   #ytwrap iframe{width:100%;height:100%;border:0;display:block}
   #app.yt #ytwrap{display:block}
+  .pladd{width:36px;height:36px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:900;font-size:18px;color:var(--muted);flex:none}
+  .plrow{display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--card);margin-top:8px}
+  .plrow b{flex:1;font-size:15px}
+  .plrow span{color:var(--muted);font-size:12px;font-weight:600}
+  .plitem{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;border:1px solid var(--border);background:var(--card);margin-top:8px}
+  .plitem .th{width:84px;height:47px;border-radius:8px;background:#000 center/cover no-repeat;flex:none;border:1px solid var(--border)}
+  .plitem .meta{flex:1;min-width:0}
+  .plitem .meta b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .plitem .meta span{font-size:12px;color:var(--muted)}
+  .plitem .btns{display:flex;flex-direction:column;gap:3px}
+  .plitem .btns button{width:32px;height:26px;border-radius:7px;background:var(--surface-2);color:var(--muted);font-size:12px;font-weight:800}
+  .plitem.cur{border-color:var(--accent)}
+  #drawer-lists header #plBack{font-size:26px;line-height:1}
   .ytgroup{margin-top:10px}
   .ytgroup summary{cursor:pointer;font-weight:800;font-size:14px;padding:10px 0;list-style:none;display:flex;align-items:center;gap:8px}
   .ytgroup summary::before{content:'▸';color:var(--faint)}
@@ -251,6 +264,8 @@
     <div class="ver" id="verRail"></div>
     <button class="tool" data-open="library" title="Clips">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>Clips</button>
+    <button class="tool" data-open="lists" title="Playlists">
+      <svg viewBox="0 0 24 24"><path d="M4 6h12M4 12h12M4 18h8"/><path d="M18 14v6M15 17h6"/></svg>Lists</button>
     <button class="tool" data-open="marks" title="Marks">
       <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Marks</button>
     <div class="sep"></div>
@@ -408,6 +423,9 @@
       <div class="speed" id="speed">
         <button data-rate="0.25">¼</button><button data-rate="0.5">½</button><button data-rate="1" class="on">1×</button>
       </div>
+      <button class="tb" id="plPrev" title="Previous in playlist" hidden>◀</button>
+      <button class="tb" id="plNext" title="Next in playlist" hidden>▶</button>
+      <button class="tb" id="addToList" title="Save this clip (from this moment) to a playlist"><svg viewBox="0 0 24 24"><path d="M4 6h12M4 12h12M4 18h8"/><path d="M18 14v6M15 17h6"/></svg></button>
       <button class="tb" id="saveMark" title="Save this frame + drawings as a mark"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Mark</button>
       <button class="tb" id="tvBtn" title="Open the TV window"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>TV</button>
       <button class="tb" id="presentBtn" title="Present: hide all controls"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
@@ -440,6 +458,22 @@
   </div>
 </aside>
 
+<aside class="drawer" id="drawer-lists">
+  <header><button id="plBack" hidden>‹</button><b id="plTitle">Playlists</b><button data-close>✕</button></header>
+  <div class="body">
+    <div id="plPickNote" class="note" hidden style="color:var(--accent-2);font-weight:700"></div>
+    <div id="plLists">
+      <div class="row"><input type="text" id="plNew" placeholder="New list, e.g. Help-side D · Tuesday" /><button class="bigbtn" id="plCreate" style="width:auto;padding:12px 16px">Add</button></div>
+      <div id="plListRows"></div>
+    </div>
+    <div id="plOpen" hidden>
+      <div class="note" id="plOpenNote"></div>
+      <button class="bigbtn" id="plPlayAll" style="margin-top:10px">▶ Play from the top</button>
+      <div id="plItems"></div>
+      <button class="bigbtn ghost" id="plDelete" style="margin-top:18px;color:var(--danger)">Delete this list</button>
+    </div>
+  </div>
+</aside>
 <aside class="drawer" id="drawer-marks">
   <header><b>Marks</b><button data-close>✕</button></header>
   <div class="body">
@@ -485,7 +519,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.7.1'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.8.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1477,7 +1511,7 @@ function sendClip() {
 }
 
 /* ---------- player facade: the same calls drive a file <video> or a YouTube embed ---------- */
-let yt = null, ytPoll = 0;
+let yt = null, ytPoll = 0, ytCued = false; // ytCued: the requested video is the one the player holds (safe to seek)
 const P = {
   isYT: () => S.mode === 'yt',
   time: () => P.isYT() ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0),
@@ -1505,14 +1539,15 @@ async function loadYT(id, title) {
   resetClipState({ id: null, title: title || 'YouTube', key: 'yt:' + id, yt: id, local: false, src: null, session: SESSION });
   $('empty').hidden = true; $('tvidle').hidden = true;
   await ensureYTApi();
+  ytCued = false;
   if (yt && yt.cueVideoById) { yt.cueVideoById(id); }
   else {
     yt = new YT.Player('ytplayer', {
       videoId: id, width: '100%', height: '100%',
       playerVars: { controls: 0, disablekb: 1, rel: 0, modestbranding: 1, playsinline: 1, iv_load_policy: 3, fs: 0, origin: location.origin, mute: IS_TV ? 1 : 0 },
       events: {
-        onReady: () => { if (IS_TV) yt.mute(); S.fps = 30; S.fpsLocked = true; $('fpsVal').textContent = '30 fps (YouTube)'; updateTimeline(); renderMarks(); },
-        onStateChange: (e) => { setPlayIcon(e.data === 1); if (!IS_TV) sendTime(); if (e.data === 0) setPlayIcon(false); },
+        onReady: () => { ytCued = true; if (IS_TV) yt.mute(); S.fps = 30; S.fpsLocked = true; $('fpsVal').textContent = '30 fps (YouTube)'; updateTimeline(); renderMarks(); },
+        onStateChange: (e) => { if (e.data === 5 || e.data === 1) ytCued = true; setPlayIcon(e.data === 1); if (!IS_TV) sendTime(); if (e.data === 0) setPlayIcon(false); },
         onError: (e) => toast('YouTube won’t play this one here (embedding blocked, code ' + e.data + ')'),
       },
     });
@@ -1522,6 +1557,7 @@ async function loadYT(id, title) {
   ytPoll = setInterval(() => {
     if (S.mode !== 'yt' || !yt || !yt.getCurrentTime) return;
     if (!IS_TV && !P.paused() && S.loop.a != null && S.loop.b != null && P.time() >= S.loop.b) P.seek(S.loop.a);
+    if (!IS_TV && S.pendingSeek != null && ytCued && P.duration() > 0) { seek(S.pendingSeek); S.pendingSeek = null; }
     updateTimeline();
   }, 100);
   requestRender();
@@ -1548,6 +1584,8 @@ function renderYTList() {
     for (const v of items) {
       const el = document.createElement('div'); el.className = 'clip' + (S.clip && S.clip.key === 'yt:' + v.youtube_id ? ' cur' : '');
       el.innerHTML = `<div class="th" style="background-image:url('https://i.ytimg.com/vi/${esc(v.youtube_id)}/mqdefault.jpg')"></div><div class="meta"><b>${esc(v.title)}</b><span>${esc(v.sub_cat || '')}${v.created_at ? (v.sub_cat ? ' · ' : '') + v.created_at.slice(0, 10) : ''}</span></div>`;
+      const add = document.createElement('button'); add.className = 'pladd'; add.title = 'Add to a playlist'; add.textContent = '+'; el.appendChild(add);
+      add.onclick = (ev) => { ev.stopPropagation(); pickList({ source: 'yt', youtube_id: v.youtube_id, title: v.title, start_s: null }); };
       el.onclick = () => { loadYT(v.youtube_id, v.title); closeDrawers(); };
       d.appendChild(el);
     }
@@ -1555,6 +1593,122 @@ function renderYTList() {
   }
 }
 $('ytSearch').addEventListener('input', renderYTList);
+
+/* =====================================================================
+   PLAYLISTS — ordered lists of YouTube links and library clips, each with
+   the moment to start from. Cloud (film_playlists / film_playlist_items)
+   with a local fallback if the tables are missing.
+   ===================================================================== */
+const PL_KEY = 'j3film-playlists';
+let plCloud = null, plOpenId = null, plPick = null; // plPick = item waiting for a list choice
+S.playlists = []; S.activeList = null;              // activeList = { id, index }
+function plLocalLoad() { try { return JSON.parse(localStorage.getItem(PL_KEY) || '[]'); } catch { return []; } }
+function plLocalSave() { try { localStorage.setItem(PL_KEY, JSON.stringify(S.playlists)); } catch {} }
+async function loadPlaylists() {
+  if (sb && plCloud !== false) {
+    const { data: lists, error } = await sb.from('film_playlists').select('*').order('sort').order('created_at');
+    if (!error) {
+      plCloud = true;
+      const { data: items } = await sb.from('film_playlist_items').select('*').order('sort').order('created_at');
+      S.playlists = (lists || []).map(l => ({ ...l, items: (items || []).filter(i => i.playlist_id === l.id) }));
+      renderPlaylists(); return;
+    }
+    plCloud = false; console.warn('playlists: local only', error.message);
+  }
+  S.playlists = plLocalLoad(); renderPlaylists();
+}
+async function plCreate(name) {
+  const row = { id: uid(), name, sort: S.playlists.length, created_at: new Date().toISOString(), items: [] };
+  if (plCloud) { const { data, error } = await sb.from('film_playlists').insert({ name, sort: row.sort }).select().single(); if (error) { toast('Could not save: ' + error.message); return null; } row.id = data.id; }
+  S.playlists.push(row); if (!plCloud) plLocalSave(); renderPlaylists(); return row;
+}
+async function plDelete(id) {
+  if (plCloud) await sb.from('film_playlists').delete().eq('id', id);
+  S.playlists = S.playlists.filter(l => l.id !== id); if (S.activeList && S.activeList.id === id) setActiveList(null);
+  if (!plCloud) plLocalSave(); plOpenId = null; renderPlaylists();
+}
+async function plAdd(listId, item) {
+  const l = S.playlists.find(x => x.id === listId); if (!l) return;
+  const row = { id: uid(), playlist_id: listId, sort: l.items.length, source: item.source, youtube_id: item.youtube_id || null, clip_id: item.clip_id || null, title: item.title || '', start_s: item.start_s ?? null, note: null };
+  if (plCloud) { const { id, ...ins } = row; const { data, error } = await sb.from('film_playlist_items').insert(ins).select().single(); if (error) { toast('Could not save: ' + error.message); return; } row.id = data.id; }
+  l.items.push(row); if (!plCloud) plLocalSave(); renderPlaylists();
+  toast('Added to “' + l.name + '”' + (row.start_s != null ? ' at ' + fmt(row.start_s).replace(/\.\d+$/, '') : ''));
+}
+async function plRemove(listId, itemId) {
+  const l = S.playlists.find(x => x.id === listId); if (!l) return;
+  if (plCloud) await sb.from('film_playlist_items').delete().eq('id', itemId);
+  l.items = l.items.filter(i => i.id !== itemId); await plResort(l); renderPlaylists();
+}
+async function plMove(listId, itemId, dir) {
+  const l = S.playlists.find(x => x.id === listId); if (!l) return;
+  const i = l.items.findIndex(x => x.id === itemId), j = i + dir; if (i < 0 || j < 0 || j >= l.items.length) return;
+  [l.items[i], l.items[j]] = [l.items[j], l.items[i]]; await plResort(l); renderPlaylists();
+}
+async function plResort(l) {
+  l.items.forEach((it, k) => { it.sort = k; });
+  if (plCloud) for (const it of l.items) await sb.from('film_playlist_items').update({ sort: it.sort }).eq('id', it.id);
+  else plLocalSave();
+}
+function itemThumb(it) {
+  if (it.source === 'yt' && it.youtube_id) return 'https://i.ytimg.com/vi/' + it.youtube_id + '/mqdefault.jpg';
+  const c = clips.find(x => x.id === it.clip_id); return c && c.thumb_url ? c.thumb_url : '';
+}
+const tShort = (t) => fmt(t).replace(/\.\d+$/, '');
+function renderPlaylists() {
+  const listsEl = $('plLists'), openEl = $('plOpen'), l = S.playlists.find(x => x.id === plOpenId);
+  $('plPickNote').hidden = !plPick; if (plPick) $('plPickNote').textContent = 'Pick a list for “' + (plPick.title || 'this clip') + '”' + (plPick.start_s != null ? ' (from ' + tShort(plPick.start_s) + ')' : '');
+  if (l && !plPick) {
+    listsEl.hidden = true; openEl.hidden = false; $('plBack').hidden = false; $('plTitle').textContent = l.name;
+    $('plOpenNote').textContent = l.items.length ? l.items.length + ' clip' + (l.items.length === 1 ? '' : 's') + '. Tap one to play it; ◀ ▶ in the bar move through the list.' : 'Empty. Add clips with the + on any Warriors video, or the list button in the bar while a clip is loaded.';
+    const box = $('plItems'); box.innerHTML = '';
+    l.items.forEach((it, k) => {
+      const el = document.createElement('div'); el.className = 'plitem' + (S.activeList && S.activeList.id === l.id && S.activeList.index === k ? ' cur' : '');
+      el.innerHTML = '<div class="th"></div><div class="meta"><b></b><span></span></div><div class="btns"><button data-a="up">▲</button><button data-a="down">▼</button></div><button class="pladd" data-a="del" style="color:var(--danger)">✕</button>';
+      el.querySelector('.th').style.backgroundImage = "url('" + itemThumb(it) + "')";
+      el.querySelector('.meta b').textContent = (k + 1) + '. ' + (it.title || (it.source === 'yt' ? it.youtube_id : 'Clip'));
+      el.querySelector('.meta span').textContent = (it.source === 'yt' ? 'YouTube' : 'Library') + (it.start_s != null ? ' · from ' + tShort(it.start_s) : '');
+      el.querySelector('.meta').onclick = el.querySelector('.th').onclick = () => { playListItem(l.id, k); closeDrawers(); };
+      el.querySelector('[data-a=up]').onclick = () => plMove(l.id, it.id, -1);
+      el.querySelector('[data-a=down]').onclick = () => plMove(l.id, it.id, 1);
+      el.querySelector('[data-a=del]').onclick = () => plRemove(l.id, it.id);
+      box.appendChild(el);
+    });
+    return;
+  }
+  listsEl.hidden = false; openEl.hidden = true; $('plBack').hidden = true; $('plTitle').textContent = plPick ? 'Add to…' : 'Playlists';
+  const rows = $('plListRows'); rows.innerHTML = S.playlists.length ? '' : '<div class="note" style="margin-top:14px">No lists yet. Name one above, then add clips to it.</div>';
+  for (const pl of S.playlists) {
+    const el = document.createElement('div'); el.className = 'plrow';
+    el.innerHTML = '<b></b><span></span>'; el.querySelector('b').textContent = pl.name; el.querySelector('span').textContent = pl.items.length + ' clip' + (pl.items.length === 1 ? '' : 's');
+    el.onclick = async () => { if (plPick) { const item = plPick; plPick = null; await plAdd(pl.id, item); closeDrawers(); } else { plOpenId = pl.id; renderPlaylists(); } };
+    rows.appendChild(el);
+  }
+}
+function pickList(item) { plPick = item; plOpenId = null; renderPlaylists(); openDrawer('lists'); }
+$('plCreate').onclick = async () => { const name = $('plNew').value.trim(); if (!name) return; $('plNew').value = ''; const l = await plCreate(name); if (l && plPick) { const item = plPick; plPick = null; await plAdd(l.id, item); closeDrawers(); } };
+$('plNew').addEventListener('keydown', e => { if (e.key === 'Enter') $('plCreate').onclick(); });
+$('plBack').onclick = () => { plOpenId = null; renderPlaylists(); };
+$('plDelete').onclick = async () => { const l = S.playlists.find(x => x.id === plOpenId); if (!l || !confirm('Delete “' + l.name + '”?')) return; await plDelete(l.id); };
+$('plPlayAll').onclick = () => { if (plOpenId) { playListItem(plOpenId, 0); closeDrawers(); } };
+$('addToList').onclick = () => {
+  if (!S.clip) { toast('Load a clip first'); return; }
+  const item = S.clip.yt ? { source: 'yt', youtube_id: S.clip.yt, title: S.clip.title, start_s: +P.time().toFixed(2) }
+    : S.clip.id ? { source: 'clip', clip_id: S.clip.id, title: S.clip.title, start_s: +P.time().toFixed(2) } : null;
+  if (!item) { toast('Upload this clip to the library first, then it can go in a list'); return; }
+  pickList(item);
+};
+function setActiveList(a) { S.activeList = a; $('plPrev').hidden = $('plNext').hidden = !a; renderPlaylists(); }
+function playListItem(listId, k) {
+  const l = S.playlists.find(x => x.id === listId); if (!l || !l.items[k]) return;
+  const it = l.items[k]; setActiveList({ id: listId, index: k });
+  S.pendingSeek = it.start_s != null ? it.start_s : null;
+  if (it.source === 'yt') loadYT(it.youtube_id, it.title || 'YouTube');
+  else { const c = clips.find(x => x.id === it.clip_id); if (!c) { toast('That clip is no longer in the library'); return; } loadClip({ id: c.id, title: c.title, src: c.public_url, key: 'clip:' + c.id, local: false }); }
+  toast((k + 1) + '/' + l.items.length + ' · ' + (it.title || ''));
+}
+$('plNext').onclick = () => { const a = S.activeList; if (!a) return; const l = S.playlists.find(x => x.id === a.id); if (!l) return; if (a.index + 1 >= l.items.length) { toast('End of the list'); return; } playListItem(a.id, a.index + 1); };
+$('plPrev').onclick = () => { const a = S.activeList; if (!a) return; if (a.index === 0) { toast('Start of the list'); return; } playListItem(a.id, a.index - 1); };
+video.addEventListener('loadedmetadata', () => { if (S.pendingSeek != null && S.mode === 'film') { seek(S.pendingSeek); S.pendingSeek = null; } });
 $('ytGo').onclick = () => { const id = parseYouTubeId($('ytUrl').value); if (!id) { toast('That doesn’t look like a YouTube link'); return; } $('ytUrl').value = ''; loadYT(id, 'YouTube · ' + id); closeDrawers(); };
 $('ytUrl').addEventListener('keydown', e => { if (e.key === 'Enter') $('ytGo').onclick(); });
 function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); sendBoard(); }
@@ -2218,7 +2372,7 @@ function setupCoach() {
   };
   setInterval(tvBadge, 1500);
   setTimeout(() => send({ type: 'ping' }), 200);
-  loadLibrary(); loadYTList();
+  loadLibrary(); loadYTList(); loadPlaylists();
   setToolUI(); layoutStage(); updateTimeline();
   // gate
   const gate = $('gate');

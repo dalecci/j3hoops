@@ -54,3 +54,36 @@ create policy "film anon read"   on storage.objects for select using (bucket_id 
 create policy "film anon write"  on storage.objects for insert with check (bucket_id = 'film');
 create policy "film anon update" on storage.objects for update using (bucket_id = 'film');
 create policy "film anon delete" on storage.objects for delete using (bucket_id = 'film');
+
+-- Playlists (v0.8): ordered lists of YouTube links and library clips, each with an optional start time.
+create table if not exists public.film_playlists(
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  sort int default 0,
+  created_at timestamptz default now());
+
+create table if not exists public.film_playlist_items(
+  id uuid primary key default gen_random_uuid(),
+  playlist_id uuid references public.film_playlists(id) on delete cascade,
+  sort int default 0,
+  source text not null default 'yt',            -- 'yt' | 'clip'
+  youtube_id text,
+  clip_id uuid references public.film_clips(id) on delete cascade,
+  title text,
+  start_s real,
+  note text,
+  created_at timestamptz default now());
+
+create index if not exists film_playlist_items_idx on public.film_playlist_items(playlist_id, sort);
+
+do $$ declare t text;
+begin
+  foreach t in array array['film_playlists','film_playlist_items']
+  loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "anon all" on public.%I', t);
+    execute format('create policy "anon all" on public.%I for all using (true) with check (true)', t);
+    begin execute format('alter publication supabase_realtime add table public.%I', t);
+    exception when duplicate_object then null; end;
+  end loop;
+end $$;
