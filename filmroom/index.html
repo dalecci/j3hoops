@@ -262,6 +262,7 @@
     <button class="tool" data-tool="ellipse"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>Circle</button>
     <button class="tool" data-tool="zone"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" stroke-dasharray="3 3"/></svg>Zone</button>
     <button class="tool" data-tool="spot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spotlight</button>
+    <button class="tool" data-tool="beam"><svg viewBox="0 0 24 24"><path d="M8 4h8l2 15H6z" opacity=".6"/><ellipse cx="12" cy="19" rx="7" ry="2.5"/><ellipse cx="12" cy="4" rx="4" ry="1.5"/></svg>Beam</button>
     <button class="tool" data-tool="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg>Text</button>
     <div class="sep"></div>
     <button class="tool pixels-only" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
@@ -453,7 +454,7 @@
     </div>
     <button class="bigbtn ghost" id="fsBtn" style="margin-top:12px">⛶ Full screen on this iPad</button>
     <div class="h6">Drawing</div>
-    <div class="toggle"><div><b>Spotlight style</b><small>Dim the room, a light beam over the player, or both</small></div><button class="chip" id="spotStyleBtn">Both</button></div>
+    <div class="toggle"><div><b>Kenny mode spotlight</b><small>What a Kenny tap puts on the player: dim, beam, or both</small></div><button class="chip" id="spotStyleBtn">Both</button></div>
     <div class="toggle"><div><b>Finger draws</b><small>Off = only Apple Pencil draws, fingers only move things</small></div><button class="sw2 on" data-setting="fingerDraws"></button></div>
     <div class="toggle"><div><b>Clear ink when play starts</b><small>Kenny-style: drawings vanish when the play runs</small></div><button class="sw2" data-setting="clearOnPlay"></button></div>
     <div class="toggle"><div><b>Show Pencil hover dot on TV</b><small>A laser pointer while you hover before touching</small></div><button class="sw2 on" data-setting="hoverDot"></button></div>
@@ -480,7 +481,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.6.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.6.1'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1713,7 +1714,8 @@ function onDown(e) {
     case 'arrow': case 'dribble': case 'pass': case 'screen': S.live = { type: S.tool, id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'ellipse': S.live = { type: 'ellipse', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'zone': S.live = { type: 'zone', id: uid(), a: [x, y], b: [x, y], color: S.color, width: Math.max(3, S.width * 0.6), layer }; break;
-    case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, style: S.settings.spotStyle || 'both', layer }; break;
+    case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, style: 'dim', layer }; break;
+    case 'beam': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, style: 'beam', layer }; break;
     case 'lift': if (!P.paused()) { toast('Pause first, then lasso the player'); drag = { mode: 'none', id: e.pointerId }; return; } S.live = { type: 'lasso', pts: [[x, y]] }; break;
   }
   drag = { mode: 'draw', id: e.pointerId };
@@ -1933,13 +1935,14 @@ $('textInput').addEventListener('keydown', e => { if (e.key === 'Enter') closeTe
 
 /* ---------------- UI wiring (coach) ---------------- */
 function setToolUI() { document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === S.tool)); }
-const TOOL_TYPES = { lift: ['cutout'], spot: ['spot'], zone: ['zone'], pen: ['pen'], arrow: ['arrow'], dribble: ['dribble'], pass: ['pass'], screen: ['screen'], ellipse: ['ellipse'], text: ['text'], cone: ['cone'], token: ['token'], figure: ['figure'] };
-const TOOL_NAMES = { lift: 'cut-outs', spot: 'spotlights', zone: 'zones', pen: 'pen marks', arrow: 'cuts', dribble: 'dribbles', pass: 'passes', screen: 'screens', ellipse: 'circles', text: 'labels', cone: 'cones', token: 'tags', figure: 'players' };
+const TOOL_TYPES = { lift: ['cutout'], spot: ['spot'], beam: ['spot'], zone: ['zone'], pen: ['pen'], arrow: ['arrow'], dribble: ['dribble'], pass: ['pass'], screen: ['screen'], ellipse: ['ellipse'], text: ['text'], cone: ['cone'], token: ['token'], figure: ['figure'] };
+const TOOL_NAMES = { lift: 'cut-outs', spot: 'spotlights', beam: 'beams', zone: 'zones', pen: 'pen marks', arrow: 'cuts', dribble: 'dribbles', pass: 'passes', screen: 'screens', ellipse: 'circles', text: 'labels', cone: 'cones', token: 'tags', figure: 'players' };
 // tap the tool you're already on to clear just that tool's marks (spotlight off, cones gone) without wiping everything
 function clearType(tool) {
   const types = TOOL_TYPES[tool]; if (!types) return false;
-  const n = S.objects.filter(o => types.includes(o.type)).length; if (!n) return false;
-  pushHistory(); S.objects = S.objects.filter(o => !types.includes(o.type)); S.selected = null; updateObjbar(); sendObjects(); requestRender();
+  const match = (o) => types.includes(o.type) && (tool === 'spot' ? (o.style || 'both') !== 'beam' : tool === 'beam' ? (o.style || 'both') === 'beam' : true);
+  const n = S.objects.filter(match).length; if (!n) return false;
+  pushHistory(); S.objects = S.objects.filter(o => !match(o)); S.selected = null; updateObjbar(); sendObjects(); requestRender();
   toast(`${TOOL_NAMES[tool]} cleared`); return true;
 }
 document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
