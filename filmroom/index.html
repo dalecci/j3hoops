@@ -84,11 +84,20 @@
   .answerflag{position:absolute;left:12px;top:12px;background:rgba(224,169,60,.18);border:1px solid var(--warn);color:var(--warn);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;z-index:5;letter-spacing:.04em}
   .ver{grid-column:1/3;font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin:-2px 0 4px}
   /* film / board mode switch */
-  .modesw{grid-column:1/3;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;width:120px;margin-bottom:4px}
-  .modesw button{flex:1;padding:8px 0;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .modesw{grid-column:1/3;display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;overflow:hidden;width:128px;margin-bottom:4px}
+  .modesw button{flex:1;padding:8px 0;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
   .modesw button.on{background:var(--accent);color:#fff}
   #app.board .film-only{display:none!important}
   #app:not(.board) .board-only{display:none!important}
+  #app.board .pixels-only,#app.yt .pixels-only{display:none!important}
+  #ytwrap{position:absolute;inset:0;display:none;background:#000}
+  #ytwrap iframe{width:100%;height:100%;border:0;display:block}
+  #app.yt #ytwrap{display:block}
+  .ytgroup{margin-top:10px}
+  .ytgroup summary{cursor:pointer;font-weight:800;font-size:14px;padding:10px 0;list-style:none;display:flex;align-items:center;gap:8px}
+  .ytgroup summary::before{content:'▸';color:var(--faint)}
+  .ytgroup[open] summary::before{content:'▾'}
+  .ytgroup summary span{color:var(--muted);font-weight:600;font-size:12px}
   .boardbar{display:flex;align-items:center;gap:6px;padding-top:4px;flex-wrap:nowrap;overflow-x:auto}
   .boardbar .tb{min-width:46px;padding:0 10px}
   .boardbar select{height:54px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);padding:0 12px;font-weight:700;flex:1;min-width:120px;max-width:230px;-webkit-appearance:none;appearance:none}
@@ -238,7 +247,7 @@
   <!-- ============ Tool rail ============ -->
   <nav class="rail" id="rail">
     <div class="logo">J3</div>
-    <div class="modesw"><button id="modeFilm" class="on">Film</button><button id="modeBoard">Board</button></div>
+    <div class="modesw"><button id="modeFilm" class="on">Film</button><button id="modeBoard">Board</button><button id="modeYT">YT</button></div>
     <div class="ver" id="verRail"></div>
     <button class="tool" data-open="library" title="Clips">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5v14"/></svg>Clips</button>
@@ -255,7 +264,7 @@
     <button class="tool" data-tool="spot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Spotlight</button>
     <button class="tool" data-tool="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13"/></svg>Text</button>
     <div class="sep"></div>
-    <button class="tool film-only" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
+    <button class="tool pixels-only" data-tool="lift"><svg viewBox="0 0 24 24"><path d="M8 4c-3 0-5 3-4 6s4 3 5 6 4 4 7 3 5-4 4-7-4-3-5-6-4-2-7-2z" stroke-dasharray="3 2"/><path d="M14 14l5 5M19 14v5h-5"/></svg>Lift</button>
     <button class="tool film-only" data-tool="figure"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v6M7 11l5 3 5-3M9 21l3-7 3 7"/></svg>Player</button>
     <button class="tool" data-tool="cone"><svg viewBox="0 0 24 24"><path d="M12 3l5 15H7z"/><path d="M4 18h16"/></svg>Cone</button>
     <button class="tool" data-tool="token"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="6"/><path d="M12 3v4M9 19l3 2 3-2"/></svg>Tag</button>
@@ -279,6 +288,7 @@
   <div class="stagewrap" id="stagewrap">
     <div class="stage" id="stage">
       <video id="video" playsinline webkit-playsinline muted preload="auto" crossorigin="anonymous" disablepictureinpicture x-webkit-airplay="deny"></video>
+      <div id="ytwrap"><div id="ytplayer"></div></div>
       <canvas class="ink" id="ink"></canvas>
       <div class="cursor" id="cursor"></div>
       <div class="empty" id="empty">
@@ -305,7 +315,7 @@
       <div class="wizrow">
         <button id="wizUndo">Undo tap</button>
         <button id="wizMirror">Mirror</button>
-        <button id="wizAuto">✨ Auto-tag players</button>
+        <button id="wizAuto" class="pixels-only">✨ Auto-tag players</button>
         <button id="wizClear">Remove court</button>
         <button id="wizDone" class="primary">Done</button>
       </div>
@@ -414,6 +424,11 @@
     </div>
     <div class="h6">Library</div>
     <div id="clipList"><div class="note">Loading…</div></div>
+    <div class="h6">YouTube</div>
+    <div class="row"><input type="text" id="ytUrl" placeholder="Paste a YouTube link…" autocomplete="off" /><button class="bigbtn" id="ytGo" style="width:auto;padding:12px 16px">Open</button></div>
+    <div class="note">Draw, spotlight, tag and Kenny all work on YouTube. Lift and auto-tag need a real file, so upload the original mp4 or a screen recording to the library for those.</div>
+    <div class="row"><input type="text" id="ytSearch" placeholder="Search the Warriors videos…" autocomplete="off" /></div>
+    <div id="ytList"><div class="note">Loading Warriors videos…</div></div>
   </div>
 </aside>
 
@@ -461,7 +476,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.4.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.5.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -491,9 +506,9 @@ const S = {
   court: null,           // {pts:[[nx,ny]x4], mirror:bool} paint corners -> homography to court feet
   courtMode: 'off',      // off | small | large  (top-view panel size)
   calib: null,           // in-progress calibration taps
-  mode: 'film',          // film | board
+  mode: 'film',          // film | board | yt
   board: { size: 'half', play: null, step: 0, anim: null, rate: 1, frame: null },
-  stash: [],             // ink objects of the other mode
+  objStore: { film: [], board: [], yt: [] },   // ink objects of the modes you are not in
   selected: null,
   view: { s: 1, x: 0, y: 0 },
   settings: { fingerDraws: true, clearOnPlay: false, hoverDot: true },
@@ -512,6 +527,7 @@ let fit = { x: 0, y: 0, w: 1, h: 1 }; // where the video pixels sit inside the s
 function computeFit() {
   const W = stage.clientWidth, H = stage.clientHeight;
   if (S.mode === 'board') { fit = boardRect(W, H); return; }
+  if (S.mode === 'yt') { fit = { x: 0, y: 0, w: W, h: H }; return; } // the embed fills the 16:9 stage
   const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
   const s = Math.min(W / vw, H / vh);
   const w = vw * s, h = vh * s;
@@ -581,7 +597,7 @@ function render() {
   if (S.wipe != null) drawWipe(W, H);
   if (!IS_TV && S.selected) drawSelection(S.selected);
   if (!IS_TV && S.calib) drawCalib();
-  if (S.mode === 'film' && S.courtMode !== 'off' && courtH) drawCourtPanel(visible.concat(S.live ? [S.live] : []));
+  if (S.mode !== 'board' && S.courtMode !== 'off' && courtH) drawCourtPanel(visible.concat(S.live ? [S.live] : []));
 }
 
 /* =====================================================================
@@ -881,21 +897,28 @@ $('playSel').onchange = (e) => {
 /* ---- mode switch ---- */
 function setMode(m) {
   if (S.mode === m) return;
-  if (m === 'board' && !video.paused) video.pause();
+  if (!P.paused()) P.pause();
   if (S.board.anim) { S.board.anim = null; boardPlayIcon(false); }
-  const tmp = S.stash; S.stash = S.objects; S.objects = tmp; S.selected = null; S.live = null; S.history = [];
-  S.mode = m; app.classList.toggle('board', m === 'board');
-  video.style.visibility = m === 'board' ? 'hidden' : ''; $('empty').hidden = m === 'board' || !!S.clip;
-  $('modeFilm').classList.toggle('on', m === 'film'); $('modeBoard').classList.toggle('on', m === 'board');
-  if (m === 'film' && ['lift', 'figure'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
+  S.objStore[S.mode] = S.objects; S.objects = S.objStore[m] || []; S.selected = null; S.live = null; S.history = [];
+  // each mode keeps its own clip: film = file, yt = YouTube id, board = none
+  if (S.mode === 'film') S.filmClip = S.clip; if (S.mode === 'yt') S.ytClip = S.clip;
+  S.clip = m === 'film' ? (S.filmClip || null) : m === 'yt' ? (S.ytClip || null) : null;
+  S.mode = m; app.classList.toggle('board', m === 'board'); app.classList.toggle('yt', m === 'yt');
+  video.style.visibility = m === 'film' ? '' : 'hidden';
+  const emptyEl = $('empty'); emptyEl.hidden = m === 'board' || !!S.clip;
+  emptyEl.querySelector('b').textContent = m === 'yt' ? 'No YouTube video loaded' : 'No clip loaded';
+  $('modeFilm').classList.toggle('on', m === 'film'); $('modeBoard').classList.toggle('on', m === 'board'); $('modeYT').classList.toggle('on', m === 'yt');
+  if (m === 'film' && ['figure'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
+  if (m === 'yt' && ['lift'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
   if (m === 'board' && ['lift', 'figure', 'token'].includes(S.tool)) { S.tool = 'pen'; setToolUI(); }
   if (S.wipe != null) setWipeMode(false);
   updateObjbar(); layoutStage(); $('cue').classList.remove('show');
   if (m === 'board' && !cloudPlays.length) loadPlayList();
-  sendBoard(); sendObjects();
-  if (m === 'film') { $('pPlay').querySelector('svg').innerHTML = $('playIcon').innerHTML; }
+  sendBoard(); if (S.clip) sendClip(); sendObjects(); updateTimeline(); renderMarks();
+  if (m !== 'board') { setPlayIcon(!P.paused()); }
+  if (m === 'yt' && !S.clip) openDrawer('library');
 }
-$('modeFilm').onclick = () => setMode('film'); $('modeBoard').onclick = () => setMode('board');
+$('modeFilm').onclick = () => setMode('film'); $('modeBoard').onclick = () => setMode('board'); $('modeYT').onclick = () => setMode('yt');
 $('tvBtn2').onclick = () => $('tvBtn').onclick(); $('presentBtn2').onclick = () => $('presentBtn').onclick();
 // Before/after wipe: left of the divider is the raw frame (what happened), right is the corrected version.
 function drawWipe(W, H) {
@@ -1164,7 +1187,7 @@ function drawCalib() {
 }
 function startCalib() {
   if (!S.clip) { toast('Load a clip first'); return; }
-  if (!video.paused) video.pause();
+  if (!P.paused()) P.pause();
   S.calib = { pts: [] }; S.selected = null; updateObjbar();
   $('wizard').hidden = false; wizText(); requestRender();
 }
@@ -1210,7 +1233,7 @@ async function loadCourt() {
 let detector = null;
 async function autoTag() {
   if (!S.clip || !video.videoWidth) return;
-  if (!video.paused) video.pause();
+  if (!P.paused()) P.pause();
   const btn = $('wizAuto'); btn.disabled = true; btn.textContent = '✨ Looking…';
   try {
     if (!detector) {
@@ -1390,13 +1413,95 @@ function hitTest(px, py) {
 const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CHANNEL) : null;
 function send(msg) { if (bc) try { bc.postMessage(msg); } catch (e) { console.warn('bc', e); } }
 function sendObjects() { send({ type: 'objects', objects: S.objects, reveal: S.reveal }); }
-function sendTime(extra = {}) { send({ type: 'time', t: video.currentTime, playing: !video.paused, rate: S.rate, ...extra }); }
+function sendTime(extra = {}) { send({ type: 'time', t: P.time(), playing: !P.paused(), rate: S.rate, ...extra }); }
 function sendClip() {
   if (!S.clip) return;
   const m = { type: 'clip', title: S.clip.title, key: S.clip.key, session: SESSION };
-  if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
+  if (S.clip.yt) m.yt = S.clip.yt; else if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
   send(m);
 }
+
+/* ---------- player facade: the same calls drive a file <video> or a YouTube embed ---------- */
+let yt = null, ytPoll = 0;
+const P = {
+  isYT: () => S.mode === 'yt',
+  time: () => P.isYT() ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0),
+  duration: () => P.isYT() ? (yt && yt.getDuration ? (yt.getDuration() || 0) : 0) : (video.duration || 0),
+  paused: () => { if (!P.isYT()) return video.paused; if (!yt || !yt.getPlayerState) return true; const st = yt.getPlayerState(); return !(st === 1 || st === 3); },
+  seek: (t) => { if (P.isYT()) { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
+  play: () => { if (P.isYT()) { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
+  pause: () => { if (P.isYT()) { if (yt && yt.pauseVideo) yt.pauseVideo(); } else video.pause(); },
+  setRate: (r) => { if (P.isYT()) { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(r); } else video.playbackRate = r; },
+};
+function ensureYTApi() {
+  return new Promise(res => {
+    if (window.YT && window.YT.Player) return res();
+    const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { prev && prev(); res(); };
+    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) { const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); }
+  });
+}
+function parseYouTubeId(url) {
+  const m = String(url || '').trim().match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/) || String(url || '').trim().match(/^([A-Za-z0-9_-]{11})$/);
+  return m ? m[1] : null;
+}
+async function loadYT(id, title) {
+  if (!IS_TV && S.mode !== 'yt') setMode('yt');
+  if (IS_TV && S.mode !== 'yt') { S.mode = 'yt'; app.classList.remove('board'); app.classList.add('yt'); video.style.visibility = 'hidden'; layoutStage(); }
+  resetClipState({ id: null, title: title || 'YouTube', key: 'yt:' + id, yt: id, local: false, src: null, session: SESSION });
+  $('empty').hidden = true; $('tvidle').hidden = true;
+  await ensureYTApi();
+  if (yt && yt.cueVideoById) { yt.cueVideoById(id); }
+  else {
+    yt = new YT.Player('ytplayer', {
+      videoId: id, width: '100%', height: '100%',
+      playerVars: { controls: 0, disablekb: 1, rel: 0, modestbranding: 1, playsinline: 1, iv_load_policy: 3, fs: 0, origin: location.origin, mute: IS_TV ? 1 : 0 },
+      events: {
+        onReady: () => { if (IS_TV) yt.mute(); S.fps = 30; S.fpsLocked = true; $('fpsVal').textContent = '30 fps (YouTube)'; updateTimeline(); renderMarks(); },
+        onStateChange: (e) => { setPlayIcon(e.data === 1); if (!IS_TV) sendTime(); if (e.data === 0) setPlayIcon(false); },
+        onError: (e) => toast('YouTube won’t play this one here (embedding blocked, code ' + e.data + ')'),
+      },
+    });
+  }
+  if (!IS_TV) { setTimeout(() => { sendClip(); sendObjects(); send({ type: 'view', view: S.view }); }, 50); loadMarks(); loadCourt(); renderYTList(); }
+  clearInterval(ytPoll);
+  ytPoll = setInterval(() => {
+    if (S.mode !== 'yt' || !yt || !yt.getCurrentTime) return;
+    if (!IS_TV && !P.paused() && S.loop.a != null && S.loop.b != null && P.time() >= S.loop.b) P.seek(S.loop.a);
+    updateTimeline();
+  }, 100);
+  requestRender();
+}
+/* ---- Warriors library (training_videos: every practice, breakdown and full game is a YouTube id) ---- */
+let ytVideos = [];
+const YT_GROUPS = [['practice', 'Practices'], ['gamebreakdown', 'Breakdowns'], ['fullgame', 'Full games']];
+async function loadYTList() {
+  if (!sb) return;
+  const { data, error } = await sb.from('training_videos').select('id,title,youtube_id,category,sub_cat,tags,order_idx,created_at').order('created_at', { ascending: false });
+  if (error) { $('ytList').innerHTML = `<div class="note">Couldn’t load the Warriors videos: ${esc(error.message)}</div>`; return; }
+  ytVideos = (data || []).filter(v => v.youtube_id); renderYTList();
+}
+function renderYTList() {
+  const list = $('ytList'), q = ($('ytSearch').value || '').trim().toLowerCase();
+  const rows = ytVideos.filter(v => !q || (v.title || '').toLowerCase().includes(q) || (v.sub_cat || '').toLowerCase().includes(q) || (v.tags || []).join(' ').toLowerCase().includes(q));
+  list.innerHTML = '';
+  if (!rows.length) { list.innerHTML = '<div class="note">Nothing matches.</div>'; return; }
+  const seen = new Set();
+  for (const [cat, label] of YT_GROUPS.concat([...new Set(rows.map(v => v.category))].filter(c => !YT_GROUPS.some(g => g[0] === c)).map(c => [c, c || 'Other']))) {
+    const items = rows.filter(v => (v.category || '') === (cat || '')); if (!items.length || seen.has(cat)) continue; seen.add(cat);
+    const d = document.createElement('details'); d.className = 'ytgroup'; d.open = !!q || cat === 'gamebreakdown';
+    d.innerHTML = `<summary>${esc(label)} <span>${items.length}</span></summary>`;
+    for (const v of items) {
+      const el = document.createElement('div'); el.className = 'clip' + (S.clip && S.clip.key === 'yt:' + v.youtube_id ? ' cur' : '');
+      el.innerHTML = `<div class="th" style="background-image:url('https://i.ytimg.com/vi/${esc(v.youtube_id)}/mqdefault.jpg')"></div><div class="meta"><b>${esc(v.title)}</b><span>${esc(v.sub_cat || '')}${v.created_at ? (v.sub_cat ? ' · ' : '') + v.created_at.slice(0, 10) : ''}</span></div>`;
+      el.onclick = () => { loadYT(v.youtube_id, v.title); closeDrawers(); };
+      d.appendChild(el);
+    }
+    list.appendChild(d);
+  }
+}
+$('ytSearch').addEventListener('input', renderYTList);
+$('ytGo').onclick = () => { const id = parseYouTubeId($('ytUrl').value); if (!id) { toast('That doesn’t look like a YouTube link'); return; } $('ytUrl').value = ''; loadYT(id, 'YouTube · ' + id); closeDrawers(); };
+$('ytUrl').addEventListener('keydown', e => { if (e.key === 'Enter') $('ytGo').onclick(); });
 function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); sendBoard(); }
 
 /* ---------------- video ---------------- */
@@ -1424,7 +1529,7 @@ else video.addEventListener('timeupdate', updateTimeline);
 function fmt(t) { if (!isFinite(t)) return '0:00.00'; const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(2).padStart(5, '0')}`; }
 function updateTimeline() {
   if (IS_TV) return;
-  const d = video.duration || 0, t = video.currentTime || 0, p = d ? t / d : 0;
+  const d = P.duration() || 0, t = P.time() || 0, p = d ? t / d : 0;
   $('played').style.width = (p * 100) + '%';
   $('head').style.left = (p * 100) + '%';
   $('tc').textContent = fmt(t);
@@ -1433,20 +1538,20 @@ function updateTimeline() {
   else lb.hidden = true;
 }
 function seek(t, opts = {}) {
-  const d = video.duration || 0;
-  video.currentTime = clamp(t, 0, d ? d - 0.001 : t);
+  const d = P.duration() || 0;
+  P.seek(clamp(t, 0, d ? d - 0.001 : t));
   if (!opts.silent) sendTime();
 }
-function step(n) { if (!video.paused) video.pause(); seek(video.currentTime + n / S.fps + (n > 0 ? 0.0005 : -0.0005)); }
-function togglePlay() { if (video.paused) play(); else pause(); }
+function step(n) { if (!P.paused()) P.pause(); seek(P.time() + n / S.fps + (n > 0 ? 0.0005 : -0.0005)); }
+function togglePlay() { if (P.paused()) play(); else pause(); }
 function play() {
   if (!S.clip) return;
-  if (S.loop.a != null && S.loop.b != null && (video.currentTime < S.loop.a || video.currentTime >= S.loop.b)) video.currentTime = S.loop.a;
+  if (S.loop.a != null && S.loop.b != null && (P.time() < S.loop.a || P.time() >= S.loop.b)) P.seek(S.loop.a);
   if (S.settings.clearOnPlay && S.objects.length) { pushHistory(); S.objects = []; S.selected = null; sendObjects(); requestRender(); updateObjbar(); }
-  video.playbackRate = S.rate;
-  video.play().catch(e => toast('Tap play again (' + e.message + ')'));
+  P.setRate(S.rate);
+  P.play();
 }
-function pause() { video.pause(); }
+function pause() { P.pause(); }
 video.addEventListener('play', () => { setPlayIcon(true); sendTime(); });
 video.addEventListener('pause', () => { setPlayIcon(false); sendTime(); });
 video.addEventListener('seeked', () => { updateTimeline(); if (!IS_TV) sendTime(); });
@@ -1457,19 +1562,24 @@ function setPlayIcon(playing) {
   $('playIcon').innerHTML = d;
   $('pPlay').querySelector('svg').innerHTML = d;
 }
-setInterval(() => { if (!IS_TV && S.clip && !video.paused) sendTime(); }, 400);
+setInterval(() => { if (!IS_TV && S.clip && !P.paused()) sendTime(); }, 400);
 
-function loadClip(clip) {
+function resetClipState(clip) {
   S.clip = clip; S.objects = []; S.history = []; S.live = null; S.selected = null; S.loop = { a: null, b: null };
   S.view = { s: 1, x: 0, y: 0 }; applyView();
+  if (!IS_TV) { $('loopClear').hidden = true; $('loopA').classList.remove('on'); $('loopB').classList.remove('on'); }
+}
+function loadClip(clip) {
+  if (!IS_TV && S.mode !== 'film') setMode('film');
+  if (IS_TV && S.mode !== 'film') { S.mode = 'film'; app.classList.remove('board', 'yt'); video.style.visibility = ''; layoutStage(); }
+  if (yt && yt.pauseVideo) try { yt.pauseVideo(); } catch {}
+  resetClipState(clip);
   fpsSamples = []; rvfcLast = null; S.fpsLocked = false;
   video.src = clip.src; video.load();
   $('empty').hidden = true; $('tvidle').hidden = true;
-  if (!IS_TV && S.mode === 'board') setMode('film');
   if (!IS_TV) {
     $('uploadBox').hidden = !clip.local;
     if (clip.local) $('uploadTitle').value = clip.title.replace(/\.[a-z0-9]+$/i, '');
-    $('loopClear').hidden = true; $('loopA').classList.remove('on'); $('loopB').classList.remove('on');
     setTimeout(() => { sendClip(); sendObjects(); send({ type: 'view', view: S.view }); }, 50);
     loadMarks();
     loadCourt();
@@ -1553,7 +1663,7 @@ function onDown(e) {
     case 'ellipse': S.live = { type: 'ellipse', id: uid(), a: [x, y], b: [x, y], color: S.color, width: S.width, layer }; break;
     case 'zone': S.live = { type: 'zone', id: uid(), a: [x, y], b: [x, y], color: S.color, width: Math.max(3, S.width * 0.6), layer }; break;
     case 'spot': S.live = { type: 'spot', id: uid(), c: [x, y], r: 0.06, color: S.color, layer }; break;
-    case 'lift': if (!video.paused) { toast('Pause first, then lasso the player'); drag = { mode: 'none', id: e.pointerId }; return; } S.live = { type: 'lasso', pts: [[x, y]] }; break;
+    case 'lift': if (!P.paused()) { toast('Pause first, then lasso the player'); drag = { mode: 'none', id: e.pointerId }; return; } S.live = { type: 'lasso', pts: [[x, y]] }; break;
   }
   drag = { mode: 'draw', id: e.pointerId };
   requestRender();
@@ -1645,7 +1755,7 @@ let tapStart = null;
 /* ---- Kenny mode: tap a player = freeze + spotlight him; draw the correction; tap again = clear ---- */
 function kennyTap(x, y) {
   if (S.objects.length) { clearInk(); toast('Cleared'); return; }
-  if (!video.paused) video.pause();
+  if (!P.paused()) P.pause();
   pushHistory();
   S.objects.push({ type: 'spot', id: uid(), c: [x, y], r: 0.07, color: S.color, layer: 'a' });
   S.tool = 'pen'; setToolUI(); sendObjects(); requestRender();
@@ -1661,7 +1771,7 @@ function setWipeMode(on) {
   if (on && !S.objects.length) { toast('Nothing to compare yet. Move a player or draw the fix first.'); return; }
   S.wipe = on ? 0.5 : null;
   $('wipeBtn').classList.toggle('on', on); $('pWipe').classList.toggle('on', on);
-  if (on) { if (!video.paused) video.pause(); S.selected = null; updateObjbar(); toast('Drag the divider: left = what happened, right = the fix'); }
+  if (on) { if (!P.paused()) P.pause(); S.selected = null; updateObjbar(); toast('Drag the divider: left = what happened, right = the fix'); }
   send({ type: 'wipe', wipe: S.wipe }); requestRender();
 }
 let throttleT = 0;
@@ -1779,12 +1889,12 @@ $('play').onclick = togglePlay; $('pPlay').onclick = () => S.mode === 'board' ? 
 $('stepB').onclick = () => step(-1); $('stepF').onclick = () => step(1);
 $('pStepB').onclick = () => S.mode === 'board' ? boardGo(S.board.step - 1) : step(-1);
 $('pStepF').onclick = () => S.mode === 'board' ? boardGo(S.board.step + 1) : step(1);
-$('loopA').onclick = () => { S.loop.a = video.currentTime; if (S.loop.b != null && S.loop.b <= S.loop.a) S.loop.b = null; loopUI(); };
-$('loopB').onclick = () => { S.loop.b = video.currentTime; if (S.loop.a == null || S.loop.a >= S.loop.b) S.loop.a = Math.max(0, S.loop.b - 2); loopUI(); toast(`Loop ${fmt(S.loop.a)} → ${fmt(S.loop.b)}`); };
-$('loopClear').onclick = clearLoop; $('pLoop').onclick = () => { if (S.loop.a != null && S.loop.b != null) clearLoop(); else { S.loop = { a: Math.max(0, video.currentTime - 2), b: video.currentTime }; loopUI(); toast('Looping the last 2 seconds'); } };
+$('loopA').onclick = () => { S.loop.a = P.time(); if (S.loop.b != null && S.loop.b <= S.loop.a) S.loop.b = null; loopUI(); };
+$('loopB').onclick = () => { S.loop.b = P.time(); if (S.loop.a == null || S.loop.a >= S.loop.b) S.loop.a = Math.max(0, S.loop.b - 2); loopUI(); toast(`Loop ${fmt(S.loop.a)} → ${fmt(S.loop.b)}`); };
+$('loopClear').onclick = clearLoop; $('pLoop').onclick = () => { if (S.loop.a != null && S.loop.b != null) clearLoop(); else { S.loop = { a: Math.max(0, P.time() - 2), b: P.time() }; loopUI(); toast('Looping the last 2 seconds'); } };
 function clearLoop() { S.loop = { a: null, b: null }; loopUI(); }
 function loopUI() { $('loopA').classList.toggle('on', S.loop.a != null); $('loopB').classList.toggle('on', S.loop.b != null); $('loopClear').hidden = !(S.loop.a != null && S.loop.b != null); $('pLoop').classList.toggle('on', S.loop.a != null && S.loop.b != null); updateTimeline(); }
-document.querySelectorAll('#speed button').forEach(b => b.onclick = () => { S.rate = parseFloat(b.dataset.rate); video.playbackRate = S.rate; document.querySelectorAll('#speed button').forEach(x => x.classList.toggle('on', x === b)); sendTime(); });
+document.querySelectorAll('#speed button').forEach(b => b.onclick = () => { S.rate = parseFloat(b.dataset.rate); P.setRate(S.rate); document.querySelectorAll('#speed button').forEach(x => x.classList.toggle('on', x === b)); sendTime(); });
 $('presentBtn').onclick = () => { app.classList.add('present'); setTimeout(layoutStage, 30); wakePill(); };
 $('pExit').onclick = () => { app.classList.remove('present'); setTimeout(layoutStage, 30); };
 function wakePill() { const p = $('pill'); p.classList.add('awake'); clearTimeout(wakePill.t); wakePill.t = setTimeout(() => p.classList.remove('awake'), 2500); }
@@ -1809,11 +1919,11 @@ const track = $('track');
 track.addEventListener('pointerdown', e => { track.setPointerCapture(e.pointerId); scrubTo(e); track.dataset.on = 1; });
 track.addEventListener('pointermove', e => { if (track.dataset.on) scrubTo(e); });
 track.addEventListener('pointerup', () => { delete track.dataset.on; });
-function scrubTo(e) { const r = track.getBoundingClientRect(); const p = clamp((e.clientX - r.left) / r.width, 0, 1); if (!video.paused) video.pause(); seek(p * (video.duration || 0)); }
+function scrubTo(e) { const r = track.getBoundingClientRect(); const p = clamp((e.clientX - r.left) / r.width, 0, 1); if (!P.paused()) P.pause(); seek(p * (P.duration() || 0)); }
 // jog strip: drag = scrub by frames. slow drag = 1 frame per 6px, fast drag accelerates
 const jog = $('jog'); let jogX = null, jogAcc = 0;
-jog.addEventListener('pointerdown', e => { jog.setPointerCapture(e.pointerId); jogX = e.clientX; jogAcc = 0; jog.classList.add('active'); if (!video.paused) video.pause(); });
-jog.addEventListener('pointermove', e => { if (jogX == null) return; const dx = e.clientX - jogX; jogX = e.clientX; jogAcc += dx * (Math.abs(dx) > 14 ? 3 : 1); const frames = Math.trunc(jogAcc / 6); if (frames) { jogAcc -= frames * 6; seek(video.currentTime + frames / S.fps); } });
+jog.addEventListener('pointerdown', e => { jog.setPointerCapture(e.pointerId); jogX = e.clientX; jogAcc = 0; jog.classList.add('active'); if (!P.paused()) P.pause(); });
+jog.addEventListener('pointermove', e => { if (jogX == null) return; const dx = e.clientX - jogX; jogX = e.clientX; jogAcc += dx * (Math.abs(dx) > 14 ? 3 : 1); const frames = Math.trunc(jogAcc / 6); if (frames) { jogAcc -= frames * 6; seek(P.time() + frames / S.fps); } });
 jog.addEventListener('pointerup', () => { jogX = null; jog.classList.remove('active'); });
 jog.addEventListener('pointercancel', () => { jogX = null; jog.classList.remove('active'); });
 
@@ -1935,14 +2045,14 @@ async function saveMarkRow(m) {
 function saveLocalMark(m) { const arr = (() => { try { return JSON.parse(localStorage.getItem(marksKey()) || '[]'); } catch { return []; } })(); m.id = m.id || uid(); arr.push(m); try { localStorage.setItem(marksKey(), JSON.stringify(arr)); } catch { toast('Not enough room to save this mark locally'); } }
 $('saveMark').onclick = async () => {
   if (!S.clip) return;
-  const m = { t: video.currentTime, label: `Mark ${S.marks.length + 1}`, objects: JSON.parse(JSON.stringify(S.objects)), loop: (S.loop.a != null && S.loop.b != null) ? { ...S.loop } : null };
+  const m = { t: P.time(), label: `Mark ${S.marks.length + 1}`, objects: JSON.parse(JSON.stringify(S.objects)), loop: (S.loop.a != null && S.loop.b != null) ? { ...S.loop } : null };
   const lbl = prompt('Name this mark', m.label); if (lbl == null) return; m.label = lbl.trim() || m.label;
   S.marks.push(m); await saveMarkRow(m); S.marks.sort((a, b) => a.t - b.t); renderMarks(); toast('Mark saved');
 };
 function renderMarks() {
   const list = $('markList'), pins = $('markpins');
   pins.innerHTML = ''; list.innerHTML = S.marks.length ? '' : '<div class="note" style="margin-top:14px">No marks yet. Pause on a frame, draw, tap <b>Mark</b>.</div>';
-  const d = video.duration || 0;
+  const d = P.duration() || 0;
   for (const m of S.marks) {
     if (d) { const p = document.createElement('div'); p.className = 'mark'; p.style.left = (m.t / d * 100) + '%'; pins.appendChild(p); }
     const el = document.createElement('div'); el.className = 'markitem';
@@ -1953,7 +2063,7 @@ function renderMarks() {
   }
 }
 function gotoMark(m) {
-  if (!video.paused) video.pause();
+  if (!P.paused()) P.pause();
   pushHistory(); S.objects = JSON.parse(JSON.stringify(m.objects)); S.selected = null; updateObjbar();
   if (m.loop) { S.loop = { ...m.loop }; loopUI(); }
   seek(m.t); sendObjects(); requestRender();
@@ -1974,6 +2084,7 @@ function setupTV() {
     switch (m.type) {
       case 'clip': {
         if (S.clip && S.clip.key === m.key && S.clip.session === m.session) break;
+        if (m.yt) { loadYT(m.yt, m.title); break; }
         if (S.clip && S.clip.src && S.clip.src.startsWith('blob:')) URL.revokeObjectURL(S.clip.src);
         const src = m.file ? URL.createObjectURL(m.file) : m.src;
         loadClip({ id: null, title: m.title, src, key: m.key, local: !!m.file, session: m.session });
@@ -1983,10 +2094,10 @@ function setupTV() {
       case 'live': S.live = m.live; requestRender(); break;
       case 'time': {
         if (!S.clip) break;
-        S.rate = m.rate; video.playbackRate = m.rate;
-        const drift = Math.abs(video.currentTime - m.t);
-        if (m.playing) { if (video.paused) { video.currentTime = m.t; video.play().catch(() => {}); } else if (drift > 0.12) video.currentTime = m.t; }
-        else { if (!video.paused) video.pause(); if (drift > 0.001) video.currentTime = m.t; }
+        S.rate = m.rate; P.setRate(m.rate);
+        const tol = S.mode === 'yt' ? 0.35 : 0.12, drift = Math.abs(P.time() - m.t);
+        if (m.playing) { if (P.paused()) { P.seek(m.t); P.play(); } else if (drift > tol) P.seek(m.t); }
+        else { if (!P.paused()) P.pause(); if (drift > (S.mode === 'yt' ? 0.05 : 0.001)) P.seek(m.t); }
         break;
       }
       case 'view': S.view = m.view; applyView(); break;
@@ -1994,7 +2105,7 @@ function setupTV() {
       case 'court': S.court = m.court; S.courtMode = m.mode; rebuildCourt(); requestRender(); break;
       case 'board': {
         const was = S.mode; S.mode = m.mode; S.board.size = m.size; S.board.frame = m.frame;
-        if (was !== m.mode) { app.classList.toggle('board', m.mode === 'board'); video.style.visibility = m.mode === 'board' ? 'hidden' : ''; $('tvidle').hidden = m.mode === 'board' || !!S.clip; if (m.mode === 'film') $('cue').classList.remove('show'); layoutStage(); }
+        if (was !== m.mode) { app.classList.toggle('board', m.mode === 'board'); app.classList.toggle('yt', m.mode === 'yt'); video.style.visibility = m.mode === 'film' ? '' : 'hidden'; $('tvidle').hidden = m.mode === 'board' || !!S.clip; if (m.mode !== 'board') $('cue').classList.remove('show'); if (yt && yt.pauseVideo && m.mode !== 'yt') try { yt.pauseVideo(); } catch {} layoutStage(); }
         requestRender(); break;
       }
       case 'cursor': {
@@ -2019,7 +2130,7 @@ function setupCoach() {
   };
   setInterval(tvBadge, 1500);
   setTimeout(() => send({ type: 'ping' }), 200);
-  loadLibrary();
+  loadLibrary(); loadYTList();
   setToolUI(); layoutStage(); updateTimeline();
   // gate
   const gate = $('gate');
