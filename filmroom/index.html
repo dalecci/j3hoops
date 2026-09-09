@@ -324,9 +324,11 @@
 
     <!-- present-mode pill -->
     <div class="pill" id="pill">
+      <button id="pBack15" title="Back 15 seconds"><svg viewBox="0 0 24 24"><path d="M11 5L5 11l6 6"/><path d="M5 11h9a5 5 0 010 10"/></svg></button>
       <button id="pStepB" title="Back a frame"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <button id="pPlay" title="Play/pause"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button>
       <button id="pStepF" title="Forward a frame"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button id="pFwd15" title="Forward 15 seconds"><svg viewBox="0 0 24 24"><path d="M13 5l6 6-6 6"/><path d="M19 11h-9a5 5 0 000 10"/></svg></button>
       <button id="pLoop" title="Loop"><svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
       <button id="pUndo" title="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg></button>
       <button id="pClear" title="Clear"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
@@ -394,9 +396,11 @@
       <div class="tc" id="tc">0:00.00</div>
     </div>
     <div class="transport film-only">
+      <button class="tb" id="back15" title="Back 15 seconds"><svg viewBox="0 0 24 24"><path d="M11 5L5 11l6 6"/><path d="M5 11h9a5 5 0 010 10"/></svg>15</button>
       <button class="tb" id="stepB" title="Back one frame"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/><path d="M8 6v12"/></svg></button>
       <button class="tb play" id="play" title="Play / pause"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 5l12 7-12 7z"/></svg></button>
       <button class="tb" id="stepF" title="Forward one frame"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/><path d="M16 6v12"/></svg></button>
+      <button class="tb" id="fwd15" title="Forward 15 seconds">15<svg viewBox="0 0 24 24"><path d="M13 5l6 6-6 6"/><path d="M19 11h-9a5 5 0 000 10"/></svg></button>
       <div class="jog" id="jog"><span>◀ jog ▶</span></div>
       <button class="tb" id="loopA" title="Set loop start">A</button>
       <button class="tb" id="loopB" title="Set loop end">B</button>
@@ -481,7 +485,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.6.1'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.7.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1681,7 +1685,7 @@ function onDown(e) {
   if (S.tool === 'token' || S.tool === 'cone') {
     pushHistory();
     const t = { type: S.tool, id: uid(), p: [x, y], color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
-    S.objects.push(t); S.selected = t; drag = { mode: 'move', id: e.pointerId, obj: t, start: [x, y], orig: [x, y], moved: false };
+    S.objects.push(t); S.selected = t; oneShotDone(); drag = { mode: 'move', id: e.pointerId, obj: t, start: [x, y], orig: [x, y], moved: false };
     updateObjbar(); sendObjects(); requestRender(); return;
   }
   // selection / move first (any pointer type)
@@ -1701,7 +1705,7 @@ function onDown(e) {
   if (S.tool === 'figure') {
     pushHistory();
     const f = { type: 'figure', id: uid(), p: [x, y], yaw: 0, h: 0.28, color: S.color, num: '', layer: S.answerMode ? 'b' : 'a' };
-    S.objects.push(f); S.selected = f; ensureThree();
+    S.objects.push(f); S.selected = f; ensureThree(); oneShotDone();
     drag = { mode: 'move', id: e.pointerId, obj: f, start: [x, y], orig: [x, y], moved: false };
     updateObjbar(); sendObjects(); requestRender(); return;
   }
@@ -1804,7 +1808,7 @@ function onUp(e) {
     if (cut) { pushHistory(); S.objects.push(cut); S.selected = cut; S.tool = 'move'; setToolUI(); updateObjbar(); toast('Lifted. Drag him where he should be.'); }
   } else if (L.type === 'pen') {
     if (L.pts.length > 1) { pushHistory(); S.objects.push(L); }
-  } else if (L.type === 'spot') { pushHistory(); S.objects.push(L); }
+  } else if (L.type === 'spot') { pushHistory(); S.objects.push(L); S.selected = L; oneShotDone(); updateObjbar(); }
   else {
     if (Math.hypot(L.b[0] - L.a[0], L.b[1] - L.a[1]) > 0.01) { pushHistory(); S.objects.push(L); }
   }
@@ -1927,7 +1931,7 @@ function openTextEntry(cx, cy, norm) {
 function closeTextEntry(commit) {
   const te = $('textentry'); if (!te.classList.contains('show')) return;
   const s = $('textInput').value.trim();
-  if (commit && s && textAt) { pushHistory(); S.objects.push({ type: 'text', id: uid(), p: textAt, s, color: S.color, size: 44, layer: S.answerMode ? 'b' : 'a' }); sendObjects(); requestRender(); }
+  if (commit && s && textAt) { pushHistory(); const t = { type: 'text', id: uid(), p: textAt, s, color: S.color, size: 44, layer: S.answerMode ? 'b' : 'a' }; S.objects.push(t); S.selected = t; oneShotDone(); updateObjbar(); sendObjects(); requestRender(); }
   te.classList.remove('show'); textAt = null; $('textInput').blur();
 }
 $('textOk').onclick = () => closeTextEntry(true);
@@ -1945,10 +1949,13 @@ function clearType(tool) {
   pushHistory(); S.objects = S.objects.filter(o => !match(o)); S.selected = null; updateObjbar(); sendObjects(); requestRender();
   toast(`${TOOL_NAMES[tool]} cleared`); return true;
 }
+const ONE_SHOT = new Set(['spot', 'beam', 'figure', 'token', 'cone', 'text', 'lift']);
+// after placing one spotlight/beam/player/tag/cone/label the tool flips to Move: the next tap edits it instead of adding another
+function oneShotDone() { if (ONE_SHOT.has(S.tool)) { S.tool = 'move'; setToolUI(); } }
 document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
   const t = b.dataset.tool;
   if (S.trackSpot) { S.trackSpot = null; updateObjbar(); }
-  if (S.tool === t && clearType(t)) return;
+  if (S.tool === t && !ONE_SHOT.has(t) && clearType(t)) return;
   S.tool = t; if (S.tool !== 'move') { S.selected = null; updateObjbar(); requestRender(); } setToolUI();
 }));
 const swEl = $('swatches');
@@ -1959,6 +1966,8 @@ $('undoBtn').onclick = undo; $('clearBtn').onclick = clearInk;
 $('pUndo').onclick = undo; $('pClear').onclick = clearInk;
 $('play').onclick = togglePlay; $('pPlay').onclick = () => S.mode === 'board' ? boardTogglePlay() : togglePlay();
 $('stepB').onclick = () => step(-1); $('stepF').onclick = () => step(1);
+const skip = (n) => { if (S.mode === 'board') return; seek(P.time() + n); toast((n > 0 ? '+' : '−') + Math.abs(n) + 's'); };
+$('back15').onclick = () => skip(-15); $('fwd15').onclick = () => skip(15); $('pBack15').onclick = () => skip(-15); $('pFwd15').onclick = () => skip(15);
 $('pStepB').onclick = () => S.mode === 'board' ? boardGo(S.board.step - 1) : step(-1);
 $('pStepF').onclick = () => S.mode === 'board' ? boardGo(S.board.step + 1) : step(1);
 $('loopA').onclick = () => { S.loop.a = P.time(); if (S.loop.b != null && S.loop.b <= S.loop.a) S.loop.b = null; loopUI(); };
