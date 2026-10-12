@@ -94,6 +94,9 @@
   #ytwrap iframe{width:100%;height:100%;border:0;display:block}
   #app.yt #ytwrap{display:block}
   #fbplayer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .stage.passthru canvas.ink{pointer-events:none}
+  .fbhint{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(10,10,11,.85);border:1px solid var(--accent);color:#fff;border-radius:999px;padding:10px 18px;font-weight:800;font-size:15px;z-index:6;pointer-events:none;display:none;white-space:nowrap}
+  .fbhint.show{display:block}
   #fbplayer .fb-video{display:block;width:100%}
   #fbplayer span{display:block!important;margin:0 auto}
   .pladd{width:36px;height:36px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:900;font-size:18px;color:var(--muted);flex:none}
@@ -308,6 +311,7 @@
     <div class="stage" id="stage">
       <video id="video" playsinline webkit-playsinline muted preload="auto" crossorigin="anonymous" disablepictureinpicture x-webkit-airplay="deny"></video>
       <div id="ytwrap"><div id="ytplayer"></div><div id="fbplayer" hidden></div></div>
+      <div class="fbhint" id="fbhint">Tap the video itself once to start it (browser rule), then the buttons work</div>
       <canvas class="ink" id="ink"></canvas>
       <div class="cursor" id="cursor"></div>
       <div class="empty" id="empty">
@@ -523,7 +527,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.9.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.9.1'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1524,7 +1528,7 @@ const P = {
   duration: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) try { fbDur = fb.getDuration() || 0; } catch {} return fbDur; } return b === 'yt' ? (yt && yt.getDuration ? (yt.getDuration() || 0) : 0) : (video.duration || 0); },
   paused: () => { const b = P.be(); if (b === 'file') return video.paused; if (b === 'fb') return !fbPlaying; if (!yt || !yt.getPlayerState) return true; const st = yt.getPlayerState(); return !(st === 1 || st === 3); },
   seek: (t) => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) { fb.seek(t); fbPos = t; } } else if (b === 'yt') { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
-  play: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fb.play(); } else if (b === 'yt') { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
+  play: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) { fb.play(); if (!IS_TV) setTimeout(() => { if (P.be() === 'fb' && !fbPlaying) setFBGate(true); }, 900); } } else if (b === 'yt') { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
   pause: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fb.pause(); } else if (b === 'yt') { if (yt && yt.pauseVideo) yt.pauseVideo(); } else video.pause(); },
   setRate: (r) => { const b = P.be(); if (b === 'fb') { if (r !== 1 && !IS_TV) toast('Facebook’s player has no slow motion. Use frame step or the jog.'); } else if (b === 'yt') { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(r); } else video.playbackRate = r; },
 };
@@ -1536,10 +1540,11 @@ function ensureFBApi() {
     if (!document.querySelector('script[src*="connect.facebook.net"]')) { const sc = document.createElement('script'); sc.src = 'https://connect.facebook.net/en_US/sdk.js'; sc.async = true; document.head.appendChild(sc); }
   });
 }
+function setFBGate(on) { stage.classList.toggle('passthru', on); $('fbhint').classList.toggle('show', on); }
 function onFBReady(inst) {
-  fb = inst; fbReady = true; fbPlaying = false;
+  fb = inst; fbReady = true; fbPlaying = false; setFBGate(false);
   if (IS_TV) try { fb.mute(); } catch {}
-  fb.subscribe('startedPlaying', () => { fbPlaying = true; setPlayIcon(true); if (!IS_TV) sendTime(); });
+  fb.subscribe('startedPlaying', () => { fbPlaying = true; setFBGate(false); setPlayIcon(true); if (!IS_TV) sendTime(); });
   fb.subscribe('paused', () => { fbPlaying = false; setPlayIcon(false); if (!IS_TV) sendTime(); });
   fb.subscribe('finishedPlaying', () => { fbPlaying = false; setPlayIcon(false); if (!IS_TV) sendTime(); });
   fb.subscribe('error', () => toast('Facebook won’t play this one here. It has to be a public video.'));
@@ -1573,6 +1578,8 @@ async function loadFB(href, title) {
   await new Promise(r => requestAnimationFrame(r)); // let the stage lay out so the plugin measures a real width
   const w = Math.max(320, Math.round(stage.clientWidth || stagewrap.clientWidth));
   $('fbplayer').innerHTML = '<div class="fb-video" data-href="' + esc(p.href) + '" data-width="' + w + '" data-allowfullscreen="false" data-autoplay="false" data-show-text="false" data-show-captions="false"></div>';
+  // as soon as the SDK inserts its iframe, delegate autoplay to it so the Play button's tap counts inside the frame
+  new MutationObserver((muts, obs) => { const fr = $('fbplayer').querySelector('iframe'); if (fr) { fr.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture'); obs.disconnect(); } }).observe($('fbplayer'), { childList: true, subtree: true });
   try { FB.XFBML.parse($('fbplayer')); } catch (e) { toast('Facebook player failed: ' + e.message); }
   if (!IS_TV) { setTimeout(() => { sendClip(); sendObjects(); send({ type: 'view', view: S.view }); }, 50); loadMarks(); loadCourt(); renderYTList(); }
   clearInterval(ytPoll);
@@ -1601,7 +1608,7 @@ async function loadYT(id, title) {
   if (fb && fbReady) try { fb.pause(); } catch {}
   resetClipState({ id: null, title: title || 'YouTube', key: 'yt:' + id, yt: id, local: false, src: null, session: SESSION });
   $('empty').hidden = true; $('tvidle').hidden = true;
-  $('ytplayer').hidden = false; $('fbplayer').hidden = true;
+  $('ytplayer').hidden = false; $('fbplayer').hidden = true; setFBGate(false);
   await ensureYTApi();
   ytCued = false;
   if (yt && yt.cueVideoById) { yt.cueVideoById(id); }
@@ -1876,6 +1883,7 @@ function loadClip(clip) {
   if (IS_TV && S.mode !== 'film') { S.mode = 'film'; app.classList.remove('board', 'yt'); video.style.visibility = ''; layoutStage(); }
   if (yt && yt.pauseVideo) try { yt.pauseVideo(); } catch {}
   if (fb && fbReady) try { fb.pause(); } catch {}
+  setFBGate(false);
   resetClipState(clip);
   fpsSamples = []; rvfcLast = null; S.fpsLocked = false;
   video.src = clip.src; video.load();
