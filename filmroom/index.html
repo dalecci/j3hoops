@@ -527,7 +527,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.9.2'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.9.3'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1521,13 +1521,19 @@ function sendClip() {
 /* ---------- player facade: the same calls drive a file <video> or a YouTube embed ---------- */
 let yt = null, ytPoll = 0, ytCued = false; // ytCued: the requested video is the one the player holds (safe to seek)
 let fb = null, fbReady = false, fbPlaying = false, fbPos = 0, fbDur = 0; // Facebook embedded player (no rate control)
+let fbSeekT = 0, fbSeekTarget = null, fbSettle = 0; // seeks are batched: Facebook re-buffers (goes black) on every seek, so the jog sends a few per second, not sixty
+function fbSeek(t) {
+  fbPos = t; fbSeekTarget = t; fbSettle = performance.now() + 700;
+  if (fbSeekT) return;
+  fbSeekT = setTimeout(() => { fbSeekT = 0; try { fb.seek(fbSeekTarget); } catch {} fbSettle = performance.now() + 700; }, 120);
+}
 const P = {
   be: () => S.mode !== 'yt' ? 'file' : (S.clip && S.clip.fb ? 'fb' : 'yt'),
   isYT: () => S.mode === 'yt',
-  time: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) try { fbPos = fb.getCurrentPosition() || 0; } catch {} return fbPos; } return b === 'yt' ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0); },
+  time: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady && performance.now() > fbSettle) try { fbPos = fb.getCurrentPosition() || 0; } catch {} return fbPos; } return b === 'yt' ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0); },
   duration: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) try { fbDur = fb.getDuration() || 0; } catch {} return fbDur; } return b === 'yt' ? (yt && yt.getDuration ? (yt.getDuration() || 0) : 0) : (video.duration || 0); },
   paused: () => { const b = P.be(); if (b === 'file') return video.paused; if (b === 'fb') return !fbPlaying; if (!yt || !yt.getPlayerState) return true; const st = yt.getPlayerState(); return !(st === 1 || st === 3); },
-  seek: (t) => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) { fb.seek(t); fbPos = t; } } else if (b === 'yt') { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
+  seek: (t) => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fbSeek(t); } else if (b === 'yt') { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
   play: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) { fb.play(); if (!IS_TV) setTimeout(() => { if (P.be() === 'fb' && !fbPlaying) setFBGate(true); }, 900); } } else if (b === 'yt') { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
   pause: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fb.pause(); } else if (b === 'yt') { if (yt && yt.pauseVideo) yt.pauseVideo(); } else video.pause(); },
   setRate: (r) => { const b = P.be(); if (b === 'fb') { if (r !== 1 && !IS_TV) toast('Facebook’s player has no slow motion. Use frame step or the jog.'); } else if (b === 'yt') { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(r); } else video.playbackRate = r; },
