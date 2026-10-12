@@ -93,6 +93,9 @@
   #ytwrap{position:absolute;inset:0;display:none;background:#000}
   #ytwrap iframe{width:100%;height:100%;border:0;display:block}
   #app.yt #ytwrap{display:block}
+  #fbplayer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #fbplayer .fb-video{display:block;width:100%}
+  #fbplayer span{display:block!important;margin:0 auto}
   .pladd{width:36px;height:36px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:900;font-size:18px;color:var(--muted);flex:none}
   .plrow{display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--card);margin-top:8px}
   .plrow b{flex:1;font-size:15px}
@@ -304,7 +307,7 @@
   <div class="stagewrap" id="stagewrap">
     <div class="stage" id="stage">
       <video id="video" playsinline webkit-playsinline muted preload="auto" crossorigin="anonymous" disablepictureinpicture x-webkit-airplay="deny"></video>
-      <div id="ytwrap"><div id="ytplayer"></div></div>
+      <div id="ytwrap"><div id="ytplayer"></div><div id="fbplayer" hidden></div></div>
       <canvas class="ink" id="ink"></canvas>
       <div class="cursor" id="cursor"></div>
       <div class="empty" id="empty">
@@ -451,8 +454,8 @@
     <div class="h6">Library</div>
     <div id="clipList"><div class="note">Loading…</div></div>
     <div class="h6">YouTube</div>
-    <div class="row"><input type="text" id="ytUrl" placeholder="Paste a YouTube link…" autocomplete="off" /><button class="bigbtn" id="ytGo" style="width:auto;padding:12px 16px">Open</button></div>
-    <div class="note">Draw, spotlight, tag and Kenny all work on YouTube. Lift and auto-tag need a real file, so upload the original mp4 or a screen recording to the library for those.</div>
+    <div class="row"><input type="text" id="ytUrl" placeholder="Paste a YouTube or Facebook link…" autocomplete="off" /><button class="bigbtn" id="ytGo" style="width:auto;padding:12px 16px">Open</button><button class="bigbtn ghost" id="ytSave" style="width:auto;padding:12px 14px;margin:0" title="Name it and save it to a playlist">Save</button></div>
+    <div class="note">Draw, spotlight, tag and Kenny all work on YouTube and Facebook. Lift and auto-tag need a real file, so upload the original mp4 or a screen recording to the library for those.</div>
     <div class="row"><input type="text" id="ytSearch" placeholder="Search the Warriors videos…" autocomplete="off" /></div>
     <div id="ytList"><div class="note">Loading Warriors videos…</div></div>
   </div>
@@ -470,7 +473,8 @@
       <div class="note" id="plOpenNote"></div>
       <button class="bigbtn" id="plPlayAll" style="margin-top:10px">▶ Play from the top</button>
       <div id="plItems"></div>
-      <button class="bigbtn ghost" id="plDelete" style="margin-top:18px;color:var(--danger)">Delete this list</button>
+      <button class="bigbtn ghost" id="plRename" style="margin-top:18px">Rename this list</button>
+      <button class="bigbtn ghost" id="plDelete" style="color:var(--danger)">Delete this list</button>
     </div>
   </div>
 </aside>
@@ -519,7 +523,7 @@ const SUPABASE_URL = 'https://vlcpgwxeybpzwidjackz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gtHRqI4H2q9VwyE7sG0BKA_qJSXkJMU';
 const BUCKET = 'film';
 const PIN = '4545', GATE_KEY = 'j3-hoops-unlocked';
-const VERSION = '0.8.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
+const VERSION = '0.9.0'; // bump on every deploy; shown in the rail, Setup, and the TV idle screen
 const CHANNEL = 'j3-film-room';
 ['verRail', 'verSetup', 'verTv'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = 'v' + VERSION; });
 const SESSION = Math.random().toString(36).slice(2, 10); // changes on every coach page load so the TV reloads blob clips
@@ -1506,22 +1510,80 @@ function sendTime(extra = {}) { send({ type: 'time', t: P.time(), playing: !P.pa
 function sendClip() {
   if (!S.clip) return;
   const m = { type: 'clip', title: S.clip.title, key: S.clip.key, session: SESSION };
-  if (S.clip.yt) m.yt = S.clip.yt; else if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
+  if (S.clip.yt) m.yt = S.clip.yt; else if (S.clip.fb) m.fb = S.clip.fb; else if (S.clip.file) m.file = S.clip.file; else m.src = S.clip.src;
   send(m);
 }
 
 /* ---------- player facade: the same calls drive a file <video> or a YouTube embed ---------- */
 let yt = null, ytPoll = 0, ytCued = false; // ytCued: the requested video is the one the player holds (safe to seek)
+let fb = null, fbReady = false, fbPlaying = false, fbPos = 0, fbDur = 0; // Facebook embedded player (no rate control)
 const P = {
+  be: () => S.mode !== 'yt' ? 'file' : (S.clip && S.clip.fb ? 'fb' : 'yt'),
   isYT: () => S.mode === 'yt',
-  time: () => P.isYT() ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0),
-  duration: () => P.isYT() ? (yt && yt.getDuration ? (yt.getDuration() || 0) : 0) : (video.duration || 0),
-  paused: () => { if (!P.isYT()) return video.paused; if (!yt || !yt.getPlayerState) return true; const st = yt.getPlayerState(); return !(st === 1 || st === 3); },
-  seek: (t) => { if (P.isYT()) { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
-  play: () => { if (P.isYT()) { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
-  pause: () => { if (P.isYT()) { if (yt && yt.pauseVideo) yt.pauseVideo(); } else video.pause(); },
-  setRate: (r) => { if (P.isYT()) { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(r); } else video.playbackRate = r; },
+  time: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) try { fbPos = fb.getCurrentPosition() || 0; } catch {} return fbPos; } return b === 'yt' ? (yt && yt.getCurrentTime ? (yt.getCurrentTime() || 0) : 0) : (video.currentTime || 0); },
+  duration: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) try { fbDur = fb.getDuration() || 0; } catch {} return fbDur; } return b === 'yt' ? (yt && yt.getDuration ? (yt.getDuration() || 0) : 0) : (video.duration || 0); },
+  paused: () => { const b = P.be(); if (b === 'file') return video.paused; if (b === 'fb') return !fbPlaying; if (!yt || !yt.getPlayerState) return true; const st = yt.getPlayerState(); return !(st === 1 || st === 3); },
+  seek: (t) => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) { fb.seek(t); fbPos = t; } } else if (b === 'yt') { if (yt && yt.seekTo) yt.seekTo(t, true); } else video.currentTime = t; },
+  play: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fb.play(); } else if (b === 'yt') { if (yt && yt.playVideo) yt.playVideo(); } else video.play().catch(e => toast('Tap play again (' + e.message + ')')); },
+  pause: () => { const b = P.be(); if (b === 'fb') { if (fb && fbReady) fb.pause(); } else if (b === 'yt') { if (yt && yt.pauseVideo) yt.pauseVideo(); } else video.pause(); },
+  setRate: (r) => { const b = P.be(); if (b === 'fb') { if (r !== 1 && !IS_TV) toast('Facebook’s player has no slow motion. Use frame step or the jog.'); } else if (b === 'yt') { if (yt && yt.setPlaybackRate) yt.setPlaybackRate(r); } else video.playbackRate = r; },
 };
+function ensureFBApi() {
+  return new Promise(res => {
+    if (window.FB && window.FB.XFBML) return res();
+    const prev = window.fbAsyncInit;
+    window.fbAsyncInit = () => { prev && prev(); FB.init({ xfbml: false, version: 'v19.0' }); FB.Event.subscribe('xfbml.ready', (msg) => { if (msg.type === 'video') onFBReady(msg.instance); }); res(); };
+    if (!document.querySelector('script[src*="connect.facebook.net"]')) { const sc = document.createElement('script'); sc.src = 'https://connect.facebook.net/en_US/sdk.js'; sc.async = true; document.head.appendChild(sc); }
+  });
+}
+function onFBReady(inst) {
+  fb = inst; fbReady = true; fbPlaying = false;
+  if (IS_TV) try { fb.mute(); } catch {}
+  fb.subscribe('startedPlaying', () => { fbPlaying = true; setPlayIcon(true); if (!IS_TV) sendTime(); });
+  fb.subscribe('paused', () => { fbPlaying = false; setPlayIcon(false); if (!IS_TV) sendTime(); });
+  fb.subscribe('finishedPlaying', () => { fbPlaying = false; setPlayIcon(false); if (!IS_TV) sendTime(); });
+  fb.subscribe('error', () => toast('Facebook won’t play this one here. It has to be a public video.'));
+  S.fps = 30; S.fpsLocked = true; $('fpsVal').textContent = '30 fps (Facebook)'; updateTimeline(); renderMarks();
+  fitFB();
+}
+function fitFB() {
+  const sp = document.querySelector('#fbplayer span'), fr = document.querySelector('#fbplayer iframe'); if (!sp || !fr) return;
+  const H = stage.clientHeight, h = fr.getBoundingClientRect().height / S.view.s;
+  sp.style.transform = h > H + 2 ? 'scale(' + (H / h).toFixed(4) + ')' : ''; sp.style.transformOrigin = 'center';
+}
+new ResizeObserver(() => { if (S.mode === 'yt' && fb) setTimeout(fitFB, 300); }).observe(stage);
+// Facebook: watch/?v=ID, /videos/ID, /reel/ID, fb.watch/xxx. Returns a canonical href and a short key.
+function parseFacebookUrl(url) {
+  const u = String(url || '').trim(); if (!/facebook\.com|fb\.watch/i.test(u)) return null;
+  let m = u.match(/[?&]v=(\d+)/); if (m) return { href: 'https://www.facebook.com/watch/?v=' + m[1], id: m[1] };
+  m = u.match(/\/(?:videos|reel|reels)\/(?:[^\/]+\/)?(\d+)/); if (m) return { href: u.split('?')[0], id: m[1] };
+  m = u.match(/fb\.watch\/([A-Za-z0-9_-]+)/); if (m) return { href: u.split('?')[0], id: m[1] };
+  return null;
+}
+async function loadFB(href, title) {
+  if (!IS_TV && S.mode !== 'yt') setMode('yt');
+  if (IS_TV && S.mode !== 'yt') { S.mode = 'yt'; app.classList.remove('board'); app.classList.add('yt'); video.style.visibility = 'hidden'; layoutStage(); }
+  const p = parseFacebookUrl(href) || { href, id: href };
+  if (yt && yt.pauseVideo) try { yt.pauseVideo(); } catch {}
+  resetClipState({ id: null, title: title || 'Facebook video', key: 'fb:' + p.id, fb: p.href, local: false, src: null, session: SESSION });
+  $('empty').hidden = true; $('tvidle').hidden = true;
+  $('ytplayer').hidden = true; $('fbplayer').hidden = false;
+  fb = null; fbReady = false; fbPlaying = false; fbPos = 0; fbDur = 0;
+  await ensureFBApi();
+  await new Promise(r => requestAnimationFrame(r)); // let the stage lay out so the plugin measures a real width
+  const w = Math.max(320, Math.round(stage.clientWidth || stagewrap.clientWidth));
+  $('fbplayer').innerHTML = '<div class="fb-video" data-href="' + esc(p.href) + '" data-width="' + w + '" data-allowfullscreen="false" data-autoplay="false" data-show-text="false" data-show-captions="false"></div>';
+  try { FB.XFBML.parse($('fbplayer')); } catch (e) { toast('Facebook player failed: ' + e.message); }
+  if (!IS_TV) { setTimeout(() => { sendClip(); sendObjects(); send({ type: 'view', view: S.view }); }, 50); loadMarks(); loadCourt(); renderYTList(); }
+  clearInterval(ytPoll);
+  ytPoll = setInterval(() => {
+    if (S.mode !== 'yt' || !fb || !fbReady) return;
+    if (!IS_TV && !P.paused() && S.loop.a != null && S.loop.b != null && P.time() >= S.loop.b) P.seek(S.loop.a);
+    if (!IS_TV && S.pendingSeek != null && P.duration() > 0) { seek(S.pendingSeek); S.pendingSeek = null; }
+    updateTimeline();
+  }, 100);
+  setPlayIcon(false); requestRender();
+}
 function ensureYTApi() {
   return new Promise(res => {
     if (window.YT && window.YT.Player) return res();
@@ -1536,8 +1598,10 @@ function parseYouTubeId(url) {
 async function loadYT(id, title) {
   if (!IS_TV && S.mode !== 'yt') setMode('yt');
   if (IS_TV && S.mode !== 'yt') { S.mode = 'yt'; app.classList.remove('board'); app.classList.add('yt'); video.style.visibility = 'hidden'; layoutStage(); }
+  if (fb && fbReady) try { fb.pause(); } catch {}
   resetClipState({ id: null, title: title || 'YouTube', key: 'yt:' + id, yt: id, local: false, src: null, session: SESSION });
   $('empty').hidden = true; $('tvidle').hidden = true;
+  $('ytplayer').hidden = false; $('fbplayer').hidden = true;
   await ensureYTApi();
   ytCued = false;
   if (yt && yt.cueVideoById) { yt.cueVideoById(id); }
@@ -1634,6 +1698,18 @@ async function plAdd(listId, item) {
   l.items.push(row); if (!plCloud) plLocalSave(); renderPlaylists();
   toast('Added to “' + l.name + '”' + (row.start_s != null ? ' at ' + fmt(row.start_s).replace(/\.\d+$/, '') : ''));
 }
+async function plRenameItem(listId, itemId) {
+  const l = S.playlists.find(x => x.id === listId); const it = l && l.items.find(i => i.id === itemId); if (!it) return;
+  const t = prompt('Clip name', it.title || ''); if (t == null) return; it.title = t.trim();
+  if (plCloud) await sb.from('film_playlist_items').update({ title: it.title }).eq('id', it.id); else plLocalSave();
+  renderPlaylists();
+}
+async function plRenameList(id) {
+  const l = S.playlists.find(x => x.id === id); if (!l) return;
+  const t = prompt('List name', l.name); if (t == null || !t.trim()) return; l.name = t.trim();
+  if (plCloud) await sb.from('film_playlists').update({ name: l.name }).eq('id', l.id); else plLocalSave();
+  renderPlaylists();
+}
 async function plRemove(listId, itemId) {
   const l = S.playlists.find(x => x.id === listId); if (!l) return;
   if (plCloud) await sb.from('film_playlist_items').delete().eq('id', itemId);
@@ -1663,14 +1739,15 @@ function renderPlaylists() {
     const box = $('plItems'); box.innerHTML = '';
     l.items.forEach((it, k) => {
       const el = document.createElement('div'); el.className = 'plitem' + (S.activeList && S.activeList.id === l.id && S.activeList.index === k ? ' cur' : '');
-      el.innerHTML = '<div class="th"></div><div class="meta"><b></b><span></span></div><div class="btns"><button data-a="up">▲</button><button data-a="down">▼</button></div><button class="pladd" data-a="del" style="color:var(--danger)">✕</button>';
+      el.innerHTML = '<div class="th"></div><div class="meta"><b></b><span></span></div><div class="btns"><button data-a="up">▲</button><button data-a="down">▼</button></div><button class="pladd" data-a="ren" title="Rename">✎</button><button class="pladd" data-a="del" style="color:var(--danger)">✕</button>';
       el.querySelector('.th').style.backgroundImage = "url('" + itemThumb(it) + "')";
       el.querySelector('.meta b').textContent = (k + 1) + '. ' + (it.title || (it.source === 'yt' ? it.youtube_id : 'Clip'));
-      el.querySelector('.meta span').textContent = (it.source === 'yt' ? 'YouTube' : 'Library') + (it.start_s != null ? ' · from ' + tShort(it.start_s) : '');
+      el.querySelector('.meta span').textContent = (it.source === 'yt' ? 'YouTube' : it.source === 'fb' ? 'Facebook' : 'Library') + (it.start_s != null ? ' · from ' + tShort(it.start_s) : '');
       el.querySelector('.meta').onclick = el.querySelector('.th').onclick = () => { playListItem(l.id, k); closeDrawers(); };
       el.querySelector('[data-a=up]').onclick = () => plMove(l.id, it.id, -1);
       el.querySelector('[data-a=down]').onclick = () => plMove(l.id, it.id, 1);
       el.querySelector('[data-a=del]').onclick = () => plRemove(l.id, it.id);
+      el.querySelector('[data-a=ren]').onclick = () => plRenameItem(l.id, it.id);
       box.appendChild(el);
     });
     return;
@@ -1689,10 +1766,12 @@ $('plCreate').onclick = async () => { const name = $('plNew').value.trim(); if (
 $('plNew').addEventListener('keydown', e => { if (e.key === 'Enter') $('plCreate').onclick(); });
 $('plBack').onclick = () => { plOpenId = null; renderPlaylists(); };
 $('plDelete').onclick = async () => { const l = S.playlists.find(x => x.id === plOpenId); if (!l || !confirm('Delete “' + l.name + '”?')) return; await plDelete(l.id); };
+$('plRename').onclick = () => { if (plOpenId) plRenameList(plOpenId); };
 $('plPlayAll').onclick = () => { if (plOpenId) { playListItem(plOpenId, 0); closeDrawers(); } };
 $('addToList').onclick = () => {
   if (!S.clip) { toast('Load a clip first'); return; }
   const item = S.clip.yt ? { source: 'yt', youtube_id: S.clip.yt, title: S.clip.title, start_s: +P.time().toFixed(2) }
+    : S.clip.fb ? { source: 'fb', youtube_id: S.clip.fb, title: S.clip.title, start_s: +P.time().toFixed(2) }
     : S.clip.id ? { source: 'clip', clip_id: S.clip.id, title: S.clip.title, start_s: +P.time().toFixed(2) } : null;
   if (!item) { toast('Upload this clip to the library first, then it can go in a list'); return; }
   pickList(item);
@@ -1703,14 +1782,28 @@ function playListItem(listId, k) {
   const it = l.items[k]; setActiveList({ id: listId, index: k });
   S.pendingSeek = it.start_s != null ? it.start_s : null;
   if (it.source === 'yt') loadYT(it.youtube_id, it.title || 'YouTube');
+  else if (it.source === 'fb') loadFB(it.youtube_id, it.title || 'Facebook video');
   else { const c = clips.find(x => x.id === it.clip_id); if (!c) { toast('That clip is no longer in the library'); return; } loadClip({ id: c.id, title: c.title, src: c.public_url, key: 'clip:' + c.id, local: false }); }
   toast((k + 1) + '/' + l.items.length + ' · ' + (it.title || ''));
 }
 $('plNext').onclick = () => { const a = S.activeList; if (!a) return; const l = S.playlists.find(x => x.id === a.id); if (!l) return; if (a.index + 1 >= l.items.length) { toast('End of the list'); return; } playListItem(a.id, a.index + 1); };
 $('plPrev').onclick = () => { const a = S.activeList; if (!a) return; if (a.index === 0) { toast('Start of the list'); return; } playListItem(a.id, a.index - 1); };
 video.addEventListener('loadedmetadata', () => { if (S.pendingSeek != null && S.mode === 'film') { seek(S.pendingSeek); S.pendingSeek = null; } });
-$('ytGo').onclick = () => { const id = parseYouTubeId($('ytUrl').value); if (!id) { toast('That doesn’t look like a YouTube link'); return; } $('ytUrl').value = ''; loadYT(id, 'YouTube · ' + id); closeDrawers(); };
+$('ytGo').onclick = () => {
+  const raw = $('ytUrl').value, id = parseYouTubeId(raw), fbp = parseFacebookUrl(raw);
+  if (!id && !fbp) { toast('That doesn’t look like a YouTube or Facebook link'); return; }
+  $('ytUrl').value = '';
+  if (id) loadYT(id, 'YouTube · ' + id); else loadFB(fbp.href, 'Facebook · ' + fbp.id);
+  closeDrawers();
+};
 $('ytUrl').addEventListener('keydown', e => { if (e.key === 'Enter') $('ytGo').onclick(); });
+$('ytSave').onclick = () => {
+  const raw = $('ytUrl').value, id = parseYouTubeId(raw), fbp = parseFacebookUrl(raw);
+  if (!id && !fbp) { toast('That doesn’t look like a YouTube or Facebook link'); return; }
+  const name = prompt('Name this clip', ''); if (name == null) return;
+  $('ytUrl').value = '';
+  pickList(id ? { source: 'yt', youtube_id: id, title: name.trim() || ('YouTube · ' + id), start_s: null } : { source: 'fb', youtube_id: fbp.href, title: name.trim() || ('Facebook · ' + fbp.id), start_s: null });
+};
 function sendAll() { sendClip(); sendObjects(); sendTime(); send({ type: 'view', view: S.view }); send({ type: 'wipe', wipe: S.wipe }); sendCourt(); sendBoard(); }
 
 /* ---------------- video ---------------- */
@@ -1782,6 +1875,7 @@ function loadClip(clip) {
   if (!IS_TV && S.mode !== 'film') setMode('film');
   if (IS_TV && S.mode !== 'film') { S.mode = 'film'; app.classList.remove('board', 'yt'); video.style.visibility = ''; layoutStage(); }
   if (yt && yt.pauseVideo) try { yt.pauseVideo(); } catch {}
+  if (fb && fbReady) try { fb.pause(); } catch {}
   resetClipState(clip);
   fpsSamples = []; rvfcLast = null; S.fpsLocked = false;
   video.src = clip.src; video.load();
@@ -2327,6 +2421,7 @@ function setupTV() {
       case 'clip': {
         if (S.clip && S.clip.key === m.key && S.clip.session === m.session) break;
         if (m.yt) { loadYT(m.yt, m.title); break; }
+        if (m.fb) { loadFB(m.fb, m.title); break; }
         if (S.clip && S.clip.src && S.clip.src.startsWith('blob:')) URL.revokeObjectURL(S.clip.src);
         const src = m.file ? URL.createObjectURL(m.file) : m.src;
         loadClip({ id: null, title: m.title, src, key: m.key, local: !!m.file, session: m.session });
