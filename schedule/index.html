@@ -25,7 +25,7 @@
     --red:#B23636;     --red-bg:#FBDFDF;    --red-line:#EFB1B1;
     --yellow:#8A6300;  --yellow-bg:#FFEFB8; --yellow-line:#EBD27A;
     --today:#F0B800;
-    --game:#1F6FB2;    --game-ink:#FFFFFF;
+    --game:#A9D6F5;    --game-ink:#0B2A45;
     --joint:#A8326E;   --joint-ink:#FFFFFF;
     --shadow:0 14px 40px rgba(35,19,63,.14);
     --mast:linear-gradient(168deg,#23133F 0%,#180D2F 54%,#110722 100%);
@@ -44,9 +44,9 @@
       --green:#7BDCA2;   --green-bg:#173627;  --green-line:#2C5A3F;
       --red:#F29090;     --red-bg:#3E1B20;    --red-line:#6A2F36;
       --yellow:#F5CB4E;  --yellow-bg:#3A2E0E; --yellow-line:#6A5619;
-    --game:#3F8FD6;    --game-ink:#0B1E33;
+    --game:#8CC4EC;    --game-ink:#0B1E33;
     --joint:#D45C9B;   --joint-ink:#2A0A1C;
-      --game:#3F8FD6;    --game-ink:#0B1E33;
+      --game:#8CC4EC;    --game-ink:#0B1E33;
       --joint:#D45C9B;   --joint-ink:#2A0A1C;
       --shadow:0 14px 40px rgba(0,0,0,.45);
     }
@@ -61,7 +61,7 @@
     --green:#7BDCA2;   --green-bg:#173627;  --green-line:#2C5A3F;
     --red:#F29090;     --red-bg:#3E1B20;    --red-line:#6A2F36;
     --yellow:#F5CB4E;  --yellow-bg:#3A2E0E; --yellow-line:#6A5619;
-    --game:#3F8FD6;    --game-ink:#0B1E33;
+    --game:#8CC4EC;    --game-ink:#0B1E33;
     --joint:#D45C9B;   --joint-ink:#2A0A1C;
     --shadow:0 14px 40px rgba(0,0,0,.45);
   }
@@ -437,15 +437,14 @@
   ];
   const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
   /* YMCA partnership, Mon Oct 19 – Thu Nov 19 2026: joint practices; Monday ends in a grade-level scrimmage. */
-  const PARTNER={from:'2026-10-19',to:'2026-11-19',
-    note:'YMCA partnership · Oct 19 – Nov 19\n\nMondays: all teams practise together. The final 45 minutes or so is a scrimmage focused on a designated grade level.\n\nThursdays: everyone attending joins joint developmental work and scrimmage opportunities.\n\nTime: 6:00–8:00 PM\nLocation: Fort Myers YMCA, 1360 Royal Palm Square Blvd, Fort Myers'};
+  const PARTNER={from:'2026-10-19',to:'2026-11-19'};
   function dowOf(iso){ const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).getDay(); }
   function applyPartnership(events){
     for(const e of events){
       if(!/ymca/i.test(e.title||'')||e.date<PARTNER.from||e.date>PARTNER.to) continue;
       const d=dowOf(e.date);
-      if(d===1){ e.tag='Game · scrimmage last 45 min'; e.tagKind='game'; e.who='All grades · joint practice'; e.note=PARTNER.note; }
-      else if(d===4){ e.tag='Joint development & scrimmage'; e.tagKind='joint'; e.who='All grades · joint session'; e.note=PARTNER.note; }
+      if(d===1){ e.tag='Game · scrimmage last 45 min'; e.tagKind='game'; e.who='All grades · joint practice'; }
+      else if(d===4){ e.tag='Joint development & scrimmage'; e.tagKind='joint'; e.who='All grades · joint session'; }
     }
     return events;
   }
