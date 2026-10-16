@@ -463,7 +463,7 @@
     s.range=Object.assign({},d.range,s.range||{});
     if(!Array.isArray(s.events)) s.events=[];
     /* Keep fields this build does not know about, so an older tab can never strip a newer field. */
-    s.events=s.events.filter(e=>e&&e.date).map(e=>Object.assign({},e,{id:e.id||uid(),date:e.date,title:e.title||'',who:(e.who===undefined||e.who===null)?defaultWho(e.title):String(e.who),coach:e.coach||'',status:e.status||'none',note:e.note||'',tag:e.tag||'',tagKind:e.tagKind||(e.tag?'game':'')})));
+    s.events=s.events.filter(e=>e&&e.date).map(e=>Object.assign({},e,{id:e.id||uid(),date:e.date,title:e.title||'',who:(e.who===undefined||e.who===null)?defaultWho(e.title):String(e.who),coach:e.coach||'',status:e.status||'none',note:e.note||'',tag:e.tag||'',tagKind:e.tagKind||(e.tag?'game':'')}));
     if(!s.whoFilled){ for(const e of s.events){ if(!e.who) e.who=defaultWho(e.title); } s.whoFilled=true; }
     for(const e of s.events){ if(OLD_WHO.includes(e.who)) e.who=defaultWho(e.title); }
     return s;
