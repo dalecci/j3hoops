@@ -2456,9 +2456,21 @@ async function lnToggleRole(pid,gid){
 async function lnDropTo(pid,fromGid,target){
   if(target==='pool'){ if(fromGid) await lnRemove(pid,fromGid); else {S.lnPick=null;render();} return; }
   const parts=target.split('|'), gid=parts[0], slot=parts[1];
-  if(fromGid&&fromGid!==gid){ const was=await lnRemoveQuiet(pid,fromGid); await lnPlace(pid,gid,slot,was?was.role:null); }
-  else await lnPlace(pid,gid,slot);
+  if(fromGid&&fromGid!==gid){ lnCrossModal(pid,fromGid,gid,slot); return; }
+  await lnPlace(pid,gid,slot);
   S.lnPick=null; render();
+}
+function lnCrossModal(pid,fromGid,gid,slot){
+  const p=S.players.find(x=>x.id===pid); const from=groupName(fromGid), to=groupName(gid);
+  const already=lnSlots(gid).some(x=>x.player_id===pid);
+  const slotName=slot==='bench'?'the bench':(SLOTS.find(sx=>sx[0]===slot)||[slot,slot])[1];
+  modal(esc(p?p.name:'Player')+' → '+esc(to),
+    '<p class="lead" style="margin:0 2px 16px">'+(already?'Already on '+esc(to)+' — this just moves them to '+esc(slotName)+'.':'Putting them at '+esc(slotName)+' on <b>'+esc(to)+'</b>. Do they leave <b>'+esc(from)+'</b>, or play for both?')+'</p>'+
+    (already?'<button class="btn btn-p btn-block" id="lx-move">Move to '+esc(slotName)+'</button>':
+    '<div class="row" style="gap:10px"><button class="btn btn-g" id="lx-move" style="flex:1">Move<br><span style="font-size:.72rem;font-weight:600;opacity:.75">leaves '+esc(from)+'</span></button>'+
+    '<button class="btn btn-p" id="lx-dup" style="flex:1">Add as backup<br><span style="font-size:.72rem;font-weight:600;opacity:.85">stays on '+esc(from)+'</span></button></div>'));
+  $('lx-move').onclick=async()=>{ closeModal(); const was=await lnRemoveQuiet(pid,fromGid); await lnPlace(pid,gid,slot,was?was.role:null); S.lnPick=null; render(); flag('Moved to '+to); };
+  const d=$('lx-dup'); if(d)d.onclick=async()=>{ closeModal(); await lnPlace(pid,gid,slot,'backup'); S.lnPick=null; render(); flag(p.name.split(' ')[0]+' now backs up '+to); };
 }
 function lnChip(p,gid,role){
   const picked=S.lnPick&&S.lnPick.pid===p.id&&(S.lnPick.gid||null)===(gid||null);
@@ -2503,7 +2515,7 @@ function vLineups(){
     '<span class="spacer"></span><button class="btn btn-g btn-s '+(S.lnAll?'on':'')+'" data-lnall="1">'+(S.lnAll?'✓ Showing every player':'Show every player')+'</button></div>';
   const pick=S.lnPick?S.players.find(p=>p.id===S.lnPick.pid):null;
   return head+
-    '<p class="lead">Drag a player onto a position or the bench — or <b>tap the player, then tap where they go</b>. Dragging between two boards moves them. To make someone a <b>backup</b> on a second team, turn on <b>Show every player</b> and drag them from the pool; the badge marks it, and tapping the badge swaps which team is primary.</p>'+
+    '<p class="lead">Drag a player onto a position or the bench — or <b>tap the player, then tap where they go</b>. Drop a player on <b>another team</b> and you choose: <b>Move</b>, or <b>Add as backup</b> so they play for both. The BACKUP badge marks it; tap the badge to swap which team is primary.</p>'+
     chips+
     (pick?'<div class="lnpickbar">Placing <b>'+esc(pick.name)+'</b> — tap a position, the bench, or the pool to cancel. <button class="btn btn-g btn-s" data-act="ln-cancel">Cancel</button></div>':'')+
     '<div class="lnwrap">'+
