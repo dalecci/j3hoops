@@ -384,7 +384,7 @@
   const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
   /* ---------- seed: Dale's availability, Sept–Dec 2026, from the PDF ---------- */
-  const NF='N. Fort 5–9 PM', YT='YMCA 6–8 PM', YS='YMCA 9–10 AM';
+  const NF='N. Fort 5–9 PM', YT='YMCA 6–8 PM', YS='YMCA 9–10 AM'; /* YS: retired Sunday slot, kept for old saves */
   const WHO={[NF]:'5–7 PM Grades 3 & 5\n7–9 PM Grades 6, 7 & 8',[YT]:'All grades',[YS]:'All grades'};
   const OLD_WHO=['5–7 Grade 3 & 5\n7–9 Grade 6-7-8'];
   /* "5–7 PM Grades 3 & 5" → time cell + grades cell; any other line spans the row. */
@@ -399,21 +399,21 @@
   const AWAY='Dale away flying', CHURCH='Church — absent', NG='Next Gen — arrive 7 PM';
   const SEEDROWS=[
     ['2026-09-15',NF,'green'],['2026-09-17',YT,'red',AWAY],['2026-09-18',NF,'red',AWAY],
-    ['2026-09-20',YS,'red',AWAY],['2026-09-22',NF,'red',AWAY],['2026-09-24',YT,'yellow',NG],['2026-09-25',NF,'green'],
-    ['2026-09-27',YS,'green'],['2026-09-29',NF,'green'],['2026-10-01',YT,'yellow',NG],['2026-10-02',NF,'green'],
-    ['2026-10-04',YS,'red',CHURCH],['2026-10-06',NF,'red',AWAY],['2026-10-08',YT,'red',AWAY],['2026-10-09',NF,'red',AWAY],
-    ['2026-10-11',YS,'red',AWAY],['2026-10-13',NF,'green'],['2026-10-15',YT,'green'],['2026-10-16',NF,'green'],
-    ['2026-10-18',YS,'red',CHURCH],['2026-10-20',NF,'green'],['2026-10-22',YT,'green'],['2026-10-23',NF,'green'],
-    ['2026-10-25',YS,'green'],['2026-10-27',NF,'green'],['2026-10-29',YT,'green'],['2026-10-30',NF,'green'],
-    ['2026-11-01',YS,'green'],['2026-11-03',NF,'green'],['2026-11-05',YT,'green'],['2026-11-06',NF,'green'],
-    ['2026-11-08',YS,'green'],['2026-11-10',NF,'green'],['2026-11-12',YT,'yellow',NG],['2026-11-13',NF,'green'],
-    ['2026-11-15',YS,'red',CHURCH],['2026-11-17',NF,'green'],['2026-11-19',YT,'yellow',NG],['2026-11-20',NF,'green'],
-    ['2026-11-22',YS,'red',CHURCH],['2026-11-24',NF,'green'],['2026-11-26',YT,'green'],['2026-11-27',NF,'green'],
-    ['2026-11-29',YS,'green'],['2026-12-01',NF,'green'],['2026-12-03',YT,'yellow',NG],['2026-12-04',NF,'green'],
-    ['2026-12-06',YS,'red',CHURCH],['2026-12-08',NF,'green'],['2026-12-10',YT,'green'],['2026-12-11',NF,'green'],
-    ['2026-12-13',YS,'green'],['2026-12-15',NF,'green'],['2026-12-17',YT,'green'],['2026-12-18',NF,'green'],
-    ['2026-12-20',YS,'green'],['2026-12-22',NF,'green'],['2026-12-24',YT,'green'],['2026-12-25',NF,'green'],
-    ['2026-12-27',YS,'green'],['2026-12-29',NF,'green'],['2026-12-31',YT,'green'],
+    ['2026-09-21',YT,'red',AWAY],['2026-09-22',NF,'red',AWAY],['2026-09-24',YT,'yellow',NG],['2026-09-25',NF,'green'],
+    ['2026-09-28',YT,'green'],['2026-09-29',NF,'green'],['2026-10-01',YT,'yellow',NG],['2026-10-02',NF,'green'],
+    ['2026-10-05',YT,'green'],['2026-10-06',NF,'red',AWAY],['2026-10-08',YT,'red',AWAY],['2026-10-09',NF,'red',AWAY],
+    ['2026-10-12',YT,'red',AWAY],['2026-10-13',NF,'green'],['2026-10-15',YT,'green'],['2026-10-16',NF,'green'],
+    ['2026-10-19',YT,'green'],['2026-10-20',NF,'green'],['2026-10-22',YT,'green'],['2026-10-23',NF,'green'],
+    ['2026-10-26',YT,'green'],['2026-10-27',NF,'green'],['2026-10-29',YT,'green'],['2026-10-30',NF,'green'],
+    ['2026-11-02',YT,'green'],['2026-11-03',NF,'green'],['2026-11-05',YT,'green'],['2026-11-06',NF,'green'],
+    ['2026-11-09',YT,'green'],['2026-11-10',NF,'green'],['2026-11-12',YT,'yellow',NG],['2026-11-13',NF,'green'],
+    ['2026-11-16',YT,'green'],['2026-11-17',NF,'green'],['2026-11-19',YT,'yellow',NG],['2026-11-20',NF,'green'],
+    ['2026-11-23',YT,'green'],['2026-11-24',NF,'green'],['2026-11-26',YT,'green'],['2026-11-27',NF,'green'],
+    ['2026-11-30',YT,'green'],['2026-12-01',NF,'green'],['2026-12-03',YT,'yellow',NG],['2026-12-04',NF,'green'],
+    ['2026-12-07',YT,'green'],['2026-12-08',NF,'green'],['2026-12-10',YT,'green'],['2026-12-11',NF,'green'],
+    ['2026-12-14',YT,'green'],['2026-12-15',NF,'green'],['2026-12-17',YT,'green'],['2026-12-18',NF,'green'],
+    ['2026-12-21',YT,'green'],['2026-12-22',NF,'green'],['2026-12-24',YT,'green'],['2026-12-25',NF,'green'],
+    ['2026-12-28',YT,'green'],['2026-12-29',NF,'green'],['2026-12-31',YT,'green'],
   ];
   const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);
   function seed(){
