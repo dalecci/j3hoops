@@ -633,8 +633,9 @@ function teamsOf(pid){return S.members.filter(m=>m.player_id===pid).map(m=>m.gro
 function cohortPeers(player){
   if(!player)return [];
   if(cohortMode()==='team'){
-    const t=teamsOf(player.id);
-    if(t.length) return S.players.filter(x=>teamsOf(x.id).some(g=>t.includes(g)));
+    const primaryOf=pid=>S.members.filter(m=>m.player_id===pid&&m.role!=='backup').map(m=>m.group_id);
+    const t=primaryOf(player.id);
+    if(t.length) return S.players.filter(x=>primaryOf(x.id).some(g=>t.includes(g)));
     return [];   // no team set -> fall through to the program baseline
   }
   return S.players.filter(x=>x.grade===player.grade);
@@ -868,9 +869,12 @@ function pips(v,d){
   return o+'</span>';
 }
 function teamNameOf(p){
-  const t=S.members.filter(m=>m.player_id===p.id)
-    .map(m=>(S.groups.find(g=>g.id===m.group_id)||{}).name).filter(Boolean);
-  return t.length?t.join(' / '):'Jaguars';
+  const ms=S.members.filter(m=>m.player_id===p.id);
+  const nm=m=>(S.groups.find(g=>g.id===m.group_id)||{}).name;
+  const prim=ms.filter(m=>m.role!=='backup').map(nm).filter(Boolean);
+  const back=ms.filter(m=>m.role==='backup').map(nm).filter(Boolean);
+  if(!prim.length&&!back.length)return 'Jaguars';
+  return (prim.length?prim.join(' / '):back.shift())+(back.length?' · also '+back.join(', '):'');
 }
 
 /* ---- height / wingspan: always feet and inches ---- */
