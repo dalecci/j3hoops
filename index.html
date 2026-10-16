@@ -606,7 +606,7 @@
 </style>
 <script>
   /* Runs before paint so the page never flashes unlocked. */
-  (function(){ try{ if(localStorage.getItem('j3hoops-gate')!=='4545') document.documentElement.classList.add('locked'); }catch(e){ document.documentElement.classList.add('locked'); } })();
+  (function(){ try{ if(localStorage.getItem('j3hoops-gate')!=='1212') document.documentElement.classList.add('locked'); }catch(e){ document.documentElement.classList.add('locked'); } })();
 </script>
 </head>
 <body>
@@ -787,7 +787,7 @@
 
 <script>
   (function(){
-    var CODE = '4545', KEY = 'j3hoops-gate', root = document.documentElement;
+    var CODE = '1212', KEY = 'j3hoops-gate', root = document.documentElement;
     var form = document.getElementById('gateform'), pw = document.getElementById('gatepw'), err = document.getElementById('gateerr');
     form.addEventListener('submit', function(ev){
       ev.preventDefault();
