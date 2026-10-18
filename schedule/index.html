@@ -230,7 +230,7 @@
   body.picking .pickbar{display:flex}
   .pickbar button{background:#23133F;color:#fff;border-radius:999px;padding:5px 12px;font-family:var(--cond);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:11.5px}
 
-  @media (max-width:820px){
+  @media (max-width:820px) and (min-width:701px){
     .chip .w{font-size:10px}
     .chip .notepill{font-size:9px;padding:2px 6px}
     .mast .inner{padding:16px 16px 14px;gap:14px}
@@ -242,6 +242,65 @@
     .chip .t{font-size:11.5px} .chip .c{font-size:9.5px;letter-spacing:.06em}
     .dow div{padding:5px 4px;font-size:10px;letter-spacing:.1em}
     .mh .nm{font-size:26px}
+  }
+  /* ---------- PHONE: agenda layout ---------- */
+  @media (max-width:700px){
+    .mast .inner{padding:14px 16px 12px;gap:12px 14px}
+    .crest{width:58px;height:58px}
+    h1{font-size:30px}
+    .season{font-size:13px}
+    .modeswitch{width:100%;justify-content:stretch}
+    .modeswitch button{flex:1;text-align:center;padding:9px 6px;font-size:11.5px}
+    .bar{padding:10px 16px 4px;gap:8px 12px}
+    .legend{gap:4px 12px}
+    .lg{font-size:11px;letter-spacing:.06em}
+    .lg .sw{width:11px;height:11px}
+    .sync{font-size:11px;padding:5px 9px}
+    .acts{width:100%}
+    .acts .btn{flex:1 1 auto;padding:8px 9px;font-size:11.5px;letter-spacing:.06em;text-align:center}
+    .parents-note{padding:4px 16px 0;font-size:12.5px}
+    main{padding:8px 10px 72px;gap:22px}
+    .month{border-radius:8px}
+    .mh{padding:14px 14px 10px;gap:10px}
+    .mh .nm{font-size:26px} .mh .yr{font-size:16px} .mh .rule{width:30px}
+    .mh .cnt{font-size:11px}
+    .dow{display:none}
+    .grid{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;padding:8px;background:var(--paper)}
+    .day.pad{display:none}
+    /* empty day: small tile, still a drop / tap / add target */
+    .day{min-height:0;padding:0;border-radius:6px;border:1px solid var(--line-2);background:var(--paper-2)}
+    .day:not(.has){flex:0 0 calc((100% - 36px)/7);aspect-ratio:1;display:grid;place-items:center;position:relative}
+    .day:not(.has) .dn{font-size:15px;line-height:1;align-self:center;justify-self:center;text-align:center;color:var(--ink-3)}
+    .day:not(.has) .dn::after{content:attr(data-dow);display:block;font-family:var(--cond);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-top:2px;opacity:.8}
+    .day:not(.has) .add{position:absolute;inset:0;width:auto;height:auto;opacity:0;border:0;border-radius:6px;font-size:0}
+    .day:not(.has).today{border-color:var(--today);background:var(--gold-soft)}
+    .day:not(.has).today .dn{background:none;color:var(--gold-ink);padding:0}
+    .dn.today-tag::after{content:attr(data-dow)}
+    /* practice day: full-width row, date block left, cards right */
+    .day.has{flex:1 1 100%;display:grid;grid-template-columns:50px minmax(0,1fr);gap:6px 10px;padding:8px 8px 8px 0;background:var(--paper);border-color:var(--line)}
+    .day.has .dn{grid-column:1;grid-row:1;align-self:start;justify-self:center;text-align:center;font-size:24px;line-height:1;padding-top:4px;color:var(--brand-ink)}
+    .day.has .dn::after{content:attr(data-dow);display:block;font-family:var(--cond);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--ink-3);margin-top:3px}
+    .day.has.today .dn{background:var(--today);color:#23133F;border-radius:6px;padding:4px 6px 5px}
+    .day.has.today .dn::after{color:#23133F}
+    .day.has .chip{grid-column:2;font-size:12.5px;padding:7px 6px 7px 4px}
+    .day.has .chip .t{font-size:14px}
+    .day.has .chip .w{font-size:12.5px}
+    .day.has .chip .w .tm{min-width:52px}
+    .day.has .chip .c{font-size:11.5px}
+    .day.has .chip .tag{font-size:11px;padding:5px 9px;margin:-7px -6px 5px -4px}
+    .day.has .chip .notepill{font-size:10.5px;padding:3px 9px}
+    .coach .day.has .chip .side{grid-column:1/-1;flex-direction:row;justify-content:flex-end;align-items:center;gap:14px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
+    .coach .day.has .chip .side .ib{opacity:.85;width:26px;height:26px;font-size:14px}
+    .coach .day.has .chip .side .dot{width:18px;height:18px}
+    .day.has .chip .ib{opacity:.75;width:22px;height:22px;font-size:13px}
+    .day.has .chip .dot{width:16px;height:16px}
+    .day.has .chip .grip{width:18px;font-size:15px}
+    .day.has .add{grid-column:2;position:static;justify-self:start;opacity:.5;display:inline-flex;align-items:center;gap:4px;width:auto;height:26px;padding:0 10px;font-size:14px;border-radius:999px;font-family:var(--cond);letter-spacing:.08em;text-transform:uppercase}
+    .day.has .add::after{content:" Add";font-size:11px}
+    .parents .day.has{padding-right:8px}
+    .pop{max-width:calc(100vw - 16px)}
+    .pickbar{left:8px;right:8px;transform:none;justify-content:space-between;width:auto;border-radius:12px}
+    body.picking .pickbar{display:flex}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
@@ -564,8 +623,9 @@
       for(let i=0;i<first;i++){ const d=prevDays-first+i+1; grid.insertAdjacentHTML('beforeend',`<div class="day pad"><span class="dn">${d}</span></div>`); }
       for(let d=1;d<=days;d++){
         const iso=ymd(y,m,d), dow=(first+d-1)%7;
-        const cell=document.createElement('div'); cell.className='day'+(dow===0||dow===6?' we':'')+(iso===today?' today':''); cell.dataset.date=iso;
-        cell.innerHTML=`<span class="dn${iso===today?' today-tag':''}">${d}</span>`;
+        const has=(byDate[iso]||[]).length>0;
+        const cell=document.createElement('div'); cell.className='day'+(dow===0||dow===6?' we':'')+(iso===today?' today':'')+(has?' has':''); cell.dataset.date=iso;
+        cell.innerHTML=`<span class="dn${iso===today?' today-tag':''}" data-dow="${DOW[dow]}">${d}</span>`;
         for(const e of (byDate[iso]||[])) cell.appendChild(chip(e,editable));
         if(editable) cell.insertAdjacentHTML('beforeend',`<button class="add" title="Add a practice" aria-label="Add practice on ${iso}">+</button>`);
         grid.appendChild(cell);
