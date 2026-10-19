@@ -199,7 +199,7 @@
   .parents .chip .ib.note.on{opacity:1}
 
   /* ---------- STATUS POPOVER ---------- */
-  .pop{position:absolute;z-index:40;display:none;background:var(--paper);border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);padding:8px}
+  .pop{position:absolute;z-index:55;display:none;background:var(--paper);border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);padding:8px}
   .pop.open{display:grid;gap:4px}
   .pop button{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:4px;font-family:var(--cond);font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);white-space:nowrap}
   .pop button:hover{background:var(--brand-soft)}
@@ -223,6 +223,24 @@
   .modal .mbot{display:flex;gap:8px;padding:12px 22px 16px;justify-content:flex-end;align-items:center}
   .modal .mbot .hint{margin-right:auto}
 
+  /* ---------- DAY POP-UP (compact month view) ---------- */
+  #dayScrim{z-index:48}
+  .daylist{display:flex;flex-direction:column;gap:10px;padding:14px 18px;border-top:1px solid var(--line);background:var(--paper-2);max-height:62vh;overflow:auto}
+  .daylist .empty{color:var(--ink-3);font-size:13.5px;padding:4px 0}
+  .daylist .chip{font-size:12.5px;padding:7px 6px 7px 4px}
+  .daylist .chip .t{font-size:14px}
+  .daylist .chip .w{font-size:12.5px}
+  .daylist .chip .w .tm{min-width:52px}
+  .daylist .chip .c{font-size:11.5px}
+  .daylist .chip .tag{font-size:11px;padding:5px 9px}
+  .daylist .chip .notepill{font-size:10.5px;padding:3px 9px}
+  .coach .daylist .chip .c:empty::before{content:"+ coach note";opacity:.5;font-style:normal;letter-spacing:.06em;text-transform:uppercase}
+  .coach .daylist .chip .side{grid-column:1/-1;flex-direction:row;justify-content:flex-end;align-items:center;gap:14px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
+  .coach .daylist .chip .side .ib{opacity:.85;width:26px;height:26px;font-size:14px}
+  .coach .daylist .chip .side .dot{width:18px;height:18px}
+  .daylist .chip .ib{opacity:.75;width:22px;height:22px;font-size:13px}
+  .daylist .chip .grip{width:18px;font-size:15px}
+
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);z-index:60;background:var(--brand-deep);color:#fff;font-family:var(--cond);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:12.5px;padding:10px 16px;border-radius:999px;border-bottom:3px solid var(--gold);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
   .toast.show{opacity:1;transform:translateX(-50%)}
 
@@ -243,7 +261,8 @@
     .dow div{padding:5px 4px;font-size:10px;letter-spacing:.1em}
     .mh .nm{font-size:26px}
   }
-  /* ---------- PHONE: agenda layout ---------- */
+  /* ---------- PHONE: compact month grid — whole month at a glance,
+       day colours green/red/yellow, a few words per event, details in a pop-up ---------- */
   @media (max-width:700px){
     .mast .inner{padding:14px 16px 12px;gap:12px 14px}
     .crest{width:58px;height:58px}
@@ -259,46 +278,40 @@
     .acts{width:100%}
     .acts .btn{flex:1 1 auto;padding:8px 9px;font-size:11.5px;letter-spacing:.06em;text-align:center}
     .parents-note{padding:4px 16px 0;font-size:12.5px}
-    main{padding:8px 10px 72px;gap:22px}
+    main{padding:8px 8px 72px;gap:20px}
     .month{border-radius:8px}
     .mh{padding:14px 14px 10px;gap:10px}
     .mh .nm{font-size:26px} .mh .yr{font-size:16px} .mh .rule{width:30px}
     .mh .cnt{font-size:11px}
-    .dow{display:none}
-    .grid{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;padding:8px;background:var(--paper)}
-    .day.pad{display:none}
-    /* empty day: small tile, still a drop / tap / add target */
-    .day{min-height:0;padding:0;border-radius:6px;border:1px solid var(--line-2);background:var(--paper-2)}
-    .day:not(.has){flex:0 0 calc((100% - 36px)/7);aspect-ratio:1;display:grid;place-items:center;position:relative}
-    .day:not(.has) .dn{font-size:15px;line-height:1;align-self:center;justify-self:center;text-align:center;color:var(--ink-3)}
-    .day:not(.has) .dn::after{content:attr(data-dow);display:block;font-family:var(--cond);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-top:2px;opacity:.8}
+    .dow div{padding:5px 2px;font-size:9.5px;letter-spacing:.08em;text-align:center}
+    .grid{gap:3px;padding:6px;background:var(--paper)}
+    .day{min-height:62px;padding:3px;border-radius:6px;border:1px solid var(--line-2);background:var(--paper-2);gap:2px}
+    .day.pad{opacity:.4;border-color:transparent}
+    .dn{font-size:12px;line-height:1}
+    .dn.today-tag::after{content:""}
+    .day.today{border-color:var(--today);box-shadow:inset 0 0 0 1px var(--today)}
+    /* whole-day colour at a glance (coach view only) */
+    .coach .day.ds-green{background:var(--green-bg);border-color:var(--green-line)}
+    .coach .day.ds-yellow{background:var(--yellow-bg);border-color:var(--yellow-line)}
+    .coach .day.ds-red{background:var(--red-bg);border-color:var(--red-line)}
+    .coach .day.ds-green .dn{color:var(--green)}
+    .coach .day.ds-yellow .dn{color:var(--yellow)}
+    .coach .day.ds-red .dn{color:var(--red)}
+    /* mini chips: just a few words; tap the day for the full card */
+    .grid .chip{display:block;padding:2px 3px;border-radius:4px;background:transparent;border-color:transparent;border-left-width:3px;box-shadow:none;font-size:9px}
+    .grid .chip .grip,.grid .chip .side,.grid .chip .c,.grid .chip .w,.grid .chip .notetext{display:none}
+    .grid .chip .t{font-size:9px;line-height:1.2;letter-spacing:.02em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .grid .chip .tag{display:block;margin:0 0 1px;padding:1px 3px;font-size:7.5px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .grid .chip .notepill{font-size:0;line-height:0;padding:0;width:9px;height:9px;min-height:0;border-radius:50%;margin-top:1px}
+    .grid .chip .notepill::before{display:none}
+    .grid .chip:hover{box-shadow:none}
+    .coach .grid .chip.s-green,.coach .grid .chip.s-yellow,.coach .grid .chip.s-red{background:transparent;border-color:transparent}
+    .coach .grid .chip.s-green{border-left-color:var(--green)}
+    .coach .grid .chip.s-yellow{border-left-color:var(--yellow)}
+    .coach .grid .chip.s-red{border-left-color:var(--red)}
+    .day .add{left:3px;bottom:3px;width:18px;height:18px;font-size:14px}
     .day:not(.has) .add{position:absolute;inset:0;width:auto;height:auto;opacity:0;border:0;border-radius:6px;font-size:0}
-    .day:not(.has).today{border-color:var(--today);background:var(--gold-soft)}
-    .day:not(.has).today .dn{background:none;color:var(--gold-ink);padding:0}
-    .dn.today-tag::after{content:attr(data-dow)}
-    /* practice day: full-width row, date block left, cards right */
-    .day.has{flex:1 1 100%;display:grid;grid-template-columns:50px minmax(0,1fr);gap:6px 10px;padding:8px 8px 8px 0;background:var(--paper);border-color:var(--line)}
-    .day.has .dn{grid-column:1;grid-row:1;align-self:start;justify-self:center;text-align:center;font-size:24px;line-height:1;padding-top:4px;color:var(--brand-ink)}
-    .day.has .dn::after{content:attr(data-dow);display:block;font-family:var(--cond);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--ink-3);margin-top:3px}
-    .day.has.today .dn{background:var(--today);color:#23133F;border-radius:6px;padding:4px 6px 5px}
-    .day.has.today .dn::after{color:#23133F}
-    .day.has .chip{grid-column:2;font-size:12.5px;padding:7px 6px 7px 4px}
-    .day.has .chip .t{font-size:14px}
-    .day.has .chip .w{font-size:12.5px}
-    .day.has .chip .w .tm{min-width:52px}
-    .day.has .chip .c{font-size:11.5px}
-    .day.has .chip .tag{font-size:11px;padding:5px 9px;margin:-7px -6px 5px -4px}
-    .day.has .chip .notepill{font-size:10.5px;padding:3px 9px}
-    .coach .day.has .chip .c:empty::before{content:"+ coach note";opacity:.5;font-style:normal;letter-spacing:.06em;text-transform:uppercase}
-    .coach .day.has .chip .side{grid-column:1/-1;flex-direction:row;justify-content:flex-end;align-items:center;gap:14px;padding:6px 2px 0;margin-top:4px;border-top:1px dashed var(--line)}
-    .coach .day.has .chip .side .ib{opacity:.85;width:26px;height:26px;font-size:14px}
-    .coach .day.has .chip .side .dot{width:18px;height:18px}
-    .day.has .chip .ib{opacity:.75;width:22px;height:22px;font-size:13px}
-    .day.has .chip .dot{width:16px;height:16px}
-    .day.has .chip .grip{width:18px;font-size:15px}
-    .day.has .add{grid-column:2;position:static;justify-self:start;opacity:.5;display:inline-flex;align-items:center;gap:4px;width:auto;height:26px;padding:0 10px;font-size:14px;border-radius:999px;font-family:var(--cond);letter-spacing:.08em;text-transform:uppercase}
-    .day.has .add::after{content:" Add";font-size:11px}
-    .parents .day.has{padding-right:8px}
+    .day.has .add{display:none}
     .pop{max-width:calc(100vw - 16px)}
     .pickbar{left:8px;right:8px;transform:none;justify-content:space-between;width:auto;border-radius:12px}
     body.picking .pickbar{display:flex}
@@ -431,6 +444,24 @@
       <span class="hint" id="mHint">Saved when you close</span>
       <button class="btn coach-only" id="mClear">Clear note</button>
       <button class="btn primary" id="mDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="dayScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="mtop">
+      <div>
+        <div class="eyebrow">Practices</div>
+        <h2 id="dTitle"></h2>
+        <div class="when" id="dWhen"></div>
+      </div>
+      <button class="x" id="dClose" aria-label="Close">×</button>
+    </div>
+    <div class="daylist" id="dayList"></div>
+    <div class="mbot">
+      <button class="btn coach-only" id="dAdd">+ Add practice</button>
+      <button class="btn primary" id="dDone">Done</button>
     </div>
   </div>
 </div>
@@ -624,8 +655,11 @@
       for(let i=0;i<first;i++){ const d=prevDays-first+i+1; grid.insertAdjacentHTML('beforeend',`<div class="day pad"><span class="dn">${d}</span></div>`); }
       for(let d=1;d<=days;d++){
         const iso=ymd(y,m,d), dow=(first+d-1)%7;
-        const has=(byDate[iso]||[]).length>0;
-        const cell=document.createElement('div'); cell.className='day'+(dow===0||dow===6?' we':'')+(iso===today?' today':'')+(has?' has':''); cell.dataset.date=iso;
+        const evs=byDate[iso]||[], has=evs.length>0;
+        /* day colour = the most limiting status that day: red > yellow > green */
+        const RANK={green:1,yellow:2,red:3}; let ds='',dr=0;
+        for(const e of evs){ const r=RANK[e.status]||0; if(r>dr){dr=r;ds=e.status;} }
+        const cell=document.createElement('div'); cell.className='day'+(dow===0||dow===6?' we':'')+(iso===today?' today':'')+(has?' has':'')+(ds?' ds-'+ds:''); cell.dataset.date=iso;
         cell.innerHTML=`<span class="dn${iso===today?' today-tag':''}" data-dow="${DOW[dow]}">${d}</span>`;
         for(const e of (byDate[iso]||[])) cell.appendChild(chip(e,editable));
         if(editable) cell.insertAdjacentHTML('beforeend',`<button class="add" title="Add a practice" aria-label="Add practice on ${iso}">+</button>`);
@@ -634,6 +668,7 @@
       const tail=(first+days)%7; if(tail){ for(let i=1;i<=7-tail;i++) grid.insertAdjacentHTML('beforeend',`<div class="day pad"><span class="dn">${i}</span></div>`); }
       main.appendChild(sec);
     }
+    if(dayFor&&$('#dayScrim').classList.contains('open')) renderDayList();
   }
   function chip(e,editable){
     const el=document.createElement('div'); el.className='chip s-'+(e.status||'none')+(e.tag?' has-tag k-'+(e.tagKind||'game'):''); el.dataset.id=e.id; el.draggable=editable;
@@ -682,27 +717,36 @@
     }
     if(el.classList&&el.classList.contains('w')&&(ev.key==='Enter'||ev.key===' ')&&mode==='coach'&&!viewer){ ev.preventDefault(); const c=el.closest('.chip'); const e=c&&evById(c.dataset.id); if(e) editWho(el,e); return; }
     if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'&&mode==='coach'){ev.preventDefault();doUndo();}
-    if(ev.key==='Escape'){closePop();closeModal();cancelPick();}
+    if(ev.key==='Escape'){closePop();closeModal();closeDay();cancelPick();}
   });
   document.addEventListener('paste',ev=>{ const el=ev.target; if(el.matches&&el.matches('[contenteditable="true"]')){ ev.preventDefault(); document.execCommand('insertText',false,(ev.clipboardData.getData('text/plain')||'').replace(el.dataset.ef==='who'?/[ \t]+/g:/\s+/g,' ')); } });
 
   /* ---------- clicks: add, delete, status, notes ---------- */
+  const isPhone=()=>window.matchMedia('(max-width:700px)').matches;
+  function chipAction(ev){
+    const chipEl=ev.target.closest('.chip'); if(!chipEl)return false;
+    const e=evById(chipEl.dataset.id); if(!e)return false;
+    const wEl=ev.target.closest('.w'); if(wEl&&mode==='coach'&&!viewer&&wEl.getAttribute('contenteditable')!=='true'){ editWho(wEl,e); return true; }
+    if(ev.target.closest('.del')){ commit(()=>{state.events=state.events.filter(x=>x.id!==e.id);}); toast('Practice removed — Undo to bring it back'); return true; }
+    if(ev.target.closest('.dot')&&mode==='coach'&&!viewer){ openPop(ev.target.closest('.dot'),e.id); return true; }
+    if(ev.target.closest('.note')||ev.target.closest('.notepill')){ openModal(e.id); return true; }
+    if(ev.target.closest('.tg')){ commit(()=>{ if(!e.tag){ e.tag='Game · scrimmage last 45 min'; e.tagKind='game'; } else if(e.tagKind!=='joint'){ e.tag='Joint development & scrimmage'; e.tagKind='joint'; } else { e.tag=''; e.tagKind=''; } }); return true; }
+    if(ev.target.closest('.grip')){ closeDay(); togglePick(chipEl); return true; }
+    return true;
+  }
   $('#months').addEventListener('click',ev=>{
     const add=ev.target.closest('.add');
     if(add){ const date=add.closest('.day').dataset.date; let id;
       commit(()=>{ id=uid(); state.events.push({id,date,title:'',coach:'',status:'green',note:''}); });
-      const t=$(`.chip[data-id="${id}"] .t`); if(t){t.focus();} return; }
+      if(isPhone()){ openDay(date); const t=$(`#dayList .chip[data-id="${id}"] .t`); if(t)t.focus(); }
+      else{ const t=$(`.chip[data-id="${id}"] .t`); if(t){t.focus();} }
+      return; }
     const rm=ev.target.closest('[data-rm]');
     if(rm){ const ym=rm.dataset.rm; const ms=monthsInRange(); if(ms.length<=1){toast('Keep at least one month');return;}
       commit(()=>{ if(ym===state.range.from) state.range.from=shiftYM(ym,1); else if(ym===state.range.to) state.range.to=shiftYM(ym,-1); else toast('Only the first or last month can be removed'); }); return; }
-    const chipEl=ev.target.closest('.chip'); if(!chipEl)return;
-    const e=evById(chipEl.dataset.id); if(!e)return;
-    const wEl=ev.target.closest('.w'); if(wEl&&mode==='coach'&&!viewer&&wEl.getAttribute('contenteditable')!=='true'){ editWho(wEl,e); return; }
-    if(ev.target.closest('.del')){ commit(()=>{state.events=state.events.filter(x=>x.id!==e.id);}); toast('Practice removed — Undo to bring it back'); return; }
-    if(ev.target.closest('.dot')&&mode==='coach'&&!viewer){ openPop(ev.target.closest('.dot'),e.id); return; }
-    if(ev.target.closest('.note')||ev.target.closest('.notepill')){ openModal(e.id); return; }
-    if(ev.target.closest('.tg')){ commit(()=>{ if(!e.tag){ e.tag='Game · scrimmage last 45 min'; e.tagKind='game'; } else if(e.tagKind!=='joint'){ e.tag='Joint development & scrimmage'; e.tagKind='joint'; } else { e.tag=''; e.tagKind=''; } }); return; }
-    if(ev.target.closest('.grip')){ togglePick(chipEl); return; }
+    /* phone: the day is compact, so any tap on it (or its mini cards) opens the day pop-up */
+    if(isPhone()&&!picked){ const dEl=ev.target.closest('.day[data-date]'); if(dEl){ openDay(dEl.dataset.date); return; } }
+    chipAction(ev);
   });
 
   /* status popover */
@@ -726,6 +770,28 @@
   $('#mClose').onclick=closeModal; $('#mDone').onclick=closeModal;
   $('#mClear').onclick=()=>{$('#mText').value='';closeModal();};
   scrim.addEventListener('click',ev=>{ if(ev.target===scrim)closeModal(); });
+
+  /* ---------- day pop-up (compact month view): full cards for one day ---------- */
+  const dayScrim=$('#dayScrim'); let dayFor=null;
+  function renderDayList(){
+    const list=$('#dayList'); list.innerHTML='';
+    const editable=mode==='coach'&&!viewer;
+    const evs=state.events.filter(e=>e.date===dayFor);
+    if(!evs.length){ list.innerHTML='<div class="empty">Nothing scheduled this day.</div>'; return; }
+    for(const e of evs) list.appendChild(chip(e,editable));
+  }
+  function openDay(date){
+    dayFor=date; const [y,m,d]=date.split('-').map(Number);
+    $('#dTitle').textContent=`${MONTHS[m-1]} ${d}`;
+    $('#dWhen').textContent=`${DOW[new Date(y,m-1,d).getDay()]} · ${y}`;
+    renderDayList(); dayScrim.classList.add('open');
+  }
+  function closeDay(){ if(!dayScrim.classList.contains('open'))return; dayScrim.classList.remove('open'); dayFor=null; }
+  $('#dClose').onclick=closeDay; $('#dDone').onclick=closeDay;
+  $('#dAdd').onclick=()=>{ if(!dayFor)return; const date=dayFor; let id;
+    commit(()=>{ id=uid(); state.events.push({id,date,title:'',coach:'',status:'green',note:''}); });
+    const t=$(`#dayList .chip[data-id="${id}"] .t`); if(t)t.focus(); };
+  dayScrim.addEventListener('click',ev=>{ if(ev.target===dayScrim){closeDay();return;} chipAction(ev); });
 
   /* ---------- drag & drop (mouse) ---------- */
   let dragId=null;
